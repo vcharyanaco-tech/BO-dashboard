@@ -2,6 +2,8 @@
 
 Daily Excel upload se **BO-wise cumulative performance** dikhane wala fast, single-page dashboard. Koi backend/database nahi — sab kuch browser me process hota hai, isliye filtering aur rendering fraction of seconds me hoti hai.
 
+Deployment: GitHub Pages via GitHub Actions (re-triggered after repo made public).
+
 ## Excel format
 
 File me minimum ye columns hone chahiye (header row ke saath):
@@ -23,26 +25,19 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
   - **Upto date**: start date se kisi bhi selected date tak
   - **Date range**: kisi bhi from–to range ka data
   - **Single date**: sirf ek din ka data
-- BO-wise filter (All BOs ya koi ek BO)
+- BO-wise filter (All BOs ya koi ek BO) with master-list pre-set and fuzzy name matching
 - **Export Excel**: currently filtered data `.xlsx` me download
 - **Export PDF**: browser print dialog se PDF save (print-optimized layout)
 
 ## Local run
 
 ```bash
-# koi bhi static server
 python -m http.server 8000
 # phir browser me: http://localhost:8000
 ```
 
-Ya simply `index.html` ko browser me open karein.
+## GitHub Pages
 
-## Render par host
+Repo public hai aur `.github/workflows/pages.yml` har push par site ko deploy karta hai.
 
-1. GitHub repo ko Render se connect karein.
-2. New → **Static Site** select karein.
-3. Build command: **kuch nahi** (blank)
-4. Publish directory: `.` (root)
-5. Deploy — site live ho jayega aur har deploy par CDN se libraries load hongi.
-
-Performance ke liye dashboard fully client-side hai: Excel parsing ek baar hota hai, uske baad date/BO filters turant (milliseconds me) re-render karte hain.
+Live URL: https://vcharyanaco-tech.github.io/BO-dashboard/
