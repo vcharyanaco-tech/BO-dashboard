@@ -1,8 +1,8 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Radio click triggers a postback that may generate the report directly.
-Submit button is optional: if found, click it; otherwise parse the page.
+Submit control is labeled 'Product Wise A/C Report' (input value or anchor text).
+Radio click does NOT generate the report by itself - submit is required.
 """
 import io, sys, traceback
 from datetime import date
@@ -32,6 +32,10 @@ DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
 SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
 
 SUBMIT_SELECTORS = [
+    "input[value*='Product Wise']",
+    "a:has-text('Product Wise')",
+    "[value*='Report']",
+    "[onclick*='Product']",
     "input[type=submit]",
     "button[type=submit]",
     "a:has-text('Show')",
@@ -102,7 +106,6 @@ def options_of(page, sel):
 
 
 def try_click_submit(page):
-    """Try to click a submit button; return True if clicked, False otherwise."""
     for sel in SUBMIT_SELECTORS:
         try:
             loc = page.locator(sel).first
@@ -113,7 +116,8 @@ def try_click_submit(page):
                 return True
         except Exception:
             continue
-    print("No submit button found - assuming radio postback already generated the report.")
+    save_debug(page, "no_submit_button")
+    print("No submit button found.")
     return False
 
 
