@@ -1,12 +1,14 @@
 """
 CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-Flow:
-1. Open CBSTrans3.aspx, set End Date = today
-2. Click the 'Product Wise A/C Report' link/button (flexible detection)
-3. Select Circle=Haryana Circle, Region=DivReporting Circle
-4. For each Division -> each Sub Division: generate report, parse BO-wise rows
-5. Combine into data/dashboard_data.xlsx
+Navigation flow (as per actual MIS site):
+1. Open https://mis.cept.gov.in/
+2. Click 'CBS' in the left toolbar menu
+3. Click 'Product Wise A/C Report' link -> CBSTrans3 page
+4. Set End Date = today, click report button
+5. Select Circle=Haryana Circle, Region=DivReporting Circle
+6. For each Division -> each Sub Division: generate report, parse BO-wise rows
+7. Combine into data/dashboard_data.xlsx
 """
 import io, sys, traceback
 from datetime import date
@@ -21,10 +23,9 @@ DEBUG_DIR = ROOT / "debug"
 DATA_DIR.mkdir(exist_ok=True)
 DEBUG_DIR.mkdir(exist_ok=True)
 
-MIS_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
+HOME = "https://mis.cept.gov.in/"
 CIRCLE = "haryana circle"
 REGION = "divreporting circle"
-BTN_TEXT = "product wise a/c report"
 
 
 def save_debug(page, tag):
@@ -35,15 +36,26 @@ def save_debug(page, tag):
         pass
 
 
-def click_report_button(page):
-    """Flexibly find and click the Product Wise A/C Report link/button."""
-    candidates = [
-        f"a:has-text('{BTN_TEXT}')",
-        f"input[value*='Product Wise']",
-        f"button:has-text('{BTN_TEXT}')",
-        f"[onclick*='Product']",
-    ]
-    for sel in candidates:
+def open_report_page(page):
+    """Home > CBS menu > Product Wise A/C Report."""
+    page.goto(HOME, wait_until="networkidle")
+    page.click("text=CBS")
+    page.wait_for_load_state("networkidle")
+    # Click the Product Wise A/C Report link in CBS menu
+    link = page.locator("a:has-text('Product Wise A/C Report')").first
+    link.click()
+    page.wait_for_load_state("networkidle")
+
+
+def click_generate(page):
+    """Click the report-generating button on CBSTrans3 page."""
+    for sel in [
+        "input[type=submit][value*='Product Wise']",
+        "input[type=submit][value*='Show']",
+        "input[type=submit][value*='Generate']",
+        "button:has-text('Product Wise')",
+        "a:has-text('Product Wise A/C Report')",
+    ]:
         loc = page.locator(sel).first
         try:
             if loc.is_visible(timeout=2000):
@@ -52,10 +64,8 @@ def click_report_button(page):
                 return
         except Exception:
             continue
-    # Last resort: click any element containing the text
-    loc = page.get_by_text("Product Wise A/C Report").first
-    loc.click()
-    page.wait_for_load_state("networkidle")
+    save_debug(page, "no_generate_button")
+    raise RuntimeError("Report generate button not found on CBSTrans3 page.")
 
 
 def find_select(page, text):
@@ -119,17 +129,17 @@ def main():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
-            page.goto(MIS_URL, wait_until="networkidle")
+            open_report_page(page)
             end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
             if end_input:
                 end_input.fill(date.today().strftime("%d/%m/%Y"))
-            click_report_button(page)
+            click_generate(page)
 
             circle_el = find_select(page, CIRCLE)
             region_el = find_select(page, REGION)
             if not circle_el or not region_el:
                 save_debug(page, "no_circle_region")
-                sys.exit("Circle/Region dropdowns not found after clicking report button. Debug artifacts saved.")
+                sys.exit("Circle/Region dropdowns not found after generating report. Debug artifacts saved.")
             select_by_text(page, circle_el, CIRCLE)
             select_by_text(page, region_el, REGION)
 
@@ -159,11 +169,12 @@ def main():
                         btn.click()
                         page.wait_for_load_state("networkidle")
                     all_frames.extend(parse_report(page))
-                    page.goto(MIS_URL, wait_until="networkidle")
+                    # Re-navigate for next iteration
+                    open_report_page(page)
                     end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
                     if end_input:
                         end_input.fill(date.today().strftime("%d/%m/%Y"))
-                    click_report_button(page)
+                    click_generate(page)
                     circle_el = find_select(page, CIRCLE)
                     region_el = find_select(page, REGION)
                     select_by_text(page, circle_el, CIRCLE)
