@@ -2,7 +2,7 @@
 CEPT MIS CBSTrans3 BO-wise automation - Excel export flow.
 
 For each division/sub-division and each KPI (Accounts Opened/Closed/Net Addition):
-- select radio, submit, wait up to 180s for 'Dated:' signal
+- select radio, submit, wait up to 180s for 'Dated:' signal (iframe-aware)
 - click Excel export button, download to data/exports/{KPI}_{division}_{subdivision}.xlsx
 
 At the end:
@@ -137,11 +137,38 @@ def select_fuzzy(page, sel, wanted, label):
     return match
 
 
-def wait_for_report_ready(page, timeout=180000):
-    page.wait_for_function(
-        "() => document.body.innerText.toLowerCase().includes('dated:') || document.body.innerText.toLowerCase().includes('sol id / bocode')",
-        timeout=timeout,
-    )
+def report_ready(page):
+    """Check all frames (main + iframes) for report-ready signal."""
+    for frame in page.frames:
+        try:
+            txt = frame.evaluate("() => document.body ? document.body.innerText.toLowerCase() : ''")
+            if 'dated:' in txt or 'sol id / bocode' in txt:
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def wait_for_report_ready(page, timeout=180000, refresh_retries=2):
+    """Wait for report-ready signal across all frames; on timeout, reload and retry."""
+    deadline = time.time() + timeout
+    refreshes = 0
+    while time.time() < deadline:
+        if report_ready(page):
+            return True
+        time.sleep(5)
+        if time.time() >= deadline:
+            break
+        # If still not ready and we have refresh budget, reload once mid-way
+        if refreshes < refresh_retries and (deadline - time.time()) < timeout * 0.5:
+            log("Report not ready - refreshing page and re-checking...")
+            refreshes += 1
+            try:
+                page.reload(wait_until="domcontentloaded", timeout=60000)
+                safe_wait(page)
+            except Exception as e:
+                log(f"Reload failed: {e}")
+    return report_ready(page)
 
 
 def try_click_submit(page):
@@ -213,17 +240,19 @@ def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
             log(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
             select_radio(page, radio_sel)
             try_click_submit(page)
-            log(f"{metric}: waiting up to 180s for report to render...")
-            wait_for_report_ready(page, timeout=180000)
-            fname = f"{metric}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
-            target = EXPORT_DIR / fname
-            if target.exists():
-                target.unlink()
-            try_click_export(page)
-            if target.exists() and target.stat().st_size > 0:
-                log(f"{metric}: export success -> {target}")
-                return target
-            log(f"{metric}: export file missing/empty on attempt {attempt}")
+            log(f"{metric}: waiting up to 180s for report to render (iframe-aware, with refresh retry)...")
+            if wait_for_report_ready(page, timeout=180000):
+                fname = f"{metric}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
+                target = EXPORT_DIR / fname
+                if target.exists():
+                    target.unlink()
+                try_click_export(page)
+                if target.exists() and target.stat().st_size > 0:
+                    log(f"{metric}: export success -> {target}")
+                    return target
+                log(f"{metric}: export file missing/empty on attempt {attempt}")
+            else:
+                log(f"{metric}: report never rendered on attempt {attempt}")
         except PWTimeout as e:
             log(f"{metric}: timeout on attempt {attempt}: {e}")
         except Exception as e:
