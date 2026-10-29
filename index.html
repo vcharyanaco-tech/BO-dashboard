@@ -70,13 +70,13 @@ const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString('en-IN');
 function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
 const iso=d=>d.toISOString().slice(0,10);
-function initBOs(){
-  const sel=$('bo');const cur=sel.value;
-  sel.innerHTML='<option value="">All BOs</option>';
-  (typeof BO_MASTER!=='undefined'?BO_MASTER:[]).forEach(b=>{const o=document.createElement('option');o.textContent=b;sel.appendChild(o)});
-  if(cur)sel.value=cur;
+function setBOOptions(list){
+  const cur=$('bo').value;
+  const all=[...new Set([...(window.BO_MASTER||[]),...list])].sort((a,b)=>a.localeCompare(b));
+  $('bo').innerHTML='<option value="">All BOs</option>'+all.map(b=>`<option>${b}</option>`).join('');
+  if([...$('bo').options].some(o=>o.value===cur))$('bo').value=cur;
 }
-initBOs();
+setBOOptions([]);
 function handleFile(f){
   const r=new FileReader();
   r.onload=e=>{try{
@@ -93,8 +93,7 @@ function handleFile(f){
     ROWS=rows.map(r=>{const d=parseDate(r[dateKey]);return d?{date:iso(d),bo:String(r[boKey]).trim(),...Object.fromEntries(METRICS.map(m=>[m,Number(r[m])||0]))}:null}).filter(Boolean);
     DATES=[...new Set(ROWS.map(r=>r.date))].sort();
     $('from').value=DATES[0];$('to').value=DATES[DATES.length-1];
-    const sel=$('bo');const existing=new Set([...sel.options].map(o=>o.textContent));
-    [...new Set(ROWS.map(r=>r.bo))].sort().forEach(b=>{if(!existing.has(b)){const o=document.createElement('option');o.textContent=b;sel.appendChild(o)}});
+    setBOOptions([...new Set(ROWS.map(r=>r.bo))]);
     $('msg').textContent='';render();
   }catch(err){$('msg').textContent=err.message}};
   r.readAsArrayBuffer(f);
