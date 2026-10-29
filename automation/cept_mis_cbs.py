@@ -1,8 +1,8 @@
 """
-CEPT MIS CBSTrans3 BO-wise automation with fuzzy dropdown matching.
+CEPT MIS CBSTrans3 BO-wise automation.
 
-Region/Division/SubDivision options load via postbacks; names may differ slightly
-from expected text, so we match fuzzily (ignore case/spaces) and log options.
+Cascading dropdowns load slowly via postbacks. After each selection we wait
+until the SPECIFIC wanted option text appears (up to 60s), then select it.
 """
 import io, sys, traceback
 from datetime import date
@@ -51,16 +51,17 @@ def open_page(page):
         date_input.fill(date.today().strftime("%d/%m/%Y"))
 
 
-def wait_options(page, sel, min_options=2, timeout=30000):
+def wait_for_option(page, sel, text, timeout=60000):
+    """Wait until an option whose normalized text matches `text` appears."""
+    t = norm(text)
     page.wait_for_function(
-        "([sel, n]) => document.querySelector(sel) && document.querySelector(sel).options.length >= n",
-        arg=[sel, min_options],
+        "([sel, t]) => { const s = document.querySelector(sel); if (!s) return false; return Array.from(s.options).some(o => o.textContent.toLowerCase().replace(/\\s+/g, '').includes(t) || t.includes(o.textContent.toLowerCase().replace(/\\s+/g, ''))); }",
+        arg=[sel, t],
         timeout=timeout,
     )
 
 
 def fuzzy_pick(options, wanted):
-    """Return the option whose normalized text contains/is contained in wanted."""
     w = norm(wanted)
     for o in options:
         if w in norm(o) or norm(o) in w:
@@ -69,6 +70,7 @@ def fuzzy_pick(options, wanted):
 
 
 def select_fuzzy(page, sel, wanted, label):
+    wait_for_option(page, sel, wanted)
     options = options_of(page, sel)
     print(f"{label} options: {options}")
     match = fuzzy_pick(options, wanted)
@@ -78,13 +80,6 @@ def select_fuzzy(page, sel, wanted, label):
     page.select_option(sel, label=match)
     page.wait_for_load_state("networkidle")
     return match
-
-
-def select_circle_region(page):
-    page.select_option(CIRCLE_SEL, label=CIRCLE)
-    wait_options(page, REGION_SEL)
-    select_fuzzy(page, REGION_SEL, REGION, "Region")
-    wait_options(page, DIV_SEL)
 
 
 def options_of(page, sel):
@@ -132,12 +127,20 @@ def main():
         page = browser.new_page()
         try:
             open_page(page)
-            select_circle_region(page)
+            # Circle -> wait for Region option -> select Region -> wait for any Division option
+            page.select_option(CIRCLE_SEL, label=CIRCLE)
+            select_fuzzy(page, REGION_SEL, REGION, "Region")
+            wait_for_option(page, DIV_SEL, "Division", timeout=60000)
             divisions = options_of(page, DIV_SEL)
             print(f"Divisions: {divisions}")
             for div in divisions:
                 page.select_option(DIV_SEL, label=div)
-                wait_options(page, SUB_SEL)
+                # wait until SubDivision has at least one real option
+                page.wait_for_function(
+                    "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
+                    arg=SUB_SEL,
+                    timeout=60000,
+                )
                 subs = options_of(page, SUB_SEL)
                 for sub in subs:
                     page.select_option(SUB_SEL, label=sub)
@@ -148,9 +151,15 @@ def main():
                         page.wait_for_load_state("networkidle")
                         all_frames.extend(parse_report(page, metric))
                         open_page(page)
-                        select_circle_region(page)
+                        page.select_option(CIRCLE_SEL, label=CIRCLE)
+                        select_fuzzy(page, REGION_SEL, REGION, "Region")
+                        wait_for_option(page, DIV_SEL, "Division", timeout=60000)
                         page.select_option(DIV_SEL, label=div)
-                        wait_options(page, SUB_SEL)
+                        page.wait_for_function(
+                            "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
+                            arg=SUB_SEL,
+                            timeout=60000,
+                        )
                         page.select_option(SUB_SEL, label=sub)
                         page.wait_for_load_state("networkidle")
         except Exception:
