@@ -87,32 +87,52 @@ function matchBO(name){
   return String(name||'').trim();
 }
 function setBOOptions(list){
-  const cur=$('bo').value;
   const all=[...new Set([...MASTER_LIST,...list])].sort((a,b)=>a.localeCompare(b));
   $('boList').innerHTML=all.map(b=>`<option value="${b}">`).join('');
 }
 setBOOptions([]);
-function ingestRows(rows){
-  const cols=Object.keys(rows[0]);
-  const dateKey=cols.find(c=>/date|din|tarikh/i.test(c));
-  const boKey=cols.find(c=>/^bo$|^bo name$|branch office|solarid|solar id|bocode|bo code|^name$/i.test(c)) || cols.find(c=>/^bo$|branch|office|bo name/i.test(c));
-  if(!dateKey||!boKey)throw new Error('Date aur BO columns required hain. Columns: '+cols.join(', '));
-  METRICS=cols.filter(c=>c!==dateKey&&c!==boKey&&rows.some(r=>typeof r[c]==='number'));
+function findHeaderRow(matrix){
+  // Find first row containing a BO-like header (SOL ID / BOCODE, Name, BO, Branch Office)
+  for(let i=0;i<matrix.length;i++){
+    const row=matrix[i].map(c=>String(c??'').trim());
+    if(row.some(c=>/solarid|solar id|bocode|bo code|^bo$|^bo name$|branch office|^name$/i.test(c))){
+      return i;
+    }
+  }
+  return -1;
+}
+function ingestMatrix(matrix){
+  const hIdx=findHeaderRow(matrix);
+  if(hIdx<0)throw new Error('Header row (SOL ID / BOCODE / Name / BO) nahi mili. Pehli few rows: '+matrix.slice(0,3).map(r=>r.join(' | ')).join(' ;; '));
+  const headers=matrix[hIdx].map((c,i)=>String(c??'').trim()||`col${i}`);
+  const rows=matrix.slice(hIdx+1).filter(r=>r.some(c=>String(c??'').trim()!==''));
+  if(!rows.length)throw new Error('Header ke baad koi data row nahi mili.');
+  const dateIdx=headers.findIndex(h=>/date|din|tarikh/i.test(h));
+  const boIdx=headers.findIndex(h=>/solarid|solar id|bocode|bo code|^bo$|^bo name$|branch office|^name$/i.test(h));
+  if(dateIdx<0||boIdx<0)throw new Error('Date aur BO columns required hain. Headers: '+headers.join(', '));
+  METRICS=headers.map((h,i)=>i).filter(i=>i!==dateIdx&&i!==boIdx&&rows.some(r=>typeof r[i]==='number'||(typeof r[i]==='string'&&r[i]!==''&&!isNaN(Number(r[i])))));
   if(!METRICS.length)throw new Error('Koi numeric performance column nahi mila.');
-  ROWS=rows.map(r=>{const d=parseDate(r[dateKey]);return d?{date:iso(d),bo:matchBO(r[boKey]),...Object.fromEntries(METRICS.map(m=>[m,Number(r[m])||0]))}:null}).filter(Boolean);
+  ROWS=rows.map(r=>{const d=parseDate(r[dateIdx]);if(!d)return null;const o={date:iso(d),bo:matchBO(r[boIdx])};METRICS.forEach(i=>o[headers[i]]=Number(r[i])||0);return o;}).filter(Boolean);
+  METRICS=METRICS.map(i=>headers[i]);
   DATES=[...new Set(ROWS.map(r=>r.date))].sort();
   $('from').value=DATES[0];$('to').value=DATES[DATES.length-1];
   setBOOptions([...new Set(ROWS.map(r=>r.bo))]);
   $('msg').textContent='';render();
+}
+function ingestRows(rows){
+  // Convert array-of-objects to matrix for unified header detection
+  const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))];
+  const matrix=[cols,...rows.map(r=>cols.map(c=>r[c]))];
+  ingestMatrix(matrix);
 }
 function handleFile(f){
   const r=new FileReader();
   r.onload=e=>{try{
     const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
     const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{defval:null,raw:true});
-    if(!rows.length)throw new Error('File me koi data row nahi mili.');
-    ingestRows(rows);
+    const matrix=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+    if(!matrix.length)throw new Error('File me koi data nahi mili.');
+    ingestMatrix(matrix);
   }catch(err){$('msg').textContent=err.message}};
   r.readAsArrayBuffer(f);
 }
@@ -122,8 +142,8 @@ async function autoLoad(){
     if(!res.ok)throw new Error('auto data not found');
     const buf=await res.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array',cellDates:true});
-    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:null,raw:true});
-    if(rows.length){ingestRows(rows);$('autoStatus').textContent='Auto-loaded CEPT MIS data: '+rows.length+' rows.';}
+    const matrix=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
+    if(matrix.length>1){ingestMatrix(matrix);$('autoStatus').textContent='Auto-loaded CEPT MIS data: '+(matrix.length-1)+' rows.';}
     else $('autoStatus').textContent='Auto data file khali hai — manual upload available hai.';
   }catch(e){
     $('autoStatus').textContent='Auto data abhi available nahi hai — manual upload use karein.';
@@ -139,22 +159,22 @@ function filtered(){
 function render(){
   if(!ROWS.length)return;
   const rows=filtered();
-  const kpis=[['Records',rows.length],...METRICS.map(m=>[m,rows.reduce((s,r)=>s+r[m],0)])];
+  const kpis=[['Records',rows.length],...METRICS.map(m=>[m,rows.reduce((s,r)=>s+(r[m]||0),0)])];
   $('kpis').innerHTML=kpis.map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(v)}</div></div>`).join('');
-  const byBO={};rows.forEach(r=>{byBO[r.bo]??={};METRICS.forEach(m=>byBO[r.bo][m]=(byBO[r.bo][m]||0)+r[m])});
+  const byBO={};rows.forEach(r=>{byBO[r.bo]??={};METRICS.forEach(m=>byBO[r.bo][m]=(byBO[r.bo][m]||0)+(r[m]||0))});
   const bos=Object.keys(byBO).sort();
   $('tbl').innerHTML='<thead><tr><th>BO</th>'+METRICS.map(m=>`<th>${m}</th>`).join('')+'</tr></thead><tbody>'+
     bos.map(b=>`<tr><td>${b}</td>`+METRICS.map(m=>`<td>${fmt(byBO[b][m])}</td>`).join('')+'</tr>').join('')+
-    `</tbody><tfoot><tr><td><b>Total</b></td>`+METRICS.map(m=>`<td><b>${fmt(rows.reduce((s,r)=>s+r[m],0))}</b></td>`).join('')+'</tr></tfoot>';
+    `</tbody><tfoot><tr><td><b>Total</b></td>`+METRICS.map(m=>`<td><b>${fmt(rows.reduce((s,r)=>s+(r[m]||0),0))}</b></td>`).join('')+'</tr></tfoot>';
   const days=[...new Set(rows.map(r=>r.date))].sort();
   let run={};const series={};METRICS.forEach(m=>series[m]=[]);
-  days.forEach(d=>{rows.filter(r=>r.date===d).forEach(r=>METRICS.forEach(m=>run[m]=(run[m]||0)+r[m]));METRICS.forEach(m=>series[m].push(run[m]||0))});
+  days.forEach(d=>{rows.filter(r=>r.date===d).forEach(r=>METRICS.forEach(m=>run[m]=(run[m]||0)+(r[m]||0)));METRICS.forEach(m=>series[m].push(run[m]||0))});
   if(window.chart)window.chart.destroy();
   window.chart=new Chart($('chart'),{type:'line',data:{labels:days,datasets:METRICS.map(m=>({label:m,data:series[m],tension:.3}))},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}}});
 }
 function exportExcel(){
   if(!ROWS.length)return alert('Pehle data load karein.');
-  const rows=filtered();const out=rows.map(r=>({Date:r.date,BO:r.bo,...Object.fromEntries(METRICS.map(m=>[m,r[m]]))}));
+  const rows=filtered();const out=rows.map(r=>({Date:r.date,BO:r.bo,...Object.fromEntries(METRICS.map(m=>[m,r[m]||0]))}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Filtered Data');
   XLSX.writeFile(wb,`BO_dashboard_${$('to').value||'export'}.xlsx`);
 }
