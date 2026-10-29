@@ -104,7 +104,7 @@ function findHeaderRow(matrix){
 function extractReportDate(matrix,hIdx){
   for(let i=hIdx-1;i>=0;i--){
     const line=matrix[i].map(c=>String(c??'')).join(' ');
-    const m=line.match(/Dated:\s*(\d{2}-\d{2}-\d{4})/i);
+    const m=line.match(/Dated:\s*(\d{2})-(\d{2})-(\d{4})/i);
     if(m){const d=parseDMY(m[1]);if(d)return d;}
   }
   return new Date();
@@ -128,9 +128,11 @@ function ingestMatrix(matrix){
   const metricIdxs=headers.map((h,i)=>i).filter(i=>i!==dateIdx&&i!==boIdx&&i!==solIdIdx&&rows.some(r=>typeof r[i]==='number'||(typeof r[i]==='string'&&r[i]!==''&&!isNaN(Number(r[i])))));
   if(!metricIdxs.length)throw new Error('Koi numeric performance column nahi mila.');
   ROWS=rows.map(r=>{
+    const name=String(r[boIdx]??'').trim();
+    if(!name||/^total\b/i.test(name))return null;   // 'Total:' footer row, not a BO
     const d=dateIdx>=0?parseDate(r[dateIdx]):fallbackDate;
     if(!d)return null;
-    const o={date:iso(d),bo:matchBO(r[boIdx])};
+    const o={date:iso(d),bo:matchBO(name)};
     metricIdxs.forEach(i=>o[headers[i]]=Number(r[i])||0);
     return o;
   }).filter(Boolean);
@@ -175,21 +177,25 @@ function parseKpiWorkbook(matrix,label){
   const dateIdx=headers.findIndex(h=>/date|din|tarikh/i.test(h));
   const boIdx=nameIdx>=0?nameIdx:solIdIdx;
   if(boIdx<0)throw new Error(label+': BO column (Name / SOL ID / BOCODE) nahi mila. Headers: '+headers.join(', '));
-  // The MIS export is product-wise: a BO can appear once per product, so its KPI
-  // value is the sum of its numeric cells outside the identification columns.
+  const isIdCol=h=>/solarid|solar id|bocode|bo code|^so name$|^sr\b|^s\.no|^sl\.?no/i.test(h);
+  // Confirmed against the live CBSTrans3 grid: the export has no 'Total' column,
+  // only the product columns (MIS/PPFGP/SSA/RD/... up to MSSC) plus a 'Total:'
+  // footer row, so a BO's KPI value is the sum of its product cells.
   const valueIdxs=headers
     .map((h,i)=>({h,i}))
     .filter(({h,i})=>
       i!==boIdx && i!==solIdIdx && i!==dateIdx &&
-      !/^__source$/i.test(h) &&
-      !/solarid|solar id|bocode|bo code|^sr\b|^s\.no|^sl\.?no/i.test(h) &&
+      !/^__source$/i.test(h) && !isIdCol(h) &&
       rows.some(r=>isNumCell(r[i]))
     )
     .map(({i})=>i);
   if(!valueIdxs.length)throw new Error(label+': koi numeric column nahi mila. Headers: '+headers.join(', '));
   const totals={};
   rows.forEach(r=>{
-    const bo=matchBO(r[boIdx]);
+    const name=String(r[boIdx]??'').trim();
+    // The exported sheet carries a 'Total:' footer row; it is not a BO.
+    if(!name||/^total\b/i.test(name))return;
+    const bo=matchBO(name);
     if(!bo)return;
     totals[bo]=(totals[bo]||0)+valueIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
   });
