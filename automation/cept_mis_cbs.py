@@ -2,7 +2,7 @@
 CEPT MIS CBSTrans3 BO-wise automation - Excel export flow.
 
 For each division/sub-division and each KPI (Accounts Opened/Closed/Net Addition):
-- select radio, submit, wait up to 180s for a report table with real BO rows (any frame)
+- select radio, submit, wait up to 90s for a report table with real BO rows (any frame)
 - click Excel export button, download to data/exports/{KPI}_{division}_{subdivision}.xlsx
 
 At the end:
@@ -38,6 +38,7 @@ CIRCLE_SEL = "#ContentPlaceHolder1_CircleDropDown"
 REGION_SEL = "#ContentPlaceHolder1_RegionDropDown"
 DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
 SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
+UPDATED_SEL = "#ContentPlaceHolder1_Label2"
 
 SUBMIT_SELECTORS = [
     "input[value*='Product Wise']",
@@ -105,14 +106,42 @@ def save_debug(page, tag):
         pass
 
 
+def latest_data_date(page):
+    """Read the portal's 'Data Updated upto: DD/MM/YYYY' banner.
+
+    The MIS only publishes figures through that date. Asking for any later
+    window renders the grid header with zero BO rows, which the readiness check
+    cannot distinguish from a slow page, so every KPI sits out its full timeout.
+    """
+    try:
+        text = page.inner_text(UPDATED_SEL, timeout=5000)
+    except Exception:
+        return None
+    m = re.search(r"(\d{2})[/-](\d{2})[/-](\d{4})", text or "")
+    if not m:
+        return None
+    try:
+        return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+    except ValueError:
+        return None
+
+
 def open_page(page):
     page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
     safe_wait(page)
-    # The form has two plain inputs (startDate/endDate), both DD-MM-YYYY.
-    today = date.today().strftime("%d-%m-%Y")
+    # The form has two plain inputs (startDate/endDate), both DD-MM-YYYY. Use the
+    # date the portal says it has data for: today is usually ahead of the last
+    # upload, and a window past it yields an empty grid.
+    report_date = latest_data_date(page)
+    if report_date:
+        log(f"Reporting date: {report_date.strftime('%d-%m-%Y')} (from 'Data Updated upto')")
+    else:
+        report_date = date.today()
+        log(f"Reporting date: {report_date.strftime('%d-%m-%Y')} (banner unreadable, using today)")
+    stamp = report_date.strftime("%d-%m-%Y")
     for sel in ("#ContentPlaceHolder1_startDate", "#ContentPlaceHolder1_endDate"):
         try:
-            page.fill(sel, today, timeout=5000)
+            page.fill(sel, stamp, timeout=5000)
         except Exception:
             pass
 
@@ -180,7 +209,7 @@ def report_ready(page):
     return False
 
 
-def wait_for_report_ready(page, timeout=180000, refresh_retries=2):
+def wait_for_report_ready(page, timeout=90000, refresh_retries=2):
     """Wait for report-ready signal across all frames; on timeout, reload and retry."""
     deadline = time.time() + timeout
     refreshes = 0
@@ -292,8 +321,8 @@ def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
             log(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
             select_radio(page, radio_sel)
             try_click_submit(page)
-            log(f"{metric}: waiting up to 180s for report to render (iframe-aware, with refresh retry)...")
-            if wait_for_report_ready(page, timeout=180000):
+            log(f"{metric}: waiting up to 90s for report to render (iframe-aware, with refresh retry)...")
+            if wait_for_report_ready(page, timeout=90000):
                 page.wait_for_load_state("domcontentloaded", timeout=10000)
                 fname = f"{metric}_{safe_component(div)}_{safe_component(sub)}.xlsx"
                 target = EXPORT_DIR / fname
