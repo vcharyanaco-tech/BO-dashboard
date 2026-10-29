@@ -1,32 +1,56 @@
-# CEPT MIS Auto-Downloader
+# CEPT MIS Automation
 
-Ye tool aapke system par chal kar CEPT MIS se BO-wise reports download karta hai, unhe ek single `data/dashboard_data.xlsx` me consolidate karta hai, aur (optional) GitHub par push karta hai jise dashboard automatically load kar leta hai.
+CEPT MIS ke **CBSTrans3** report page (`https://mis.cept.gov.in/CBS/CBSTrans3.aspx`) se
+BO-wise data nikaal kar dashboard ke liye Excel files banata hai.
+
+## Primary script: `cept_mis_cbs.py`
+
+Flow (per division/sub-division, per KPI):
+
+1. `CBSTrans3.aspx` khulta hai, reporting date `DD-MM-YYYY` me bharte hain.
+2. Cascade dropdowns: Circle → Region → Division → Sub Division. Har step ke baad
+   dropdown me placeholder ("Select ...") ke alawa asli option aane ka wait hota hai,
+   isliye postback ke beech me select karne se option miss nahi hota.
+3. KPI radio select karke submit, phir report render hone ka wait. Wait iframe-aware hai
+   (`Dated:` header ya `SOL ID / BOCODE` table kisi bhi frame me mile to ready).
+4. `Dated:`/table milne par DataTables Excel control se file download hoti hai.
+
+KPI: `accounts_opened` (`#ContentPlaceHolder1_ACO`), `accounts_closed`
+(`#ContentPlaceHolder1_ACC`), `net_addition` (`#ContentPlaceHolder1_NET`).
+
+### Output
+
+- `data/exports/{kpi}_{division}_{subdivision}.xlsx` — per sub-division intermediate (run ke ant me delete)
+- `data/exports/{kpi}_merged.xlsx` — ek KPI ke saare rows ek file me (3 files)
+- `debug/*.png` + `debug/*.html` — failure par page snapshot (CI me artifact ke roop me upload hota hai)
 
 ## Setup
 
 ```bash
 cd automation
 pip install -r requirements.txt
-playwright install chromium
-copy .env.example .env   # Windows
-# .env me apne CEPT credentials bharein
+playwright install --with-deps chromium
 ```
 
 ## Run
 
 ```bash
-python cept_mis_downloader.py
+python automation/cept_mis_cbs.py
 ```
 
-## Daily automation (Windows Task Scheduler)
+CI (`.github/workflows/cept-mis.yml`) isi script ko daily chalata hai aur
+`data/exports/*_merged.xlsx` commit karta hai. Chromium container/GitHub Actions me
+`--no-sandbox --disable-dev-shm-usage` ke saath launch hota hai.
 
-1. Task Scheduler → Create Basic Task
-2. Trigger: Daily (e.g. 6:00 PM)
-3. Action: Start a program → `python` → arguments: `path\to\automation\cept_mis_downloader.py`
+## Legacy script: `cept_mis_downloader.py`
+
+Login-based purana flow (`.env` me credentials, `config.json` me report URL). Ye
+CBSTrans3 ke naye Excel-export flow se replace ho chuka hai; sirf reference ke liye rakha hai.
 
 ## Important
 
-- CEPT MIS ka login URL aur report-page selectors `automation/config.json` me configurable hain — MIS UI change hone par sirf wahan update karein.
-- Credentials sirf local `.env` me rakhen; use kabhi GitHub par push na karein.
-- Agar CEPT MIS sirf department network/intranet se accessible hai, to ye script usi network/system par chalani hogi.
-- Pehli baar chalate waqt `headless: false` rakh kar selectors verify karein, phir `true` kar dein.
+- Credentials kabhi repo me commit na karein; local `.env` hi use karein.
+- Selectors MIS UI ke saath badalte hain — change hone par `cept_mis_cbs.py` ke top par
+  diye gaye `*_SEL` constants update karein.
+- Page ka behaviour verify karne ke liye `headless=True` rakhein; debugging ke liye
+  `debug/` folder dekhein.

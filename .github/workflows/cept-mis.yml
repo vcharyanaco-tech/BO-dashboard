@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r automation/requirements.txt
-      - run: playwright install chromium
+      - run: playwright install --with-deps chromium
       - run: python automation/cept_mis_cbs.py
       - name: Upload debug artifacts on failure
         if: failure()
@@ -27,10 +27,10 @@ jobs:
         with:
           name: mis-debug
           path: debug/
-      - name: Commit updated dashboard data
+      - name: Commit merged KPI workbooks
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/dashboard_data.xlsx
-          git diff --cached --quiet || git commit -m "Auto-update CEPT MIS dashboard data $(date -u +%F)"
+          git add data/exports
+          git diff --cached --quiet || git commit -m "Auto-update CEPT MIS KPI exports $(date -u +%F)"
           git push

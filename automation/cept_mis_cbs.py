@@ -74,6 +74,12 @@ def log(msg):
     print(msg, flush=True)
 
 
+def safe_component(value, limit=40):
+    """Make a stable, readable filename component from a MIS label."""
+    text = re.sub(r"[^a-z0-9]+", "_", str(value).lower()).strip("_")
+    return text[:limit].strip("_") or "unknown"
+
+
 def norm(s):
     return "".join(str(s).lower().split())
 
@@ -98,13 +104,14 @@ def open_page(page):
     safe_wait(page)
     date_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
     if date_input:
-        date_input.fill(date.today().strftime("%d/%m/%Y"))
+        date_input.fill(date.today().strftime("%d-%m-%Y"))
 
 
-def wait_for_option(page, sel, text, timeout=60000):
+def wait_for_option_match(page, sel, text, timeout=60000):
+    """Wait until a dropdown contains a visible option that matches *text*."""
     t = norm(text)
     page.wait_for_function(
-        "([sel, t]) => { const s = document.querySelector(sel); if (!s) return false; return Array.from(s.options).some(o => o.textContent.toLowerCase().replace(/\\s+/g, '').includes(t) || t.includes(o.textContent.toLowerCase().replace(/\\s+/g, ''))); }",
+        "([sel, t]) => { const s = document.querySelector(sel); if (!s) return false; return Array.from(s.options).some(o => { const label = o.textContent.trim().toLowerCase(); return !/^select\\b/i.test(label) && (label === t || label.includes(t) || t.includes(label)); }); }",
         arg=[sel, t],
         timeout=timeout,
     )
@@ -126,7 +133,7 @@ def options_of(page, sel):
 
 
 def select_fuzzy(page, sel, wanted, label):
-    wait_for_option(page, sel, wanted)
+    wait_for_option_match(page, sel, wanted)
     options = options_of(page, sel)
     match = fuzzy_pick(options, wanted)
     if not match:
@@ -213,6 +220,15 @@ def select_radio(page, radio_sel):
     safe_wait(page)
 
 
+def wait_for_non_placeholder_options(page, sel, timeout=60000):
+    """Wait for a cascade dropdown to contain at least one real choice, not just its placeholder."""
+    page.wait_for_function(
+        "sel => { const s = document.querySelector(sel); if (!s) return false; return Array.from(s.options).some(o => o.textContent.trim().length > 0 && !/^select\\b/i.test(o.textContent)); }",
+        arg=sel,
+        timeout=timeout,
+    )
+
+
 def wait_for_subdivision(page, timeout=60000):
     page.wait_for_function(
         "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
@@ -224,14 +240,18 @@ def wait_for_subdivision(page, timeout=60000):
 def setup_filters(page, div=None, sub=None):
     open_page(page)
     page.select_option(CIRCLE_SEL, label=CIRCLE, timeout=60000)
+    safe_wait(page)
+    wait_for_non_placeholder_options(page, REGION_SEL)
     select_fuzzy(page, REGION_SEL, REGION, "Region")
-    wait_for_option(page, DIV_SEL, "Division", timeout=60000)
+    safe_wait(page)
+    wait_for_non_placeholder_options(page, DIV_SEL)
     if div:
         page.select_option(DIV_SEL, label=div, timeout=60000)
+        safe_wait(page)
     if sub:
         wait_for_subdivision(page, timeout=60000)
         page.select_option(SUB_SEL, label=sub, timeout=60000)
-    safe_wait(page)
+        safe_wait(page)
 
 
 def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
@@ -242,7 +262,8 @@ def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
             try_click_submit(page)
             log(f"{metric}: waiting up to 180s for report to render (iframe-aware, with refresh retry)...")
             if wait_for_report_ready(page, timeout=180000):
-                fname = f"{metric}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
+                page.wait_for_load_state("domcontentloaded", timeout=10000)
+                fname = f"{metric}_{safe_component(div)}_{safe_component(sub)}.xlsx"
                 target = EXPORT_DIR / fname
                 if target.exists():
                     target.unlink()
@@ -303,7 +324,12 @@ def merge_kpi_files(metric):
 def main():
     merged_files = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            # Containers and GitHub Actions run as a non-root sandbox host;
+            # without these flags Chromium aborts before the first request.
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
+        )
         page = browser.new_page()
         try:
             setup_filters(page)
@@ -312,13 +338,15 @@ def main():
             for div in divisions:
                 try:
                     page.select_option(DIV_SEL, label=div, timeout=60000)
-                    wait_for_subdivision(page, timeout=60000)
+                    safe_wait(page)
+                    wait_for_non_placeholder_options(page, SUB_SEL, timeout=60000)
                 except PWTimeout:
                     log(f"{div}: subdivision dropdown timeout - reloading and retrying once")
                     save_debug(page, f"sub_timeout_{norm(div)[:30]}")
                     try:
                         setup_filters(page, div)
-                        wait_for_subdivision(page, timeout=60000)
+                        safe_wait(page)
+                        wait_for_non_placeholder_options(page, SUB_SEL, timeout=60000)
                     except PWTimeout:
                         log(f"{div}: still timing out - skipping this division")
                         continue
