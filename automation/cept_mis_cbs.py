@@ -70,6 +70,10 @@ EXPORT_SELECTORS = [
 ]
 
 
+def log(msg):
+    print(msg, flush=True)
+
+
 def norm(s):
     return "".join(str(s).lower().split())
 
@@ -90,14 +94,14 @@ def save_debug(page, tag):
 
 
 def open_page(page):
-    page.goto(REPORT_URL, wait_until="domcontentloaded")
+    page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
     safe_wait(page)
     date_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
     if date_input:
         date_input.fill(date.today().strftime("%d/%m/%Y"))
 
 
-def wait_for_option(page, sel, text, timeout=90000):
+def wait_for_option(page, sel, text, timeout=60000):
     t = norm(text)
     page.wait_for_function(
         "([sel, t]) => { const s = document.querySelector(sel); if (!s) return false; return Array.from(s.options).some(o => o.textContent.toLowerCase().replace(/\\s+/g, '').includes(t) || t.includes(o.textContent.toLowerCase().replace(/\\s+/g, ''))); }",
@@ -128,7 +132,7 @@ def select_fuzzy(page, sel, wanted, label):
     if not match:
         save_debug(page, f"no_match_{label.replace(' ', '_').lower()}")
         raise RuntimeError(f"{label}: '{wanted}' not found. Available: {options}")
-    page.select_option(sel, label=match)
+    page.select_option(sel, label=match, timeout=60000)
     safe_wait(page)
     return match
 
@@ -145,26 +149,25 @@ def try_click_submit(page):
         try:
             loc = page.locator(sel).first
             if loc.is_visible(timeout=1500):
-                print(f"Submitting via: {sel}")
-                loc.click(no_wait_after=True)
+                log(f"Submitting via: {sel}")
+                loc.click(no_wait_after=True, timeout=10000)
                 safe_wait(page, timeout=30000)
                 return True
         except Exception:
             continue
     save_debug(page, "no_submit_button")
-    print("No submit button found.")
+    log("No submit button found.")
     return False
 
 
 def try_click_export(page, timeout=60000):
-    """Click Excel export button, wait for download, return downloaded file path."""
     with page.expect_download(timeout=timeout) as dl_info:
         for sel in EXPORT_SELECTORS:
             try:
                 loc = page.locator(sel).first
                 if loc.is_visible(timeout=1500):
-                    print(f"Exporting via: {sel}")
-                    loc.click(no_wait_after=True)
+                    log(f"Exporting via: {sel}")
+                    loc.click(no_wait_after=True, timeout=10000)
                     break
             except Exception:
                 continue
@@ -174,16 +177,16 @@ def try_click_export(page, timeout=60000):
     download = dl_info.value
     target = EXPORT_DIR / download.suggested_filename
     download.save_as(str(target))
-    print(f"Downloaded: {target}")
+    log(f"Downloaded: {target}")
     return target
 
 
 def select_radio(page, radio_sel):
-    page.click(radio_sel, no_wait_after=True)
+    page.click(radio_sel, no_wait_after=True, timeout=10000)
     safe_wait(page)
 
 
-def wait_for_subdivision(page, timeout=90000):
+def wait_for_subdivision(page, timeout=60000):
     page.wait_for_function(
         "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
         arg=SUB_SEL,
@@ -193,25 +196,24 @@ def wait_for_subdivision(page, timeout=90000):
 
 def setup_filters(page, div=None, sub=None):
     open_page(page)
-    page.select_option(CIRCLE_SEL, label=CIRCLE)
+    page.select_option(CIRCLE_SEL, label=CIRCLE, timeout=60000)
     select_fuzzy(page, REGION_SEL, REGION, "Region")
-    wait_for_option(page, DIV_SEL, "Division", timeout=90000)
+    wait_for_option(page, DIV_SEL, "Division", timeout=60000)
     if div:
-        page.select_option(DIV_SEL, label=div)
+        page.select_option(DIV_SEL, label=div, timeout=60000)
     if sub:
-        wait_for_subdivision(page, timeout=90000)
-        page.select_option(SUB_SEL, label=sub)
+        wait_for_subdivision(page, timeout=60000)
+        page.select_option(SUB_SEL, label=sub, timeout=60000)
     safe_wait(page)
 
 
 def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
-    """Export one KPI report for one sub-division, retry up to max_attempts."""
     for attempt in range(1, max_attempts + 1):
         try:
-            print(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
+            log(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
             select_radio(page, radio_sel)
             try_click_submit(page)
-            print(f"{metric}: waiting up to 180s for report to render...")
+            log(f"{metric}: waiting up to 180s for report to render...")
             wait_for_report_ready(page, timeout=180000)
             fname = f"{metric}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
             target = EXPORT_DIR / fname
@@ -219,32 +221,31 @@ def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
                 target.unlink()
             try_click_export(page)
             if target.exists() and target.stat().st_size > 0:
-                print(f"{metric}: export success -> {target}")
+                log(f"{metric}: export success -> {target}")
                 return target
-            print(f"{metric}: export file missing/empty on attempt {attempt}")
+            log(f"{metric}: export file missing/empty on attempt {attempt}")
         except PWTimeout as e:
-            print(f"{metric}: timeout on attempt {attempt}: {e}")
+            log(f"{metric}: timeout on attempt {attempt}: {e}")
         except Exception as e:
-            print(f"{metric}: error on attempt {attempt}: {e}")
+            log(f"{metric}: error on attempt {attempt}: {e}")
         save_debug(page, f"retry_{metric}_{attempt}")
         if attempt < max_attempts:
             time.sleep(5)
             try:
-                page.reload(wait_until="domcontentloaded")
+                page.reload(wait_until="domcontentloaded", timeout=60000)
                 safe_wait(page)
             except Exception:
                 pass
             setup_filters(page, div, sub)
-    print(f"{metric}: giving up after {max_attempts} attempts for {div}/{sub}")
+    log(f"{metric}: giving up after {max_attempts} attempts for {div}/{sub}")
     return None
 
 
 def merge_kpi_files(metric):
-    """Merge all per-sub-division files for one KPI into one merged file, delete intermediates."""
     pattern = str(EXPORT_DIR / f"{metric}_*.xlsx")
     files = sorted(glob.glob(pattern))
     if not files:
-        print(f"{metric}: no files to merge")
+        log(f"{metric}: no files to merge")
         return None
     frames = []
     for f in files:
@@ -253,20 +254,20 @@ def merge_kpi_files(metric):
             df["__source"] = Path(f).stem
             frames.append(df)
         except Exception as e:
-            print(f"{metric}: failed to read {f}: {e}")
+            log(f"{metric}: failed to read {f}: {e}")
     if not frames:
-        print(f"{metric}: no readable frames")
+        log(f"{metric}: no readable frames")
         return None
     merged = pd.concat(frames, ignore_index=True)
     merged_out = EXPORT_DIR / f"{metric}_merged.xlsx"
     merged.to_excel(merged_out, index=False)
-    print(f"{metric}: merged {len(frames)} files -> {merged_out}")
+    log(f"{metric}: merged {len(frames)} files -> {merged_out}")
     for f in files:
         try:
             os.remove(f)
-            print(f"{metric}: deleted intermediate {f}")
+            log(f"{metric}: deleted intermediate {f}")
         except Exception as e:
-            print(f"{metric}: could not delete {f}: {e}")
+            log(f"{metric}: could not delete {f}: {e}")
     return merged_out
 
 
@@ -278,29 +279,29 @@ def main():
         try:
             setup_filters(page)
             divisions = options_of(page, DIV_SEL)
-            print(f"Divisions: {divisions}")
+            log(f"Divisions: {divisions}")
             for div in divisions:
                 try:
-                    page.select_option(DIV_SEL, label=div)
-                    wait_for_subdivision(page, timeout=90000)
+                    page.select_option(DIV_SEL, label=div, timeout=60000)
+                    wait_for_subdivision(page, timeout=60000)
                 except PWTimeout:
-                    print(f"{div}: subdivision dropdown timeout - reloading and retrying once")
+                    log(f"{div}: subdivision dropdown timeout - reloading and retrying once")
                     save_debug(page, f"sub_timeout_{norm(div)[:30]}")
                     try:
                         setup_filters(page, div)
-                        wait_for_subdivision(page, timeout=90000)
+                        wait_for_subdivision(page, timeout=60000)
                     except PWTimeout:
-                        print(f"{div}: still timing out - skipping this division")
+                        log(f"{div}: still timing out - skipping this division")
                         continue
                 subs = options_of(page, SUB_SEL)
                 for sub in subs:
                     try:
-                        page.select_option(SUB_SEL, label=sub)
+                        page.select_option(SUB_SEL, label=sub, timeout=60000)
                         safe_wait(page)
                         for radio_sel, metric in METRICS:
                             run_metric_export(page, div, sub, radio_sel, metric)
                     except PWTimeout as e:
-                        print(f"{div}/{sub}: timeout ({e}) - reloading and moving to next sub")
+                        log(f"{div}/{sub}: timeout ({e}) - reloading and moving to next sub")
                         save_debug(page, f"sub_select_timeout_{norm(sub)[:30]}")
                         try:
                             setup_filters(page, div)
@@ -308,7 +309,7 @@ def main():
                             pass
                         continue
                     except Exception as e:
-                        print(f"{div}/{sub}: error ({e}) - reloading and moving to next sub")
+                        log(f"{div}/{sub}: error ({e}) - reloading and moving to next sub")
                         save_debug(page, f"sub_select_error_{norm(sub)[:30]}")
                         try:
                             setup_filters(page, div)
@@ -329,7 +330,7 @@ def main():
 
     if not merged_files:
         sys.exit("No merged KPI files produced.")
-    print(f"Done. Merged files: {[str(f) for f in merged_files]}")
+    log(f"Done. Merged files: {[str(f) for f in merged_files]}")
 
 
 if __name__ == "__main__":

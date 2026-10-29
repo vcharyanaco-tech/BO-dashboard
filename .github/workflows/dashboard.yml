@@ -1,0 +1,38 @@
+name: Update BO Dashboard
+
+on:
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'automation/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install playwright pandas openpyxl
+          playwright install chromium
+          playwright install-deps chromium
+      - name: Run CEPT MIS automation
+        run: python -u automation/cept_mis_cbs.py
+      - name: Commit and push data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ || true
+          git diff --cached --quiet || git commit -m "Update dashboard data [skip ci]"
+          git push
