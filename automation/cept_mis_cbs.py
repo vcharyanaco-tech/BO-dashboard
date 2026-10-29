@@ -1,15 +1,15 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Submit control is labeled 'Product Wise A/C Report' (input value or anchor text).
-Radio click does NOT generate the report by itself - submit is required.
+Submit control: 'Product Wise A/C Report'.
+Radio/submit postbacks may not reach networkidle - use safe_wait.
 """
 import io, sys, traceback
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 ROOT = Path(__file__).parent.parent
 DATA_DIR = ROOT / "data"
@@ -53,6 +53,14 @@ def norm(s):
     return "".join(str(s).lower().split())
 
 
+def safe_wait(page, timeout=15000):
+    """Wait for networkidle but tolerate timeout (postback may keep connections open)."""
+    try:
+        page.wait_for_load_state("networkidle", timeout=timeout)
+    except PWTimeout:
+        pass
+
+
 def save_debug(page, tag):
     try:
         page.screenshot(path=str(DEBUG_DIR / f"{tag}.png"), full_page=True)
@@ -62,7 +70,8 @@ def save_debug(page, tag):
 
 
 def open_page(page):
-    page.goto(REPORT_URL, wait_until="networkidle")
+    page.goto(REPORT_URL, wait_until="domcontentloaded")
+    safe_wait(page)
     date_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
     if date_input:
         date_input.fill(date.today().strftime("%d/%m/%Y"))
@@ -94,7 +103,7 @@ def select_fuzzy(page, sel, wanted, label):
         save_debug(page, f"no_match_{label.replace(' ', '_').lower()}")
         raise RuntimeError(f"{label}: '{wanted}' not found. Available: {options}")
     page.select_option(sel, label=match)
-    page.wait_for_load_state("networkidle")
+    safe_wait(page)
     return match
 
 
@@ -111,8 +120,8 @@ def try_click_submit(page):
             loc = page.locator(sel).first
             if loc.is_visible(timeout=1500):
                 print(f"Submitting via: {sel}")
-                loc.click()
-                page.wait_for_load_state("networkidle")
+                loc.click(no_wait_after=True)
+                safe_wait(page)
                 return True
         except Exception:
             continue
@@ -123,7 +132,7 @@ def try_click_submit(page):
 
 def select_radio(page, radio_sel):
     page.click(radio_sel, no_wait_after=True)
-    page.wait_for_load_state("networkidle")
+    safe_wait(page)
 
 
 def parse_report(page, metric_name):
@@ -179,7 +188,7 @@ def main():
                 subs = options_of(page, SUB_SEL)
                 for sub in subs:
                     page.select_option(SUB_SEL, label=sub)
-                    page.wait_for_load_state("networkidle")
+                    safe_wait(page)
                     for radio_sel, metric in METRICS:
                         select_radio(page, radio_sel)
                         try_click_submit(page)
@@ -195,7 +204,7 @@ def main():
                             timeout=60000,
                         )
                         page.select_option(SUB_SEL, label=sub)
-                        page.wait_for_load_state("networkidle")
+                        safe_wait(page)
         except Exception:
             save_debug(page, "exception")
             traceback.print_exc()
