@@ -1,4 +1,4 @@
-name: Fetch CEPT MIS BO report and update dashboard
+name: Fetch CEPT MIS CBSTrans3 BO reports and update dashboard
 
 on:
   schedule:
@@ -16,10 +16,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install requests pandas openpyxl
-      - run: python automation/cept_mis_fetch.py
-        env:
-          REPORT_URL: ${{ vars.REPORT_URL }}
+      - run: pip install -r automation/requirements.txt
+      - run: playwright install chromium
+      - run: python automation/cept_mis_cbs.py
       - name: Commit updated dashboard data
         run: |
           git config user.name "github-actions[bot]"
