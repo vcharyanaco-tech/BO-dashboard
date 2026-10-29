@@ -1,14 +1,12 @@
 """
 CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-Correct flow:
+Flow:
 1. Open CBSTrans3.aspx, set End Date = today
-2. Click 'Product Wise A/C Report' button
-3. On the next page, select Circle=Haryana Circle, Region=DivReporting Circle
-4. For each Division -> each Sub Division: generate report and parse BO-wise rows
+2. Click the 'Product Wise A/C Report' link/button (flexible detection)
+3. Select Circle=Haryana Circle, Region=DivReporting Circle
+4. For each Division -> each Sub Division: generate report, parse BO-wise rows
 5. Combine into data/dashboard_data.xlsx
-
-On failure, saves screenshot + HTML to debug/ for artifact upload.
 """
 import io, sys, traceback
 from datetime import date
@@ -26,6 +24,7 @@ DEBUG_DIR.mkdir(exist_ok=True)
 MIS_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
 CIRCLE = "haryana circle"
 REGION = "divreporting circle"
+BTN_TEXT = "product wise a/c report"
 
 
 def save_debug(page, tag):
@@ -34,6 +33,29 @@ def save_debug(page, tag):
         (DEBUG_DIR / f"{tag}.html").write_text(page.content(), encoding="utf-8")
     except Exception:
         pass
+
+
+def click_report_button(page):
+    """Flexibly find and click the Product Wise A/C Report link/button."""
+    candidates = [
+        f"a:has-text('{BTN_TEXT}')",
+        f"input[value*='Product Wise']",
+        f"button:has-text('{BTN_TEXT}')",
+        f"[onclick*='Product']",
+    ]
+    for sel in candidates:
+        loc = page.locator(sel).first
+        try:
+            if loc.is_visible(timeout=2000):
+                loc.click()
+                page.wait_for_load_state("networkidle")
+                return
+        except Exception:
+            continue
+    # Last resort: click any element containing the text
+    loc = page.get_by_text("Product Wise A/C Report").first
+    loc.click()
+    page.wait_for_load_state("networkidle")
 
 
 def find_select(page, text):
@@ -101,15 +123,13 @@ def main():
             end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
             if end_input:
                 end_input.fill(date.today().strftime("%d/%m/%Y"))
-            # Step 1: generate report form
-            page.click("input[type=submit][value*='Product Wise A/C Report'], button:has-text('Product Wise A/C Report')")
-            page.wait_for_load_state("networkidle")
+            click_report_button(page)
 
             circle_el = find_select(page, CIRCLE)
             region_el = find_select(page, REGION)
             if not circle_el or not region_el:
                 save_debug(page, "no_circle_region")
-                sys.exit("Circle/Region dropdowns not found even after generating report. Debug artifacts saved.")
+                sys.exit("Circle/Region dropdowns not found after clicking report button. Debug artifacts saved.")
             select_by_text(page, circle_el, CIRCLE)
             select_by_text(page, region_el, REGION)
 
@@ -134,19 +154,16 @@ def main():
                 select_by_text(page, div_el, div)
                 for sub in options_of(sub_el):
                     select_by_text(page, sub_el, sub)
-                    # Generate/show report for this selection
                     btn = page.query_selector("input[type=submit][value*='Show'], input[type=submit][value*='Generate'], input[type=submit][value*='Report'], button:has-text('Show')")
                     if btn:
                         btn.click()
                         page.wait_for_load_state("networkidle")
                     all_frames.extend(parse_report(page))
-                    # Re-navigate and re-select for next iteration
                     page.goto(MIS_URL, wait_until="networkidle")
                     end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
                     if end_input:
                         end_input.fill(date.today().strftime("%d/%m/%Y"))
-                    page.click("input[type=submit][value*='Product Wise A/C Report'], button:has-text('Product Wise A/C Report')")
-                    page.wait_for_load_state("networkidle")
+                    click_report_button(page)
                     circle_el = find_select(page, CIRCLE)
                     region_el = find_select(page, REGION)
                     select_by_text(page, circle_el, CIRCLE)
