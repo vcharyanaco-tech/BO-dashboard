@@ -1,13 +1,14 @@
 """
 CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-Correct flow (as per actual MIS site):
-1. Open https://mis.cept.gov.in/
-2. Click 'CBS' in left toolbar -> this IS the Product Wise A/C Report page
-3. Set End Date = today, click the page's submit button
-4. Select Circle=Haryana Circle, Region=DivReporting Circle
-5. For each Division -> each Sub Division: generate report, parse BO-wise rows
-6. Combine into data/dashboard_data.xlsx
+Flow:
+1. Open https://mis.cept.gov.in/ -> click 'CBS' -> Product Wise A/C Report page
+2. Set End Date = today, submit
+3. Select Circle=Haryana Circle, Region=DivReporting Circle
+4. For each Division -> Sub Division -> radio option (Account Opened / Account Closed / Net Addition):
+   generate report, parse BO-wise rows, tag with metric
+5. Merge all into wide format: Date, BO, Accounts Opened, Accounts Closed, Net Addition
+6. Save data/dashboard_data.xlsx for the dashboard
 """
 import io, sys, traceback
 from datetime import date
@@ -25,6 +26,11 @@ DEBUG_DIR.mkdir(exist_ok=True)
 HOME = "https://mis.cept.gov.in/"
 CIRCLE = "haryana circle"
 REGION = "divreporting circle"
+METRICS = [
+    ("account opened", "Accounts Opened"),
+    ("account closed", "Accounts Closed"),
+    ("net addition", "Net Addition"),
+]
 
 
 def save_debug(page, tag):
@@ -36,19 +42,13 @@ def save_debug(page, tag):
 
 
 def open_report_page(page):
-    """Home > CBS menu -> lands directly on Product Wise A/C Report page."""
     page.goto(HOME, wait_until="networkidle")
     page.click("text=CBS")
     page.wait_for_load_state("networkidle")
 
 
 def click_submit(page):
-    """Click the page's submit button (whatever its label)."""
-    for sel in [
-        "input[type=submit]",
-        "button[type=submit]",
-        "button",
-    ]:
+    for sel in ["input[type=submit]", "button[type=submit]", "button"]:
         loc = page.locator(sel).first
         try:
             if loc.is_visible(timeout=2000):
@@ -59,6 +59,25 @@ def click_submit(page):
             continue
     save_debug(page, "no_submit_button")
     raise RuntimeError("No submit button found on report page.")
+
+
+def select_radio(page, metric_text):
+    """Select radio button whose label/text matches metric_text."""
+    radios = page.query_selector_all("input[type=radio]")
+    for r in radios:
+        label_text = r.evaluate(
+            "el => (el.labels && el.labels[0] ? el.labels[0].textContent : el.parentElement.textContent || '').trim().toLowerCase()"
+        )
+        if metric_text in label_text:
+            r.check()
+            return
+    # fallback: match by value attribute
+    for r in radios:
+        val = (r.get_attribute("value") or "").lower()
+        if metric_text.split()[0] in val:
+            r.check()
+            return
+    raise RuntimeError(f"Radio not found for: {metric_text}")
 
 
 def find_select(page, text):
@@ -88,7 +107,8 @@ def options_of(el):
     )
 
 
-def parse_report(page):
+def parse_report(page, metric_name):
+    """Parse report table, return DataFrame: Date, BO, <metric_name>."""
     frames = []
     for table in page.query_selector_all("table"):
         html = table.evaluate("el => el.outerHTML")
@@ -109,9 +129,13 @@ def parse_report(page):
         type_col = next((c for c in df.columns if c.lower() in ("type", "office type", "office_type")), None)
         if type_col:
             df = df[df[type_col].astype(str).str.lower().str.contains("bo")]
-        keep = ["Date", "BO"] + [c for c in df.columns if c not in ("Date", "BO") and pd.api.types.is_numeric_dtype(df[c])]
-        if len(keep) > 2:
-            frames.append(df[keep].dropna(subset=["Date"]))
+        num_cols = [c for c in df.columns if c not in ("Date", "BO") and pd.api.types.is_numeric_dtype(df[c])]
+        if not num_cols:
+            continue
+        value_col = num_cols[0]
+        out = df[["Date", "BO", value_col]].dropna(subset=["Date"]).copy()
+        out.columns = ["Date", "BO", metric_name]
+        frames.append(out)
     return frames
 
 
@@ -156,23 +180,24 @@ def main():
             for div in options_of(div_el):
                 select_by_text(page, div_el, div)
                 for sub in options_of(sub_el):
-                    select_by_text(page, sub_el, sub)
-                    btn = page.query_selector("input[type=submit][value*='Show'], input[type=submit][value*='Generate'], input[type=submit][value*='Report'], button:has-text('Show')")
-                    if btn:
-                        btn.click()
-                        page.wait_for_load_state("networkidle")
-                    all_frames.extend(parse_report(page))
-                    # Re-navigate for next iteration
-                    open_report_page(page)
-                    end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
-                    if end_input:
-                        end_input.fill(date.today().strftime("%d/%m/%Y"))
-                    click_submit(page)
-                    circle_el = find_select(page, CIRCLE)
-                    region_el = find_select(page, REGION)
-                    select_by_text(page, circle_el, CIRCLE)
-                    select_by_text(page, region_el, REGION)
-                    div_el, sub_el = get_div_sub()
+                    for key, label in METRICS:
+                        select_radio(page, key)
+                        btn = page.query_selector("input[type=submit][value*='Show'], input[type=submit][value*='Generate'], input[type=submit][value*='Report'], button:has-text('Show')")
+                        if btn:
+                            btn.click()
+                            page.wait_for_load_state("networkidle")
+                        all_frames.extend(parse_report(page, label))
+                        # Re-navigate and re-select for next metric/sub
+                        open_report_page(page)
+                        end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
+                        if end_input:
+                            end_input.fill(date.today().strftime("%d/%m/%Y"))
+                        click_submit(page)
+                        circle_el = find_select(page, CIRCLE)
+                        region_el = find_select(page, REGION)
+                        select_by_text(page, circle_el, CIRCLE)
+                        select_by_text(page, region_el, REGION)
+                        div_el, sub_el = get_div_sub()
         except Exception:
             save_debug(page, "exception")
             traceback.print_exc()
@@ -182,11 +207,22 @@ def main():
 
     if not all_frames:
         sys.exit("No BO-wise data extracted from any report.")
-    out = pd.concat(all_frames, ignore_index=True)
-    out = out.groupby(["Date", "BO"], as_index=False).sum(numeric_only=True)
+    long_df = pd.concat(all_frames, ignore_index=True)
+    long_df = long_df.groupby(["Date", "BO", long_df.columns[-1].name if False else long_df.columns[2]], as_index=False).sum()
+    # Wide merge: one row per Date+BO with all 3 metrics
+    metric_cols = [label for _, label in METRICS]
+    wide = None
+    for mc in metric_cols:
+        part = long_df[["Date", "BO", mc]].dropna(subset=[mc])
+        part = part.groupby(["Date", "BO"], as_index=False)[mc].sum()
+        wide = part if wide is None else wide.merge(part, on=["Date", "BO"], how="outer")
+    for mc in metric_cols:
+        if mc not in wide.columns:
+            wide[mc] = 0
+    wide = wide.fillna(0)
     target = DATA_DIR / "dashboard_data.xlsx"
-    out.to_excel(target, index=False)
-    print(f"Combined {len(out)} BO-wise rows -> {target}")
+    wide.to_excel(target, index=False)
+    print(f"Combined {len(wide)} BO-wise rows with metrics {metric_cols} -> {target}")
 
 
 if __name__ == "__main__":
