@@ -1,14 +1,13 @@
 """
 CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-Navigation flow (as per actual MIS site):
+Correct flow (as per actual MIS site):
 1. Open https://mis.cept.gov.in/
-2. Click 'CBS' in the left toolbar menu
-3. Click 'Product Wise A/C Report' link -> CBSTrans3 page
-4. Set End Date = today, click report button
-5. Select Circle=Haryana Circle, Region=DivReporting Circle
-6. For each Division -> each Sub Division: generate report, parse BO-wise rows
-7. Combine into data/dashboard_data.xlsx
+2. Click 'CBS' in left toolbar -> this IS the Product Wise A/C Report page
+3. Set End Date = today, click the page's submit button
+4. Select Circle=Haryana Circle, Region=DivReporting Circle
+5. For each Division -> each Sub Division: generate report, parse BO-wise rows
+6. Combine into data/dashboard_data.xlsx
 """
 import io, sys, traceback
 from datetime import date
@@ -37,24 +36,18 @@ def save_debug(page, tag):
 
 
 def open_report_page(page):
-    """Home > CBS menu > Product Wise A/C Report."""
+    """Home > CBS menu -> lands directly on Product Wise A/C Report page."""
     page.goto(HOME, wait_until="networkidle")
     page.click("text=CBS")
     page.wait_for_load_state("networkidle")
-    # Click the Product Wise A/C Report link in CBS menu
-    link = page.locator("a:has-text('Product Wise A/C Report')").first
-    link.click()
-    page.wait_for_load_state("networkidle")
 
 
-def click_generate(page):
-    """Click the report-generating button on CBSTrans3 page."""
+def click_submit(page):
+    """Click the page's submit button (whatever its label)."""
     for sel in [
-        "input[type=submit][value*='Product Wise']",
-        "input[type=submit][value*='Show']",
-        "input[type=submit][value*='Generate']",
-        "button:has-text('Product Wise')",
-        "a:has-text('Product Wise A/C Report')",
+        "input[type=submit]",
+        "button[type=submit]",
+        "button",
     ]:
         loc = page.locator(sel).first
         try:
@@ -64,8 +57,8 @@ def click_generate(page):
                 return
         except Exception:
             continue
-    save_debug(page, "no_generate_button")
-    raise RuntimeError("Report generate button not found on CBSTrans3 page.")
+    save_debug(page, "no_submit_button")
+    raise RuntimeError("No submit button found on report page.")
 
 
 def find_select(page, text):
@@ -133,13 +126,13 @@ def main():
             end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
             if end_input:
                 end_input.fill(date.today().strftime("%d/%m/%Y"))
-            click_generate(page)
+            click_submit(page)
 
             circle_el = find_select(page, CIRCLE)
             region_el = find_select(page, REGION)
             if not circle_el or not region_el:
                 save_debug(page, "no_circle_region")
-                sys.exit("Circle/Region dropdowns not found after generating report. Debug artifacts saved.")
+                sys.exit("Circle/Region dropdowns not found after submit. Debug artifacts saved.")
             select_by_text(page, circle_el, CIRCLE)
             select_by_text(page, region_el, REGION)
 
@@ -174,7 +167,7 @@ def main():
                     end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
                     if end_input:
                         end_input.fill(date.today().strftime("%d/%m/%Y"))
-                    click_generate(page)
+                    click_submit(page)
                     circle_el = find_select(page, CIRCLE)
                     region_el = find_select(page, REGION)
                     select_by_text(page, circle_el, CIRCLE)
