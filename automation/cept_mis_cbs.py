@@ -1,8 +1,8 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Radio buttons trigger ASP.NET postbacks via onclick, so we click with
-no_wait_after and then wait for network idle (page.check() hangs on this).
+Radio click triggers a postback that may generate the report directly.
+Submit button is optional: if found, click it; otherwise parse the page.
 """
 import io, sys, traceback
 from datetime import date
@@ -101,7 +101,8 @@ def options_of(page, sel):
     )
 
 
-def click_submit(page):
+def try_click_submit(page):
+    """Try to click a submit button; return True if clicked, False otherwise."""
     for sel in SUBMIT_SELECTORS:
         try:
             loc = page.locator(sel).first
@@ -109,15 +110,14 @@ def click_submit(page):
                 print(f"Submitting via: {sel}")
                 loc.click()
                 page.wait_for_load_state("networkidle")
-                return
+                return True
         except Exception:
             continue
-    save_debug(page, "no_submit_button")
-    raise RuntimeError("No submit button found with any known selector.")
+    print("No submit button found - assuming radio postback already generated the report.")
+    return False
 
 
 def select_radio(page, radio_sel):
-    """Radio onclick triggers a postback; use no_wait_after click."""
     page.click(radio_sel, no_wait_after=True)
     page.wait_for_load_state("networkidle")
 
@@ -178,7 +178,7 @@ def main():
                     page.wait_for_load_state("networkidle")
                     for radio_sel, metric in METRICS:
                         select_radio(page, radio_sel)
-                        click_submit(page)
+                        try_click_submit(page)
                         all_frames.extend(parse_report(page, metric))
                         open_page(page)
                         page.select_option(CIRCLE_SEL, label=CIRCLE)
