@@ -6,6 +6,7 @@
 <title>BO Performance Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="bo_master.js"></script>
 <style>
 :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--good:#22c55e;--bad:#ef4444}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
@@ -69,6 +70,13 @@ const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString('en-IN');
 function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
 const iso=d=>d.toISOString().slice(0,10);
+function initBOs(){
+  const sel=$('bo');const cur=sel.value;
+  sel.innerHTML='<option value="">All BOs</option>';
+  (typeof BO_MASTER!=='undefined'?BO_MASTER:[]).forEach(b=>{const o=document.createElement('option');o.textContent=b;sel.appendChild(o)});
+  if(cur)sel.value=cur;
+}
+initBOs();
 function handleFile(f){
   const r=new FileReader();
   r.onload=e=>{try{
@@ -85,7 +93,8 @@ function handleFile(f){
     ROWS=rows.map(r=>{const d=parseDate(r[dateKey]);return d?{date:iso(d),bo:String(r[boKey]).trim(),...Object.fromEntries(METRICS.map(m=>[m,Number(r[m])||0]))}:null}).filter(Boolean);
     DATES=[...new Set(ROWS.map(r=>r.date))].sort();
     $('from').value=DATES[0];$('to').value=DATES[DATES.length-1];
-    $('bo').innerHTML='<option value="">All BOs</option>'+[...new Set(ROWS.map(r=>r.bo))].sort().map(b=>`<option>${b}</option>`).join('');
+    const sel=$('bo');const existing=new Set([...sel.options].map(o=>o.textContent));
+    [...new Set(ROWS.map(r=>r.bo))].sort().forEach(b=>{if(!existing.has(b)){const o=document.createElement('option');o.textContent=b;sel.appendChild(o)}});
     $('msg').textContent='';render();
   }catch(err){$('msg').textContent=err.message}};
   r.readAsArrayBuffer(f);
@@ -111,7 +120,7 @@ function render(){
   let run={};const series={};METRICS.forEach(m=>series[m]=[]);
   days.forEach(d=>{rows.filter(r=>r.date===d).forEach(r=>METRICS.forEach(m=>run[m]=(run[m]||0)+r[m]));METRICS.forEach(m=>series[m].push(run[m]||0))});
   if(window.chart)window.chart.destroy();
-  window.chart=new Chart($('chart'),{type:'line',data:{labels:days,datasets:METRICS.map((m,i)=>({label:m,data:series[m],tension:.3}))},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}}});
+  window.chart=new Chart($('chart'),{type:'line',data:{labels:days,datasets:METRICS.map(m=>({label:m,data:series[m],tension:.3}))},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}}});
 }
 function exportExcel(){
   if(!ROWS.length)return alert('Pehle Excel upload karein.');
