@@ -45,7 +45,7 @@ th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:
 </header>
 <main>
   <div id="autoStatus">Checking for auto-fed CEPT MIS data…</div>
-  <div id="drop" class="no-print">Daily Excel/CSV file yahan drop karein ya click karke choose karein<br><small>Required columns: <b>Date</b>, <b>BO</b> + numeric performance columns</small><input id="file" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+  <div id="drop" class="no-print">Daily Excel/CSV file yahan drop karein ya click karke choose karein<br><small>Accepted headers: <b>Date</b>, <b>BO</b> / <b>Name</b> / <b>SOL ID / BOCODE</b> + numeric product columns</small><input id="file" type="file" accept=".xlsx,.xls,.csv" hidden></div>
   <div class="card no-print" style="margin-bottom:16px">
     <div class="controls">
       <div><label>Filter mode</label><select id="mode" onchange="render()">
@@ -55,7 +55,7 @@ th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:
       </select></div>
       <div id="fromWrap"><label>From date</label><input type="date" id="from" onchange="render()"></div>
       <div><label>To date</label><input type="date" id="to" onchange="render()"></div>
-      <div><label>BO</label><select id="bo" onchange="render()"><option value="">All BOs</option></select></div>
+      <div><label>BO (type to search)</label><input list="boList" id="bo" placeholder="All BOs — type to search" oninput="render()"><datalist id="boList"></datalist></div>
     </div>
     <div id="msg" class="err"></div>
   </div>
@@ -89,14 +89,13 @@ function matchBO(name){
 function setBOOptions(list){
   const cur=$('bo').value;
   const all=[...new Set([...MASTER_LIST,...list])].sort((a,b)=>a.localeCompare(b));
-  $('bo').innerHTML='<option value="">All BOs</option>'+all.map(b=>`<option>${b}</option>`).join('');
-  if([...$('bo').options].some(o=>o.value===cur))$('bo').value=cur;
+  $('boList').innerHTML=all.map(b=>`<option value="${b}">`).join('');
 }
 setBOOptions([]);
 function ingestRows(rows){
   const cols=Object.keys(rows[0]);
   const dateKey=cols.find(c=>/date|din|tarikh/i.test(c));
-  const boKey=cols.find(c=>/^bo$|branch|office|bo name/i.test(c));
+  const boKey=cols.find(c=>/^bo$|^bo name$|branch office|solarid|solar id|bocode|bo code|^name$/i.test(c)) || cols.find(c=>/^bo$|branch|office|bo name/i.test(c));
   if(!dateKey||!boKey)throw new Error('Date aur BO columns required hain. Columns: '+cols.join(', '));
   METRICS=cols.filter(c=>c!==dateKey&&c!==boKey&&rows.some(r=>typeof r[c]==='number'));
   if(!METRICS.length)throw new Error('Koi numeric performance column nahi mila.');
@@ -131,11 +130,11 @@ async function autoLoad(){
   }
 }
 function filtered(){
-  const mode=$('mode').value,from=$('from').value,to=$('to').value,bo=$('bo').value;
+  const mode=$('mode').value,from=$('from').value,to=$('to').value,bo=$('bo').value.trim().toLowerCase();
   let a=from,b=to;
   if(mode==='single'){a=b=to}
   if(mode==='upto'){a=DATES[0]}
-  return ROWS.filter(r=>(!a||r.date>=a)&&(!b||r.date<=b)&&(!bo||r.bo===bo));
+  return ROWS.filter(r=>(!a||r.date>=a)&&(!b||r.date<=b)&&(!bo||r.bo.toLowerCase().includes(bo)));
 }
 function render(){
   if(!ROWS.length)return;
