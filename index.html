@@ -66,7 +66,7 @@ th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:
   </div>
 </main>
 <script>
-let ROWS=[], METRICS=[], DATES=[];
+let ROWS=[], METRICS=[], DATES=[], chartInstance=null;
 const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString('en-IN');
 function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
@@ -102,7 +102,6 @@ function findHeaderRow(matrix){
   return -1;
 }
 function extractReportDate(matrix,hIdx){
-  // Look for 'Dated: DD-MM-YYYY' in rows above header
   for(let i=hIdx-1;i>=0;i--){
     const line=matrix[i].map(c=>String(c??'')).join(' ');
     const m=line.match(/Dated:\s*(\d{2}-\d{2}-\d{4})/i);
@@ -117,13 +116,16 @@ function ingestMatrix(matrix){
   const rows=matrix.slice(hIdx+1).filter(r=>r.some(c=>String(c??'').trim()!==''));
   if(!rows.length)throw new Error('Header ke baad koi data row nahi mili.');
   let dateIdx=headers.findIndex(h=>/date|din|tarikh/i.test(h));
-  const boIdx=headers.findIndex(h=>/solarid|solar id|bocode|bo code|^bo$|^bo name$|branch office|^name$/i.test(h));
+  const nameIdx=headers.findIndex(h=>/^name$|^bo$|^bo name$|branch office/i.test(h));
+  const solIdIdx=headers.findIndex(h=>/solarid|solar id|bocode|bo code/i.test(h));
+  const boIdx=nameIdx>=0?nameIdx:solIdIdx;
   if(boIdx<0)throw new Error('BO column (Name / SOL ID / BOCODE / BO) nahi mila. Headers: '+headers.join(', '));
   let fallbackDate=null;
   if(dateIdx<0){
     fallbackDate=extractReportDate(matrix,hIdx);
   }
-  const metricIdxs=headers.map((h,i)=>i).filter(i=>i!==dateIdx&&i!==boIdx&&rows.some(r=>typeof r[i]==='number'||(typeof r[i]==='string'&&r[i]!==''&&!isNaN(Number(r[i])))));
+  // Exclude SOL ID / BOCODE from display metrics
+  const metricIdxs=headers.map((h,i)=>i).filter(i=>i!==dateIdx&&i!==boIdx&&i!==solIdIdx&&rows.some(r=>typeof r[i]==='number'||(typeof r[i]==='string'&&r[i]!==''&&!isNaN(Number(r[i])))));
   if(!metricIdxs.length)throw new Error('Koi numeric performance column nahi mila.');
   ROWS=rows.map(r=>{
     const d=dateIdx>=0?parseDate(r[dateIdx]):fallbackDate;
@@ -187,8 +189,8 @@ function render(){
   const days=[...new Set(rows.map(r=>r.date))].sort();
   let run={};const series={};METRICS.forEach(m=>series[m]=[]);
   days.forEach(d=>{rows.filter(r=>r.date===d).forEach(r=>METRICS.forEach(m=>run[m]=(run[m]||0)+(r[m]||0)));METRICS.forEach(m=>series[m].push(run[m]||0))});
-  if(window.chart)window.chart.destroy();
-  window.chart=new Chart($('chart'),{type:'line',data:{labels:days,datasets:METRICS.map(m=>({label:m,data:series[m],tension:.3}))},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}}});
+  if(chartInstance){try{chartInstance.destroy()}catch(e){}chartInstance=null;}
+  chartInstance=new Chart($('chart'),{type:'line',data:{labels:days,datasets:METRICS.map(m=>({label:m,data:series[m],tension:.3}))},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}}});
 }
 function exportExcel(){
   if(!ROWS.length)return alert('Pehle data load karein.');
