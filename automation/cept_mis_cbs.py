@@ -1,8 +1,8 @@
 """
-CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
+CEPT MIS CBSTrans3 BO-wise automation with fuzzy dropdown matching.
 
-Cascading dropdowns load via ASP.NET postbacks, so after each selection we wait
-until the next dropdown actually has options before selecting.
+Region/Division/SubDivision options load via postbacks; names may differ slightly
+from expected text, so we match fuzzily (ignore case/spaces) and log options.
 """
 import io, sys, traceback
 from datetime import date
@@ -32,6 +32,10 @@ DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
 SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
 
 
+def norm(s):
+    return "".join(str(s).lower().split())
+
+
 def save_debug(page, tag):
     try:
         page.screenshot(path=str(DEBUG_DIR / f"{tag}.png"), full_page=True)
@@ -55,11 +59,32 @@ def wait_options(page, sel, min_options=2, timeout=30000):
     )
 
 
+def fuzzy_pick(options, wanted):
+    """Return the option whose normalized text contains/is contained in wanted."""
+    w = norm(wanted)
+    for o in options:
+        if w in norm(o) or norm(o) in w:
+            return o
+    return None
+
+
+def select_fuzzy(page, sel, wanted, label):
+    options = options_of(page, sel)
+    print(f"{label} options: {options}")
+    match = fuzzy_pick(options, wanted)
+    if not match:
+        save_debug(page, f"no_match_{label.replace(' ', '_').lower()}")
+        raise RuntimeError(f"{label}: '{wanted}' not found. Available: {options}")
+    page.select_option(sel, label=match)
+    page.wait_for_load_state("networkidle")
+    return match
+
+
 def select_circle_region(page):
     page.select_option(CIRCLE_SEL, label=CIRCLE)
-    wait_options(page, REGION_SEL)          # Region options load after Circle postback
-    page.select_option(REGION_SEL, label=REGION)
-    wait_options(page, DIV_SEL)             # Division options load after Region postback
+    wait_options(page, REGION_SEL)
+    select_fuzzy(page, REGION_SEL, REGION, "Region")
+    wait_options(page, DIV_SEL)
 
 
 def options_of(page, sel):
@@ -109,9 +134,10 @@ def main():
             open_page(page)
             select_circle_region(page)
             divisions = options_of(page, DIV_SEL)
+            print(f"Divisions: {divisions}")
             for div in divisions:
                 page.select_option(DIV_SEL, label=div)
-                wait_options(page, SUB_SEL)     # SubDivision options load after Division postback
+                wait_options(page, SUB_SEL)
                 subs = options_of(page, SUB_SEL)
                 for sub in subs:
                     page.select_option(SUB_SEL, label=sub)
@@ -121,7 +147,6 @@ def main():
                         page.click("input[type=submit]")
                         page.wait_for_load_state("networkidle")
                         all_frames.extend(parse_report(page, metric))
-                        # reload fresh form for next metric/sub
                         open_page(page)
                         select_circle_region(page)
                         page.select_option(DIV_SEL, label=div)
