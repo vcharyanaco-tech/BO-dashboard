@@ -1,15 +1,8 @@
 """
 CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-Uses exact element IDs from the live page:
-- Circle:   #ContentPlaceHolder1_CircleDropDown
-- Region:   #ContentPlaceHolder1_RegionDropDown
-- Division: #ContentPlaceHolder1_DivisionDropDown
-- SubDiv:   #ContentPlaceHolder1_SubDivisionDropDown
-- Radios:   #ContentPlaceHolder1_ACO (Opened), _ACC (Closed), _NET (Net Addition)
-
-Flow: for each Division -> Sub Division -> metric radio: submit, parse BO rows,
-merge all into data/dashboard_data.xlsx (wide: Date, BO, 3 metrics).
+Cascading dropdowns load via ASP.NET postbacks, so after each selection we wait
+until the next dropdown actually has options before selecting.
 """
 import io, sys, traceback
 from datetime import date
@@ -49,17 +42,24 @@ def save_debug(page, tag):
 
 def open_page(page):
     page.goto(REPORT_URL, wait_until="networkidle")
-    # End Date = today (any date-like input)
     date_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
     if date_input:
         date_input.fill(date.today().strftime("%d/%m/%Y"))
 
 
+def wait_options(page, sel, min_options=2, timeout=30000):
+    page.wait_for_function(
+        "([sel, n]) => document.querySelector(sel) && document.querySelector(sel).options.length >= n",
+        arg=[sel, min_options],
+        timeout=timeout,
+    )
+
+
 def select_circle_region(page):
     page.select_option(CIRCLE_SEL, label=CIRCLE)
-    page.wait_for_load_state("networkidle")
+    wait_options(page, REGION_SEL)          # Region options load after Circle postback
     page.select_option(REGION_SEL, label=REGION)
-    page.wait_for_load_state("networkidle")
+    wait_options(page, DIV_SEL)             # Division options load after Region postback
 
 
 def options_of(page, sel):
@@ -111,7 +111,7 @@ def main():
             divisions = options_of(page, DIV_SEL)
             for div in divisions:
                 page.select_option(DIV_SEL, label=div)
-                page.wait_for_load_state("networkidle")
+                wait_options(page, SUB_SEL)     # SubDivision options load after Division postback
                 subs = options_of(page, SUB_SEL)
                 for sub in subs:
                     page.select_option(SUB_SEL, label=sub)
@@ -125,7 +125,7 @@ def main():
                         open_page(page)
                         select_circle_region(page)
                         page.select_option(DIV_SEL, label=div)
-                        page.wait_for_load_state("networkidle")
+                        wait_options(page, SUB_SEL)
                         page.select_option(SUB_SEL, label=sub)
                         page.wait_for_load_state("networkidle")
         except Exception:
