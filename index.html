@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BO Performance Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--good:#22c55e;--bad:#ef4444}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{padding:18px 24px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+h1{font-size:20px;margin:0}.sub{color:var(--muted);font-size:13px}
+main{padding:20px 24px;max-width:1400px;margin:auto}
+.card{background:var(--card);border:1px solid #334155;border-radius:12px;padding:16px}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+input,select,button{width:100%;padding:9px 11px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:var(--text);font-size:14px}
+button{cursor:pointer;background:var(--accent);color:#04263a;font-weight:600;border:none}
+button.secondary{background:#334155;color:var(--text)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid #334155;border-radius:12px;padding:14px}
+.kpi .v{font-size:22px;font-weight:700;margin-top:4px}.kpi .l{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:1000px){.grid{grid-template-columns:1.2fr 1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #334155}
+th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--card)}
+.scroll{max-height:420px;overflow:auto}
+#drop{border:2px dashed #475569;border-radius:12px;padding:26px;text-align:center;color:var(--muted);margin-bottom:16px;cursor:pointer}
+#drop.drag{border-color:var(--accent);color:var(--accent)}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;background:#334155}
+.err{color:var(--bad);font-size:13px;margin-top:8px}
+@media print{body{background:#fff;color:#000}header,button,#drop,.no-print{display:none!important}.card,.kpi{border-color:#ccc;background:#fff;color:#000}th,td{border-color:#ddd;color:#000}th{background:#fff}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>BO Performance Dashboard</h1><div class="sub">Daily Excel upload • BO-wise cumulative performance</div></div>
+  <div class="no-print" style="display:flex;gap:8px">
+    <button class="secondary" onclick="exportExcel()">Export Excel</button>
+    <button onclick="window.print()">Export PDF</button>
+  </div>
+</header>
+<main>
+  <div id="drop" class="no-print">Daily Excel/CSV file yahan drop karein ya click karke choose karein<br><small>Required columns: <b>Date</b>, <b>BO</b> + numeric performance columns</small><input id="file" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+  <div class="card no-print" style="margin-bottom:16px">
+    <div class="controls">
+      <div><label>Filter mode</label><select id="mode" onchange="render()">
+        <option value="upto">Upto date (start se selected date tak)</option>
+        <option value="range">Date range</option>
+        <option value="single">Single date</option>
+      </select></div>
+      <div id="fromWrap"><label>From date</label><input type="date" id="from" onchange="render()"></div>
+      <div><label>To date</label><input type="date" id="to" onchange="render()"></div>
+      <div><label>BO</label><select id="bo" onchange="render()"><option value="">All BOs</option></select></div>
+    </div>
+    <div id="msg" class="err"></div>
+  </div>
+  <div id="kpis" class="kpis"></div>
+  <div class="grid">
+    <div class="card"><h3 style="margin:0 0 10px">Cumulative trend</h3><canvas id="chart" height="120"></canvas></div>
+    <div class="card"><h3 style="margin:0 0 10px">BO-wise cumulative performance</h3><div class="scroll"><table id="tbl"></table></div></div>
+  </div>
+</main>
+<script>
+let ROWS=[], METRICS=[], DATES=[];
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n||0).toLocaleString('en-IN');
+function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
+const iso=d=>d.toISOString().slice(0,10);
+function handleFile(f){
+  const r=new FileReader();
+  r.onload=e=>{try{
+    const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:null,raw:true});
+    if(!rows.length)throw new Error('File me koi data row nahi mili.');
+    const cols=Object.keys(rows[0]);
+    const dateKey=cols.find(c=>/date|din|tarikh/i.test(c));
+    const boKey=cols.find(c=>/^bo$|branch|office|bo name/i.test(c));
+    if(!dateKey||!boKey)throw new Error('Date aur BO columns required hain. Columns: '+cols.join(', '));
+    METRICS=cols.filter(c=>c!==dateKey&&c!==boKey&&rows.some(r=>typeof r[c]==='number'));
+    if(!METRICS.length)throw new Error('Koi numeric performance column nahi mila.');
+    ROWS=rows.map(r=>{const d=parseDate(r[dateKey]);return d?{date:iso(d),bo:String(r[boKey]).trim(),...Object.fromEntries(METRICS.map(m=>[m,Number(r[m])||0]))}:null}).filter(Boolean);
+    DATES=[...new Set(ROWS.map(r=>r.date))].sort();
+    $('from').value=DATES[0];$('to').value=DATES[DATES.length-1];
+    $('bo').innerHTML='<option value="">All BOs</option>'+[...new Set(ROWS.map(r=>r.bo))].sort().map(b=>`<option>${b}</option>`).join('');
+    $('msg').textContent='';render();
+  }catch(err){$('msg').textContent=err.message}};
+  r.readAsArrayBuffer(f);
+}
+function filtered(){
+  const mode=$('mode').value,from=$('from').value,to=$('to').value,bo=$('bo').value;
+  let a=from,b=to;
+  if(mode==='single'){a=b=to}
+  if(mode==='upto'){a=DATES[0]}
+  return ROWS.filter(r=>(!a||r.date>=a)&&(!b||r.date<=b)&&(!bo||r.bo===bo));
+}
+function render(){
+  if(!ROWS.length)return;
+  const rows=filtered();
+  const kpis=[['Records',rows.length],...METRICS.map(m=>[m,rows.reduce((s,r)=>s+r[m],0)])];
+  $('kpis').innerHTML=kpis.map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(v)}</div></div>`).join('');
+  const byBO={};rows.forEach(r=>{byBO[r.bo]??={};METRICS.forEach(m=>byBO[r.bo][m]=(byBO[r.bo][m]||0)+r[m])});
+  const bos=Object.keys(byBO).sort();
+  $('tbl').innerHTML='<thead><tr><th>BO</th>'+METRICS.map(m=>`<th>${m}</th>`).join('')+'</tr></thead><tbody>'+
+    bos.map(b=>`<tr><td>${b}</td>`+METRICS.map(m=>`<td>${fmt(byBO[b][m])}</td>`).join('')+'</tr>').join('')+
+    `</tbody><tfoot><tr><td><b>Total</b></td>`+METRICS.map(m=>`<td><b>${fmt(rows.reduce((s,r)=>s+r[m],0))}</b></td>`).join('')+'</tr></tfoot>';
+  const days=[...new Set(rows.map(r=>r.date))].sort();
+  let run={};const series={};METRICS.forEach(m=>series[m]=[]);
+  days.forEach(d=>{rows.filter(r=>r.date===d).forEach(r=>METRICS.forEach(m=>run[m]=(run[m]||0)+r[m]));METRICS.forEach(m=>series[m].push(run[m]||0))});
+  if(window.chart)window.chart.destroy();
+  window.chart=new Chart($('chart'),{type:'line',data:{labels:days,datasets:METRICS.map((m,i)=>({label:m,data:series[m],tension:.3}))},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}}});
+}
+function exportExcel(){
+  if(!ROWS.length)return alert('Pehle Excel upload karein.');
+  const rows=filtered();const out=rows.map(r=>({Date:r.date,BO:r.bo,...Object.fromEntries(METRICS.map(m=>[m,r[m]]))}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Filtered Data');
+  XLSX.writeFile(wb,`BO_dashboard_${$('to').value||'export'}.xlsx`);
+}
+const drop=$('drop');drop.onclick=()=>$('file').click();
+$('file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};
+drop.ondragleave=()=>drop.classList.remove('drag');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');e.dataTransfer.files[0]&&handleFile(e.dataTransfer.files[0])};
+</script>
+</body>
+</html>
