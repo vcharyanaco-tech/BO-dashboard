@@ -1,11 +1,16 @@
 """
-CEPT MIS CBSTrans3 BO-wise automation.
+CEPT MIS CBSTrans3 BO-wise automation - Excel export flow.
 
-Report loads on the SAME page below the form, after a long delay.
-Ready signal: the 'Product Wise A/C Report' anchor text changes to include 'Dated:'.
-Wait up to 180s for that signal, then parse.
+For each division/sub-division and each KPI (Accounts Opened/Closed/Net Addition):
+- select radio, submit, wait up to 180s for 'Dated:' signal
+- click Excel export button, download to data/exports/{KPI}_{division}_{subdivision}.xlsx
+
+At the end:
+- merge all files per KPI into one merged file (3 total)
+- delete intermediate per-sub-division files
+- upload/use only the 3 merged files for dashboard
 """
-import io, sys, time, traceback
+import io, os, re, sys, time, traceback, glob
 from datetime import date
 from pathlib import Path
 
@@ -14,17 +19,19 @@ from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 ROOT = Path(__file__).parent.parent
 DATA_DIR = ROOT / "data"
+EXPORT_DIR = DATA_DIR / "exports"
 DEBUG_DIR = ROOT / "debug"
 DATA_DIR.mkdir(exist_ok=True)
+EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 DEBUG_DIR.mkdir(exist_ok=True)
 
 REPORT_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
 CIRCLE = "Haryana Circle"
 REGION = "DivReporting Circle"
 METRICS = [
-    ("#ContentPlaceHolder1_ACO", "Accounts Opened"),
-    ("#ContentPlaceHolder1_ACC", "Accounts Closed"),
-    ("#ContentPlaceHolder1_NET", "Net Addition"),
+    ("#ContentPlaceHolder1_ACO", "accounts_opened"),
+    ("#ContentPlaceHolder1_ACC", "accounts_closed"),
+    ("#ContentPlaceHolder1_NET", "net_addition"),
 ]
 
 CIRCLE_SEL = "#ContentPlaceHolder1_CircleDropDown"
@@ -47,6 +54,19 @@ SUBMIT_SELECTORS = [
     "[onclick*='Show']",
     "[onclick*='Report']",
     "[onclick*='Generate']",
+]
+
+EXPORT_SELECTORS = [
+    "a:has-text('Excel')",
+    "button:has-text('Excel')",
+    "[value*='Excel']",
+    "[onclick*='Excel']",
+    "a[title*='Excel']",
+    "[id*='Excel']",
+    "a:has-text('Export')",
+    "button:has-text('Export')",
+    "[value*='Export']",
+    "[onclick*='Export']",
 ]
 
 
@@ -94,6 +114,13 @@ def fuzzy_pick(options, wanted):
     return None
 
 
+def options_of(page, sel):
+    return page.eval_on_selector(
+        sel,
+        "el => Array.from(el.options).map(o => o.textContent.trim()).filter(t => t && !t.toLowerCase().startsWith('select'))"
+    )
+
+
 def select_fuzzy(page, sel, wanted, label):
     wait_for_option(page, sel, wanted)
     options = options_of(page, sel)
@@ -106,15 +133,7 @@ def select_fuzzy(page, sel, wanted, label):
     return match
 
 
-def options_of(page, sel):
-    return page.eval_on_selector(
-        sel,
-        "el => Array.from(el.options).map(o => o.textContent.trim()).filter(t => t && !t.toLowerCase().startsWith('select'))"
-    )
-
-
 def wait_for_report_ready(page, timeout=180000):
-    """Wait until the anchor text includes 'Dated:' (report rendered) or SOL ID table appears."""
     page.wait_for_function(
         "() => document.body.innerText.toLowerCase().includes('dated:') || document.body.innerText.toLowerCase().includes('sol id / bocode')",
         timeout=timeout,
@@ -137,52 +156,39 @@ def try_click_submit(page):
     return False
 
 
+def try_click_export(page, timeout=60000):
+    """Click Excel export button, wait for download, return downloaded file path."""
+    with page.expect_download(timeout=timeout) as dl_info:
+        for sel in EXPORT_SELECTORS:
+            try:
+                loc = page.locator(sel).first
+                if loc.is_visible(timeout=1500):
+                    print(f"Exporting via: {sel}")
+                    loc.click(no_wait_after=True)
+                    break
+            except Exception:
+                continue
+        else:
+            save_debug(page, "no_export_button")
+            raise RuntimeError("No Excel export button found.")
+    download = dl_info.value
+    target = EXPORT_DIR / download.suggested_filename
+    download.save_as(str(target))
+    print(f"Downloaded: {target}")
+    return target
+
+
 def select_radio(page, radio_sel):
     page.click(radio_sel, no_wait_after=True)
     safe_wait(page)
 
 
-def log_tables(page, context):
-    tables = page.query_selector_all("table")
-    print(f"[{context}] Found {len(tables)} tables")
-    for i, table in enumerate(tables):
-        try:
-            html = table.evaluate("el => el.outerHTML")
-            df = pd.read_html(io.StringIO(html))[0]
-            print(f"[{context}] Table {i}: {len(df)} rows, columns: {list(df.columns)[:10]}")
-        except Exception as e:
-            print(f"[{context}] Table {i}: unreadable ({e})")
-
-
-def parse_report(page, metric_name):
-    """Parse Product Wise A/C Report: Name = BO, sum numeric product columns = metric."""
-    today = date.today().strftime("%Y-%m-%d")
-    frames = []
-    for table in page.query_selector_all("table"):
-        html = table.evaluate("el => el.outerHTML")
-        try:
-            df = pd.read_html(io.StringIO(html))[0]
-        except Exception:
-            continue
-        if df.empty or len(df.columns) < 4:
-            continue
-        df.columns = [str(c).strip() for c in df.columns]
-        name_col = next((c for c in df.columns if norm(c) == "name" or "name" in norm(c)), None)
-        sol_col = next((c for c in df.columns if "solar" in norm(c) or "solarid" in norm(c) or "bocode" in norm(c)), None)
-        if not name_col or not sol_col:
-            continue
-        df = df.rename(columns={name_col: "BO"})
-        df["BO"] = df["BO"].astype(str).str.strip()
-        df = df[~df["BO"].str.lower().str.startswith("total")]
-        df = df[df["BO"] != ""]
-        num_cols = [c for c in df.columns if c not in ("BO", name_col, sol_col) and pd.api.types.is_numeric_dtype(df[c])]
-        if not num_cols:
-            continue
-        df[metric_name] = df[num_cols].sum(axis=1)
-        out = df[["BO", metric_name]].copy()
-        out.insert(0, "Date", today)
-        frames.append(out)
-    return frames
+def wait_for_subdivision(page, timeout=90000):
+    page.wait_for_function(
+        "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
+        arg=SUB_SEL,
+        timeout=timeout,
+    )
 
 
 def setup_filters(page, div=None, sub=None):
@@ -198,15 +204,8 @@ def setup_filters(page, div=None, sub=None):
     safe_wait(page)
 
 
-def wait_for_subdivision(page, timeout=90000):
-    page.wait_for_function(
-        "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
-        arg=SUB_SEL,
-        timeout=timeout,
-    )
-
-
-def run_metric_with_retry(page, div, sub, radio_sel, metric, max_attempts=3):
+def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
+    """Export one KPI report for one sub-division, retry up to max_attempts."""
     for attempt in range(1, max_attempts + 1):
         try:
             print(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
@@ -214,16 +213,20 @@ def run_metric_with_retry(page, div, sub, radio_sel, metric, max_attempts=3):
             try_click_submit(page)
             print(f"{metric}: waiting up to 180s for report to render...")
             wait_for_report_ready(page, timeout=180000)
-            frames = parse_report(page, metric)
-            if frames:
-                return frames
-            print(f"{metric}: empty parse on attempt {attempt}, logging tables...")
-            log_tables(page, f"{metric} attempt {attempt}")
+            fname = f"{metric}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
+            target = EXPORT_DIR / fname
+            if target.exists():
+                target.unlink()
+            try_click_export(page)
+            if target.exists() and target.stat().st_size > 0:
+                print(f"{metric}: export success -> {target}")
+                return target
+            print(f"{metric}: export file missing/empty on attempt {attempt}")
         except PWTimeout as e:
             print(f"{metric}: timeout on attempt {attempt}: {e}")
         except Exception as e:
             print(f"{metric}: error on attempt {attempt}: {e}")
-        save_debug(page, f"retry_{metric.replace(' ', '_').lower()}_{attempt}")
+        save_debug(page, f"retry_{metric}_{attempt}")
         if attempt < max_attempts:
             time.sleep(5)
             try:
@@ -233,12 +236,42 @@ def run_metric_with_retry(page, div, sub, radio_sel, metric, max_attempts=3):
                 pass
             setup_filters(page, div, sub)
     print(f"{metric}: giving up after {max_attempts} attempts for {div}/{sub}")
-    return []
+    return None
+
+
+def merge_kpi_files(metric):
+    """Merge all per-sub-division files for one KPI into one merged file, delete intermediates."""
+    pattern = str(EXPORT_DIR / f"{metric}_*.xlsx")
+    files = sorted(glob.glob(pattern))
+    if not files:
+        print(f"{metric}: no files to merge")
+        return None
+    frames = []
+    for f in files:
+        try:
+            df = pd.read_excel(f)
+            df["__source"] = Path(f).stem
+            frames.append(df)
+        except Exception as e:
+            print(f"{metric}: failed to read {f}: {e}")
+    if not frames:
+        print(f"{metric}: no readable frames")
+        return None
+    merged = pd.concat(frames, ignore_index=True)
+    merged_out = EXPORT_DIR / f"{metric}_merged.xlsx"
+    merged.to_excel(merged_out, index=False)
+    print(f"{metric}: merged {len(frames)} files -> {merged_out}")
+    for f in files:
+        try:
+            os.remove(f)
+            print(f"{metric}: deleted intermediate {f}")
+        except Exception as e:
+            print(f"{metric}: could not delete {f}: {e}")
+    return merged_out
 
 
 def main():
-    import io
-    all_frames = []
+    merged_files = []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
@@ -265,7 +298,7 @@ def main():
                         page.select_option(SUB_SEL, label=sub)
                         safe_wait(page)
                         for radio_sel, metric in METRICS:
-                            all_frames.extend(run_metric_with_retry(page, div, sub, radio_sel, metric))
+                            run_metric_export(page, div, sub, radio_sel, metric)
                     except PWTimeout as e:
                         print(f"{div}/{sub}: timeout ({e}) - reloading and moving to next sub")
                         save_debug(page, f"sub_select_timeout_{norm(sub)[:30]}")
@@ -289,23 +322,14 @@ def main():
         finally:
             browser.close()
 
-    if not all_frames:
-        sys.exit("No BO-wise data extracted from any report.")
-    long_df = pd.concat(all_frames, ignore_index=True)
-    metric_cols = [m for _, m in METRICS]
-    wide = None
-    for mc in metric_cols:
-        if mc in long_df.columns:
-            part = long_df[["Date", "BO", mc]].dropna(subset=[mc])
-            part = part.groupby(["Date", "BO"], as_index=False)[mc].sum()
-            wide = part if wide is None else wide.merge(part, on=["Date", "BO"], how="outer")
-    for mc in metric_cols:
-        if mc not in wide.columns:
-            wide[mc] = 0
-    wide = wide.fillna(0)
-    target = DATA_DIR / "dashboard_data.xlsx"
-    wide.to_excel(target, index=False)
-    print(f"Combined {len(wide)} BO-wise rows with metrics {metric_cols} -> {target}")
+    for _, metric in METRICS:
+        out = merge_kpi_files(metric)
+        if out:
+            merged_files.append(out)
+
+    if not merged_files:
+        sys.exit("No merged KPI files produced.")
+    print(f"Done. Merged files: {[str(f) for f in merged_files]}")
 
 
 if __name__ == "__main__":
