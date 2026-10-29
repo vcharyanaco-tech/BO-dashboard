@@ -1,8 +1,8 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Gov site is slow - report may take long to load after submit.
-On timeout/empty parse: refresh page and retry (up to 3 attempts).
+Slow gov site: report load and dropdown postbacks can timeout.
+Retry with page refresh on failures; never crash on a single dropdown.
 """
 import io, sys, time, traceback
 from datetime import date
@@ -76,7 +76,7 @@ def open_page(page):
         date_input.fill(date.today().strftime("%d/%m/%Y"))
 
 
-def wait_for_option(page, sel, text, timeout=60000):
+def wait_for_option(page, sel, text, timeout=90000):
     t = norm(text)
     page.wait_for_function(
         "([sel, t]) => { const s = document.querySelector(sel); if (!s) return false; return Array.from(s.options).some(o => o.textContent.toLowerCase().replace(/\\s+/g, '').includes(t) || t.includes(o.textContent.toLowerCase().replace(/\\s+/g, ''))); }",
@@ -163,24 +163,28 @@ def parse_report(page, metric_name):
     return frames
 
 
-def setup_filters(page, div, sub):
-    """Re-select circle/region/division/subdivision after a refresh."""
+def setup_filters(page, div=None, sub=None):
     open_page(page)
     page.select_option(CIRCLE_SEL, label=CIRCLE)
     select_fuzzy(page, REGION_SEL, REGION, "Region")
-    wait_for_option(page, DIV_SEL, "Division", timeout=60000)
-    page.select_option(DIV_SEL, label=div)
-    page.wait_for_function(
-        "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
-        arg=SUB_SEL,
-        timeout=60000,
-    )
-    page.select_option(SUB_SEL, label=sub)
+    wait_for_option(page, DIV_SEL, "Division", timeout=90000)
+    if div:
+        page.select_option(DIV_SEL, label=div)
+    if sub:
+        wait_for_subdivision(page, timeout=90000)
+        page.select_option(SUB_SEL, label=sub)
     safe_wait(page)
 
 
+def wait_for_subdivision(page, timeout=90000):
+    page.wait_for_function(
+        "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
+        arg=SUB_SEL,
+        timeout=timeout,
+    )
+
+
 def run_metric_with_retry(page, div, sub, radio_sel, metric, max_attempts=3):
-    """Radio -> submit -> parse; on timeout/empty result, refresh and retry."""
     for attempt in range(1, max_attempts + 1):
         try:
             print(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
@@ -214,16 +218,22 @@ def main():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
-            setup_filters(page, None, None)
+            setup_filters(page)
             divisions = options_of(page, DIV_SEL)
             print(f"Divisions: {divisions}")
             for div in divisions:
-                page.select_option(DIV_SEL, label=div)
-                page.wait_for_function(
-                    "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
-                    arg=SUB_SEL,
-                    timeout=60000,
-                )
+                try:
+                    page.select_option(DIV_SEL, label=div)
+                    wait_for_subdivision(page, timeout=90000)
+                except PWTimeout:
+                    print(f"{div}: subdivision dropdown timeout - reloading and retrying once")
+                    save_debug(page, f"sub_timeout_{norm(div)[:30]}")
+                    try:
+                        setup_filters(page, div)
+                        wait_for_subdivision(page, timeout=90000)
+                    except PWTimeout:
+                        print(f"{div}: still timing out - skipping this division")
+                        continue
                 subs = options_of(page, SUB_SEL)
                 for sub in subs:
                     page.select_option(SUB_SEL, label=sub)
