@@ -1,0 +1,18 @@
+{
+  "headless": true,
+  "mis_url": "https://ceptmis.indiapost.gov.in",
+  "login": {
+    "username_selector": "input[name='username']",
+    "password_selector": "input[name='password']",
+    "submit_selector": "button[type='submit']"
+  },
+  "reports": [
+    {
+      "name": "bo_performance",
+      "url": "https://ceptmis.indiapost.gov.in/bo-wise-report",
+      "form": {},
+      "submit_selector": null,
+      "download_selector": "a.download"
+    }
+  ]
+}

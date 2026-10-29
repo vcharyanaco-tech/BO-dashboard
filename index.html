@@ -31,18 +31,20 @@ th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:
 #drop{border:2px dashed #475569;border-radius:12px;padding:26px;text-align:center;color:var(--muted);margin-bottom:16px;cursor:pointer}
 #drop.drag{border-color:var(--accent);color:var(--accent)}
 .err{color:var(--bad);font-size:13px;margin-top:8px}
+#autoStatus{font-size:12px;color:var(--muted);margin-top:6px}
 @media print{body{background:#fff;color:#000}header,button,#drop,.no-print{display:none!important}.card,.kpi{border-color:#ccc;background:#fff;color:#000}th,td{border-color:#ddd;color:#000}th{background:#fff}}
 </style>
 </head>
 <body>
 <header>
-  <div><h1>BO Performance Dashboard</h1><div class="sub">Daily Excel upload • BO-wise cumulative performance</div></div>
+  <div><h1>BO Performance Dashboard</h1><div class="sub">CEPT MIS auto-fed • BO-wise cumulative performance</div></div>
   <div class="no-print" style="display:flex;gap:8px">
     <button class="secondary" onclick="exportExcel()">Export Excel</button>
     <button onclick="window.print()">Export PDF</button>
   </div>
 </header>
 <main>
+  <div id="autoStatus">Checking for auto-fed CEPT MIS data…</div>
   <div id="drop" class="no-print">Daily Excel/CSV file yahan drop karein ya click karke choose karein<br><small>Required columns: <b>Date</b>, <b>BO</b> + numeric performance columns</small><input id="file" type="file" accept=".xlsx,.xls,.csv" hidden></div>
   <div class="card no-print" style="margin-bottom:16px">
     <div class="controls">
@@ -78,7 +80,6 @@ const MASTER_MAP={};
 function matchBO(name){
   const key=normalizeBO(name);
   if(MASTER_MAP[key])return MASTER_MAP[key];
-  // fuzzy: ignore non-alphanumerics
   const clean=s=>s.replace(/[^a-z0-9]/g,'');
   const k=clean(key);
   for(const [mk,mv] of Object.entries(MASTER_MAP)){if(clean(mk)===k)return mv;}
@@ -91,6 +92,19 @@ function setBOOptions(list){
   if([...$('bo').options].some(o=>o.value===cur))$('bo').value=cur;
 }
 setBOOptions([]);
+function ingestRows(rows){
+  const cols=Object.keys(rows[0]);
+  const dateKey=cols.find(c=>/date|din|tarikh/i.test(c));
+  const boKey=cols.find(c=>/^bo$|branch|office|bo name/i.test(c));
+  if(!dateKey||!boKey)throw new Error('Date aur BO columns required hain. Columns: '+cols.join(', '));
+  METRICS=cols.filter(c=>c!==dateKey&&c!==boKey&&rows.some(r=>typeof r[c]==='number'));
+  if(!METRICS.length)throw new Error('Koi numeric performance column nahi mila.');
+  ROWS=rows.map(r=>{const d=parseDate(r[dateKey]);return d?{date:iso(d),bo:matchBO(r[boKey]),...Object.fromEntries(METRICS.map(m=>[m,Number(r[m])||0]))}:null}).filter(Boolean);
+  DATES=[...new Set(ROWS.map(r=>r.date))].sort();
+  $('from').value=DATES[0];$('to').value=DATES[DATES.length-1];
+  setBOOptions([...new Set(ROWS.map(r=>r.bo))]);
+  $('msg').textContent='';render();
+}
 function handleFile(f){
   const r=new FileReader();
   r.onload=e=>{try{
@@ -98,19 +112,22 @@ function handleFile(f){
     const ws=wb.Sheets[wb.SheetNames[0]];
     const rows=XLSX.utils.sheet_to_json(ws,{defval:null,raw:true});
     if(!rows.length)throw new Error('File me koi data row nahi mili.');
-    const cols=Object.keys(rows[0]);
-    const dateKey=cols.find(c=>/date|din|tarikh/i.test(c));
-    const boKey=cols.find(c=>/^bo$|branch|office|bo name/i.test(c));
-    if(!dateKey||!boKey)throw new Error('Date aur BO columns required hain. Columns: '+cols.join(', '));
-    METRICS=cols.filter(c=>c!==dateKey&&c!==boKey&&rows.some(r=>typeof r[c]==='number'));
-    if(!METRICS.length)throw new Error('Koi numeric performance column nahi mila.');
-    ROWS=rows.map(r=>{const d=parseDate(r[dateKey]);return d?{date:iso(d),bo:matchBO(r[boKey]),...Object.fromEntries(METRICS.map(m=>[m,Number(r[m])||0]))}:null}).filter(Boolean);
-    DATES=[...new Set(ROWS.map(r=>r.date))].sort();
-    $('from').value=DATES[0];$('to').value=DATES[DATES.length-1];
-    setBOOptions([...new Set(ROWS.map(r=>r.bo))]);
-    $('msg').textContent='';render();
+    ingestRows(rows);
   }catch(err){$('msg').textContent=err.message}};
   r.readAsArrayBuffer(f);
+}
+async function autoLoad(){
+  try{
+    const res=await fetch('data/dashboard_data.xlsx');
+    if(!res.ok)throw new Error('auto data not found');
+    const buf=await res.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:null,raw:true});
+    if(rows.length){ingestRows(rows);$('autoStatus').textContent='Auto-loaded CEPT MIS data: '+rows.length+' rows (last updated automatically).';}
+    else $('autoStatus').textContent='Auto data file khali hai — manual upload available hai.';
+  }catch(e){
+    $('autoStatus').textContent='Auto data abhi available nahi hai — manual upload use karein.';
+  }
 }
 function filtered(){
   const mode=$('mode').value,from=$('from').value,to=$('to').value,bo=$('bo').value;
@@ -136,7 +153,7 @@ function render(){
   window.chart=new Chart($('chart'),{type:'line',data:{labels:days,datasets:METRICS.map(m=>({label:m,data:series[m],tension:.3}))},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}}});
 }
 function exportExcel(){
-  if(!ROWS.length)return alert('Pehle Excel upload karein.');
+  if(!ROWS.length)return alert('Pehle data load karein.');
   const rows=filtered();const out=rows.map(r=>({Date:r.date,BO:r.bo,...Object.fromEntries(METRICS.map(m=>[m,r[m]]))}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Filtered Data');
   XLSX.writeFile(wb,`BO_dashboard_${$('to').value||'export'}.xlsx`);
@@ -146,6 +163,7 @@ $('file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};
 drop.ondragleave=()=>drop.classList.remove('drag');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');e.dataTransfer.files[0]&&handleFile(e.dataTransfer.files[0])};
+autoLoad();
 </script>
 </body>
 </html>

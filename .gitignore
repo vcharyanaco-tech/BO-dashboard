@@ -1,0 +1,5 @@
+automation/.env
+automation/downloads/
+automation/raw/
+__pycache__/
+*.pyc
