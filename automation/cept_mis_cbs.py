@@ -1,10 +1,9 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Report structure (per radio selection):
-Name | SOL ID / BOCODE | SO Name | MIS | PPFGP | SSA | RD | SBBAS | SBSGP | SCSS | TD | PRFTS | KVN | NSC8 | MSSC
-
-BO = Name column; metric = sum of all numeric product columns; Total row skipped; Date = today.
+Report loads on the SAME page below the form, after a long delay.
+Ready signal: the 'Product Wise A/C Report' anchor text changes to include 'Dated:'.
+Wait up to 180s for that signal, then parse.
 """
 import io, sys, time, traceback
 from datetime import date
@@ -114,6 +113,14 @@ def options_of(page, sel):
     )
 
 
+def wait_for_report_ready(page, timeout=180000):
+    """Wait until the anchor text includes 'Dated:' (report rendered) or SOL ID table appears."""
+    page.wait_for_function(
+        "() => document.body.innerText.toLowerCase().includes('dated:') || document.body.innerText.toLowerCase().includes('sol id / bocode')",
+        timeout=timeout,
+    )
+
+
 def try_click_submit(page):
     for sel in SUBMIT_SELECTORS:
         try:
@@ -121,7 +128,7 @@ def try_click_submit(page):
             if loc.is_visible(timeout=1500):
                 print(f"Submitting via: {sel}")
                 loc.click(no_wait_after=True)
-                safe_wait(page, timeout=45000)
+                safe_wait(page, timeout=30000)
                 return True
         except Exception:
             continue
@@ -160,13 +167,12 @@ def parse_report(page, metric_name):
         if df.empty or len(df.columns) < 4:
             continue
         df.columns = [str(c).strip() for c in df.columns]
-        name_col = next((c for c in df.columns if norm(c) in ("name", "officename", "bo") or "name" in norm(c)), None)
+        name_col = next((c for c in df.columns if norm(c) == "name" or "name" in norm(c)), None)
         sol_col = next((c for c in df.columns if "solar" in norm(c) or "solarid" in norm(c) or "bocode" in norm(c)), None)
         if not name_col or not sol_col:
             continue
         df = df.rename(columns={name_col: "BO"})
         df["BO"] = df["BO"].astype(str).str.strip()
-        # Skip Total row
         df = df[~df["BO"].str.lower().str.startswith("total")]
         df = df[df["BO"] != ""]
         num_cols = [c for c in df.columns if c not in ("BO", name_col, sol_col) and pd.api.types.is_numeric_dtype(df[c])]
@@ -206,6 +212,8 @@ def run_metric_with_retry(page, div, sub, radio_sel, metric, max_attempts=3):
             print(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
             select_radio(page, radio_sel)
             try_click_submit(page)
+            print(f"{metric}: waiting up to 180s for report to render...")
+            wait_for_report_ready(page, timeout=180000)
             frames = parse_report(page, metric)
             if frames:
                 return frames
