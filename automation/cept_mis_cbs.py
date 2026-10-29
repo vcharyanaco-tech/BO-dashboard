@@ -1,9 +1,10 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Slow gov site: report load and dropdown postbacks can timeout.
-Retry with page refresh on failures; never crash on a single dropdown/sub.
-Logs table headers when report parse is empty (to diagnose structure).
+Report structure (per radio selection):
+Name | SOL ID / BOCODE | SO Name | MIS | PPFGP | SSA | RD | SBBAS | SBSGP | SCSS | TD | PRFTS | KVN | NSC8 | MSSC
+
+BO = Name column; metric = sum of all numeric product columns; Total row skipped; Date = today.
 """
 import io, sys, time, traceback
 from datetime import date
@@ -135,7 +136,6 @@ def select_radio(page, radio_sel):
 
 
 def log_tables(page, context):
-    """Log every table's headers and row count - for diagnosing report structure."""
     tables = page.query_selector_all("table")
     print(f"[{context}] Found {len(tables)} tables")
     for i, table in enumerate(tables):
@@ -143,13 +143,13 @@ def log_tables(page, context):
             html = table.evaluate("el => el.outerHTML")
             df = pd.read_html(io.StringIO(html))[0]
             print(f"[{context}] Table {i}: {len(df)} rows, columns: {list(df.columns)[:10]}")
-            if len(df) > 0:
-                print(f"[{context}] Table {i} first row: {df.iloc[0].to_dict()}")
         except Exception as e:
             print(f"[{context}] Table {i}: unreadable ({e})")
 
 
 def parse_report(page, metric_name):
+    """Parse Product Wise A/C Report: Name = BO, sum numeric product columns = metric."""
+    today = date.today().strftime("%Y-%m-%d")
     frames = []
     for table in page.query_selector_all("table"):
         html = table.evaluate("el => el.outerHTML")
@@ -157,24 +157,24 @@ def parse_report(page, metric_name):
             df = pd.read_html(io.StringIO(html))[0]
         except Exception:
             continue
-        if df.empty or len(df.columns) < 3:
+        if df.empty or len(df.columns) < 4:
             continue
         df.columns = [str(c).strip() for c in df.columns]
-        date_col = next((c for c in df.columns if "date" in c.lower()), None)
-        bo_col = next((c for c in df.columns if c.lower() in ("bo", "bo name", "office_name", "office name") or "branch" in c.lower()), None)
-        if not date_col or not bo_col:
+        name_col = next((c for c in df.columns if norm(c) in ("name", "officename", "bo") or "name" in norm(c)), None)
+        sol_col = next((c for c in df.columns if "solar" in norm(c) or "solarid" in norm(c) or "bocode" in norm(c)), None)
+        if not name_col or not sol_col:
             continue
-        df = df.rename(columns={date_col: "Date", bo_col: "BO"})
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        df = df.rename(columns={name_col: "BO"})
         df["BO"] = df["BO"].astype(str).str.strip()
-        type_col = next((c for c in df.columns if c.lower() in ("type", "office type", "office_type")), None)
-        if type_col:
-            df = df[df[type_col].astype(str).str.lower().str.contains("bo")]
-        num_cols = [c for c in df.columns if c not in ("Date", "BO") and pd.api.types.is_numeric_dtype(df[c])]
+        # Skip Total row
+        df = df[~df["BO"].str.lower().str.startswith("total")]
+        df = df[df["BO"] != ""]
+        num_cols = [c for c in df.columns if c not in ("BO", name_col, sol_col) and pd.api.types.is_numeric_dtype(df[c])]
         if not num_cols:
             continue
-        out = df[["Date", "BO", num_cols[0]]].dropna(subset=["Date"]).copy()
-        out.columns = ["Date", "BO", metric_name]
+        df[metric_name] = df[num_cols].sum(axis=1)
+        out = df[["BO", metric_name]].copy()
+        out.insert(0, "Date", today)
         frames.append(out)
     return frames
 
