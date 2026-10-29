@@ -1,8 +1,8 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Cascading dropdowns load slowly via postbacks. After each selection we wait
-until the SPECIFIC wanted option text appears (up to 60s), then select it.
+Cascading dropdowns wait for specific option text; submit button detected
+flexibly (input/button/link) since its exact tag may vary.
 """
 import io, sys, traceback
 from datetime import date
@@ -31,6 +31,19 @@ REGION_SEL = "#ContentPlaceHolder1_RegionDropDown"
 DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
 SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
 
+SUBMIT_SELECTORS = [
+    "input[type=submit]",
+    "button[type=submit]",
+    "a:has-text('Show')",
+    "a:has-text('Report')",
+    "a:has-text('Generate')",
+    "button:has-text('Show')",
+    "button:has-text('Report')",
+    "[onclick*='Show']",
+    "[onclick*='Report']",
+    "[onclick*='Generate']",
+]
+
 
 def norm(s):
     return "".join(str(s).lower().split())
@@ -52,7 +65,6 @@ def open_page(page):
 
 
 def wait_for_option(page, sel, text, timeout=60000):
-    """Wait until an option whose normalized text matches `text` appears."""
     t = norm(text)
     page.wait_for_function(
         "([sel, t]) => { const s = document.querySelector(sel); if (!s) return false; return Array.from(s.options).some(o => o.textContent.toLowerCase().replace(/\\s+/g, '').includes(t) || t.includes(o.textContent.toLowerCase().replace(/\\s+/g, ''))); }",
@@ -87,6 +99,22 @@ def options_of(page, sel):
         sel,
         "el => Array.from(el.options).map(o => o.textContent.trim()).filter(t => t && !t.toLowerCase().startsWith('select'))"
     )
+
+
+def click_submit(page):
+    """Flexibly find and click the report-generating button."""
+    for sel in SUBMIT_SELECTORS:
+        try:
+            loc = page.locator(sel).first
+            if loc.is_visible(timeout=1500):
+                print(f"Submitting via: {sel}")
+                loc.click()
+                page.wait_for_load_state("networkidle")
+                return
+        except Exception:
+            continue
+    save_debug(page, "no_submit_button")
+    raise RuntimeError("No submit button found with any known selector.")
 
 
 def parse_report(page, metric_name):
@@ -127,7 +155,6 @@ def main():
         page = browser.new_page()
         try:
             open_page(page)
-            # Circle -> wait for Region option -> select Region -> wait for any Division option
             page.select_option(CIRCLE_SEL, label=CIRCLE)
             select_fuzzy(page, REGION_SEL, REGION, "Region")
             wait_for_option(page, DIV_SEL, "Division", timeout=60000)
@@ -135,7 +162,6 @@ def main():
             print(f"Divisions: {divisions}")
             for div in divisions:
                 page.select_option(DIV_SEL, label=div)
-                # wait until SubDivision has at least one real option
                 page.wait_for_function(
                     "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
                     arg=SUB_SEL,
@@ -147,8 +173,7 @@ def main():
                     page.wait_for_load_state("networkidle")
                     for radio_sel, metric in METRICS:
                         page.check(radio_sel)
-                        page.click("input[type=submit]")
-                        page.wait_for_load_state("networkidle")
+                        click_submit(page)
                         all_frames.extend(parse_report(page, metric))
                         open_page(page)
                         page.select_option(CIRCLE_SEL, label=CIRCLE)
