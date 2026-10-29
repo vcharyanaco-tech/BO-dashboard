@@ -1,10 +1,10 @@
 """
 CEPT MIS CBSTrans3 BO-wise automation.
 
-Submit control: 'Product Wise A/C Report'.
-Radio/submit postbacks may not reach networkidle - use safe_wait.
+Gov site is slow - report may take long to load after submit.
+On timeout/empty parse: refresh page and retry (up to 3 attempts).
 """
-import io, sys, traceback
+import io, sys, time, traceback
 from datetime import date
 from pathlib import Path
 
@@ -53,8 +53,7 @@ def norm(s):
     return "".join(str(s).lower().split())
 
 
-def safe_wait(page, timeout=15000):
-    """Wait for networkidle but tolerate timeout (postback may keep connections open)."""
+def safe_wait(page, timeout=20000):
     try:
         page.wait_for_load_state("networkidle", timeout=timeout)
     except PWTimeout:
@@ -97,7 +96,6 @@ def fuzzy_pick(options, wanted):
 def select_fuzzy(page, sel, wanted, label):
     wait_for_option(page, sel, wanted)
     options = options_of(page, sel)
-    print(f"{label} options: {options}")
     match = fuzzy_pick(options, wanted)
     if not match:
         save_debug(page, f"no_match_{label.replace(' ', '_').lower()}")
@@ -121,7 +119,7 @@ def try_click_submit(page):
             if loc.is_visible(timeout=1500):
                 print(f"Submitting via: {sel}")
                 loc.click(no_wait_after=True)
-                safe_wait(page)
+                safe_wait(page, timeout=45000)
                 return True
         except Exception:
             continue
@@ -165,6 +163,50 @@ def parse_report(page, metric_name):
     return frames
 
 
+def setup_filters(page, div, sub):
+    """Re-select circle/region/division/subdivision after a refresh."""
+    open_page(page)
+    page.select_option(CIRCLE_SEL, label=CIRCLE)
+    select_fuzzy(page, REGION_SEL, REGION, "Region")
+    wait_for_option(page, DIV_SEL, "Division", timeout=60000)
+    page.select_option(DIV_SEL, label=div)
+    page.wait_for_function(
+        "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
+        arg=SUB_SEL,
+        timeout=60000,
+    )
+    page.select_option(SUB_SEL, label=sub)
+    safe_wait(page)
+
+
+def run_metric_with_retry(page, div, sub, radio_sel, metric, max_attempts=3):
+    """Radio -> submit -> parse; on timeout/empty result, refresh and retry."""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            print(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
+            select_radio(page, radio_sel)
+            try_click_submit(page)
+            frames = parse_report(page, metric)
+            if frames:
+                return frames
+            print(f"{metric}: empty parse on attempt {attempt}, refreshing...")
+        except PWTimeout as e:
+            print(f"{metric}: timeout on attempt {attempt}: {e}")
+        except Exception as e:
+            print(f"{metric}: error on attempt {attempt}: {e}")
+        save_debug(page, f"retry_{metric.replace(' ', '_').lower()}_{attempt}")
+        if attempt < max_attempts:
+            time.sleep(5)
+            try:
+                page.reload(wait_until="domcontentloaded")
+                safe_wait(page)
+            except Exception:
+                pass
+            setup_filters(page, div, sub)
+    print(f"{metric}: giving up after {max_attempts} attempts for {div}/{sub}")
+    return []
+
+
 def main():
     import io
     all_frames = []
@@ -172,10 +214,7 @@ def main():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
-            open_page(page)
-            page.select_option(CIRCLE_SEL, label=CIRCLE)
-            select_fuzzy(page, REGION_SEL, REGION, "Region")
-            wait_for_option(page, DIV_SEL, "Division", timeout=60000)
+            setup_filters(page, None, None)
             divisions = options_of(page, DIV_SEL)
             print(f"Divisions: {divisions}")
             for div in divisions:
@@ -190,21 +229,7 @@ def main():
                     page.select_option(SUB_SEL, label=sub)
                     safe_wait(page)
                     for radio_sel, metric in METRICS:
-                        select_radio(page, radio_sel)
-                        try_click_submit(page)
-                        all_frames.extend(parse_report(page, metric))
-                        open_page(page)
-                        page.select_option(CIRCLE_SEL, label=CIRCLE)
-                        select_fuzzy(page, REGION_SEL, REGION, "Region")
-                        wait_for_option(page, DIV_SEL, "Division", timeout=60000)
-                        page.select_option(DIV_SEL, label=div)
-                        page.wait_for_function(
-                            "sel => { const s = document.querySelector(sel); return s && Array.from(s.options).some(o => !o.textContent.toLowerCase().startsWith('select')); }",
-                            arg=SUB_SEL,
-                            timeout=60000,
-                        )
-                        page.select_option(SUB_SEL, label=sub)
-                        safe_wait(page)
+                        all_frames.extend(run_metric_with_retry(page, div, sub, radio_sel, metric))
         except Exception:
             save_debug(page, "exception")
             traceback.print_exc()
