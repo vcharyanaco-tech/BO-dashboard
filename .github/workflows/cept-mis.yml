@@ -21,6 +21,12 @@ jobs:
       - run: pip install -r automation/requirements.txt
       - run: playwright install chromium
       - run: python automation/cept_mis_cbs.py
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mis-debug
+          path: debug/
       - name: Commit updated dashboard data
         run: |
           git config user.name "github-actions[bot]"

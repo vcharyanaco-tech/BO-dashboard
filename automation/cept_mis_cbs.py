@@ -1,15 +1,16 @@
 """
 CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-Flow:
-1. Open https://mis.cept.gov.in/CBS/CBSTrans3.aspx
-2. Set End Date = today
-3. Select Circle = Haryana Circle, Region = DivReporting Circle
-4. For each Division -> each Sub Division: click 'Product Wise A/C Report'
-5. Parse rendered HTML table, keep BO-wise rows
-6. Combine all into data/dashboard_data.xlsx
+Correct flow:
+1. Open CBSTrans3.aspx, set End Date = today
+2. Click 'Product Wise A/C Report' button
+3. On the next page, select Circle=Haryana Circle, Region=DivReporting Circle
+4. For each Division -> each Sub Division: generate report and parse BO-wise rows
+5. Combine into data/dashboard_data.xlsx
+
+On failure, saves screenshot + HTML to debug/ for artifact upload.
 """
-import sys
+import io, sys, traceback
 from datetime import date
 from pathlib import Path
 
@@ -18,19 +19,27 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).parent.parent
 DATA_DIR = ROOT / "data"
+DEBUG_DIR = ROOT / "debug"
 DATA_DIR.mkdir(exist_ok=True)
+DEBUG_DIR.mkdir(exist_ok=True)
 
 MIS_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
 CIRCLE = "haryana circle"
 REGION = "divreporting circle"
 
 
-def find_select(page, option_text):
-    """Find a select whose options contain the given text (case-insensitive)."""
-    handle = page.query_selector_all("select")
-    for el in handle:
+def save_debug(page, tag):
+    try:
+        page.screenshot(path=str(DEBUG_DIR / f"{tag}.png"), full_page=True)
+        (DEBUG_DIR / f"{tag}.html").write_text(page.content(), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def find_select(page, text):
+    for el in page.query_selector_all("select"):
         opts = el.eval_on_selector_all("option", "els => els.map(e => e.textContent.trim().toLowerCase())")
-        if any(option_text in o for o in opts):
+        if any(text in o for o in opts):
             return el
     return None
 
@@ -55,7 +64,6 @@ def options_of(el):
 
 
 def parse_report(page):
-    """Parse the rendered report table(s) and return BO-wise rows."""
     frames = []
     for table in page.query_selector_all("table"):
         html = table.evaluate("el => el.outerHTML")
@@ -73,7 +81,6 @@ def parse_report(page):
         df = df.rename(columns={date_col: "Date", bo_col: "BO"})
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
         df["BO"] = df["BO"].astype(str).str.strip()
-        # Keep only BO rows (exclude SO-wise rows if a type column exists)
         type_col = next((c for c in df.columns if c.lower() in ("type", "office type", "office_type")), None)
         if type_col:
             df = df[df[type_col].astype(str).str.lower().str.contains("bo")]
@@ -89,48 +96,68 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(MIS_URL, wait_until="networkidle")
+        try:
+            page.goto(MIS_URL, wait_until="networkidle")
+            end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
+            if end_input:
+                end_input.fill(date.today().strftime("%d/%m/%Y"))
+            # Step 1: generate report form
+            page.click("input[type=submit][value*='Product Wise A/C Report'], button:has-text('Product Wise A/C Report')")
+            page.wait_for_load_state("networkidle")
 
-        # End Date = today
-        end_input = page.query_selector("input[type='text'][id*='Date'], input[id*='EndDate'], input[name*='Date']")
-        if end_input:
-            end_input.fill(date.today().strftime("%d/%m/%Y"))
+            circle_el = find_select(page, CIRCLE)
+            region_el = find_select(page, REGION)
+            if not circle_el or not region_el:
+                save_debug(page, "no_circle_region")
+                sys.exit("Circle/Region dropdowns not found even after generating report. Debug artifacts saved.")
+            select_by_text(page, circle_el, CIRCLE)
+            select_by_text(page, region_el, REGION)
 
-        circle_el = find_select(page, CIRCLE)
-        region_el = find_select(page, REGION)
-        if not circle_el or not region_el:
-            sys.exit("Circle/Region dropdown not found on page.")
-        select_by_text(page, circle_el, CIRCLE)
-        select_by_text(page, region_el, REGION)
+            def get_div_sub():
+                div_el = sub_el = None
+                for el in page.query_selector_all("select"):
+                    if el in (circle_el, region_el):
+                        continue
+                    opts = [o.lower() for o in options_of(el)]
+                    if div_el is None and sum("division" in o for o in opts) >= 3:
+                        div_el = el
+                    elif div_el is not None and sub_el is None and el != div_el and sum("division" in o or "sub" in o for o in opts) >= 3:
+                        sub_el = el
+                return div_el, sub_el
 
-        # Division and Sub Division dropdowns appear after Region postback
-        div_el = None
-        sub_el = None
-        for el in page.query_selector_all("select"):
-            opts = [o.lower() for o in options_of(el)]
-            if div_el is None and sum("division" in o for o in opts) >= 3 and el != circle_el and el != region_el:
-                div_el = el
-            elif div_el is not None and sub_el is None and el != div_el and sum("division" in o or "sub" in o for o in opts) >= 3:
-                sub_el = el
-        if not div_el or not sub_el:
-            sys.exit("Division/Sub Division dropdowns not found.")
+            div_el, sub_el = get_div_sub()
+            if not div_el or not sub_el:
+                save_debug(page, "no_div_sub")
+                sys.exit("Division/Sub Division dropdowns not found. Debug artifacts saved.")
 
-        for div in options_of(div_el):
-            select_by_text(page, div_el, div)
-            for sub in options_of(sub_el):
-                select_by_text(page, sub_el, sub)
-                page.click("input[type=submit][value*='Product Wise A/C Report']")
-                page.wait_for_load_state("networkidle")
-                all_frames.extend(parse_report(page))
-                # go back to report form for next selection
-                page.goto(MIS_URL, wait_until="networkidle")
-                circle_el = find_select(page, CIRCLE)
-                region_el = find_select(page, REGION)
-                select_by_text(page, circle_el, CIRCLE)
-                select_by_text(page, region_el, REGION)
-                div_el = next(el for el in page.query_selector_all("select") if el != circle_el and el != region_el and sum("division" in o.lower() for o in options_of(el)) >= 3)
-                sub_el = next(el for el in page.query_selector_all("select") if el not in (circle_el, region_el, div_el) and sum("division" in o.lower() or "sub" in o.lower() for o in options_of(el)) >= 3)
-        browser.close()
+            for div in options_of(div_el):
+                select_by_text(page, div_el, div)
+                for sub in options_of(sub_el):
+                    select_by_text(page, sub_el, sub)
+                    # Generate/show report for this selection
+                    btn = page.query_selector("input[type=submit][value*='Show'], input[type=submit][value*='Generate'], input[type=submit][value*='Report'], button:has-text('Show')")
+                    if btn:
+                        btn.click()
+                        page.wait_for_load_state("networkidle")
+                    all_frames.extend(parse_report(page))
+                    # Re-navigate and re-select for next iteration
+                    page.goto(MIS_URL, wait_until="networkidle")
+                    end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
+                    if end_input:
+                        end_input.fill(date.today().strftime("%d/%m/%Y"))
+                    page.click("input[type=submit][value*='Product Wise A/C Report'], button:has-text('Product Wise A/C Report')")
+                    page.wait_for_load_state("networkidle")
+                    circle_el = find_select(page, CIRCLE)
+                    region_el = find_select(page, REGION)
+                    select_by_text(page, circle_el, CIRCLE)
+                    select_by_text(page, region_el, REGION)
+                    div_el, sub_el = get_div_sub()
+        except Exception:
+            save_debug(page, "exception")
+            traceback.print_exc()
+            raise
+        finally:
+            browser.close()
 
     if not all_frames:
         sys.exit("No BO-wise data extracted from any report.")
