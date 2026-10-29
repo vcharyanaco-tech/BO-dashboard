@@ -1,14 +1,15 @@
 """
 CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-Correct flow:
-1. Open https://mis.cept.gov.in/ -> click 'CBS'
-2. Same page par Circle/Region/Division/SubDivision dropdowns + 3 radio buttons hain
-3. Set End Date = today
-4. For each Division -> Sub Division -> radio (Opened/Closed/Net Addition):
-   select all, click submit, parse BO-wise rows
-5. Merge into wide format: Date, BO, Accounts Opened, Accounts Closed, Net Addition
-6. Save data/dashboard_data.xlsx
+Uses exact element IDs from the live page:
+- Circle:   #ContentPlaceHolder1_CircleDropDown
+- Region:   #ContentPlaceHolder1_RegionDropDown
+- Division: #ContentPlaceHolder1_DivisionDropDown
+- SubDiv:   #ContentPlaceHolder1_SubDivisionDropDown
+- Radios:   #ContentPlaceHolder1_ACO (Opened), _ACC (Closed), _NET (Net Addition)
+
+Flow: for each Division -> Sub Division -> metric radio: submit, parse BO rows,
+merge all into data/dashboard_data.xlsx (wide: Date, BO, 3 metrics).
 """
 import io, sys, traceback
 from datetime import date
@@ -23,14 +24,19 @@ DEBUG_DIR = ROOT / "debug"
 DATA_DIR.mkdir(exist_ok=True)
 DEBUG_DIR.mkdir(exist_ok=True)
 
-HOME = "https://mis.cept.gov.in/"
-CIRCLE = "haryana circle"
-REGION = "divreporting circle"
+REPORT_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
+CIRCLE = "Haryana Circle"
+REGION = "DivReporting Circle"
 METRICS = [
-    ("account opened", "Accounts Opened"),
-    ("account closed", "Accounts Closed"),
-    ("net addition", "Net Addition"),
+    ("#ContentPlaceHolder1_ACO", "Accounts Opened"),
+    ("#ContentPlaceHolder1_ACC", "Accounts Closed"),
+    ("#ContentPlaceHolder1_NET", "Net Addition"),
 ]
+
+CIRCLE_SEL = "#ContentPlaceHolder1_CircleDropDown"
+REGION_SEL = "#ContentPlaceHolder1_RegionDropDown"
+DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
+SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
 
 
 def save_debug(page, tag):
@@ -41,68 +47,26 @@ def save_debug(page, tag):
         pass
 
 
-def open_report_page(page):
-    page.goto(HOME, wait_until="networkidle")
-    page.click("text=CBS")
+def open_page(page):
+    page.goto(REPORT_URL, wait_until="networkidle")
+    # End Date = today (any date-like input)
+    date_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
+    if date_input:
+        date_input.fill(date.today().strftime("%d/%m/%Y"))
+
+
+def select_circle_region(page):
+    page.select_option(CIRCLE_SEL, label=CIRCLE)
+    page.wait_for_load_state("networkidle")
+    page.select_option(REGION_SEL, label=REGION)
     page.wait_for_load_state("networkidle")
 
 
-def find_select(page, text):
-    for el in page.query_selector_all("select"):
-        opts = el.eval_on_selector_all("option", "els => els.map(e => e.textContent.trim().toLowerCase())")
-        if any(text in o for o in opts):
-            return el
-    return None
-
-
-def select_by_text(page, el, text):
-    value = el.eval_on_selector_all(
-        "option",
-        "(els,t) => { const m = els.find(e => e.textContent.trim().toLowerCase().includes(t)); return m ? m.value : null; }",
-        text.lower(),
+def options_of(page, sel):
+    return page.eval_on_selector(
+        sel,
+        "el => Array.from(el.options).map(o => o.textContent.trim()).filter(t => t && !t.toLowerCase().startsWith('select'))"
     )
-    if value is None:
-        raise RuntimeError(f"Option not found: {text}")
-    el.select_option(value)
-    page.wait_for_load_state("networkidle")
-
-
-def options_of(el):
-    return el.eval_on_selector_all(
-        "option",
-        "els => els.map(e => e.textContent.trim()).filter(t => t && !t.toLowerCase().startsWith('select'))"
-    )
-
-
-def select_radio(page, metric_text):
-    radios = page.query_selector_all("input[type=radio]")
-    for r in radios:
-        label_text = r.evaluate(
-            "el => (el.labels && el.labels[0] ? el.labels[0].textContent : el.parentElement.textContent || '').trim().toLowerCase()"
-        )
-        if metric_text in label_text:
-            r.check()
-            return
-    for r in radios:
-        val = (r.get_attribute("value") or "").lower()
-        if metric_text.split()[0] in val:
-            r.check()
-            return
-    raise RuntimeError(f"Radio not found for: {metric_text}")
-
-
-def click_submit(page):
-    for sel in ["input[type=submit]", "button[type=submit]", "button"]:
-        loc = page.locator(sel).first
-        try:
-            if loc.is_visible(timeout=2000):
-                loc.click()
-                page.wait_for_load_state("networkidle")
-                return
-        except Exception:
-            continue
-    save_debug(page, "no_submit_button")
-    raise RuntimeError("No submit button found.")
 
 
 def parse_report(page, metric_name):
@@ -142,53 +106,28 @@ def main():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
-            open_report_page(page)
-            end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
-            if end_input:
-                end_input.fill(date.today().strftime("%d/%m/%Y"))
-
-            circle_el = find_select(page, CIRCLE)
-            region_el = find_select(page, REGION)
-            if not circle_el or not region_el:
-                save_debug(page, "no_circle_region")
-                sys.exit("Circle/Region dropdowns not found on CBS page. Debug artifacts saved.")
-            select_by_text(page, circle_el, CIRCLE)
-            select_by_text(page, region_el, REGION)
-
-            def get_div_sub():
-                div_el = sub_el = None
-                for el in page.query_selector_all("select"):
-                    if el in (circle_el, region_el):
-                        continue
-                    opts = [o.lower() for o in options_of(el)]
-                    if div_el is None and sum("division" in o for o in opts) >= 3:
-                        div_el = el
-                    elif div_el is not None and sub_el is None and el != div_el and sum("division" in o or "sub" in o for o in opts) >= 3:
-                        sub_el = el
-                return div_el, sub_el
-
-            div_el, sub_el = get_div_sub()
-            if not div_el or not sub_el:
-                save_debug(page, "no_div_sub")
-                sys.exit("Division/Sub Division dropdowns not found. Debug artifacts saved.")
-
-            for div in options_of(div_el):
-                select_by_text(page, div_el, div)
-                for sub in options_of(sub_el):
-                    for key, label in METRICS:
-                        select_radio(page, key)
-                        click_submit(page)
-                        all_frames.extend(parse_report(page, label))
-                        # reload page and re-select for next metric/sub
-                        open_report_page(page)
-                        end_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
-                        if end_input:
-                            end_input.fill(date.today().strftime("%d/%m/%Y"))
-                        circle_el = find_select(page, CIRCLE)
-                        region_el = find_select(page, REGION)
-                        select_by_text(page, circle_el, CIRCLE)
-                        select_by_text(page, region_el, REGION)
-                        div_el, sub_el = get_div_sub()
+            open_page(page)
+            select_circle_region(page)
+            divisions = options_of(page, DIV_SEL)
+            for div in divisions:
+                page.select_option(DIV_SEL, label=div)
+                page.wait_for_load_state("networkidle")
+                subs = options_of(page, SUB_SEL)
+                for sub in subs:
+                    page.select_option(SUB_SEL, label=sub)
+                    page.wait_for_load_state("networkidle")
+                    for radio_sel, metric in METRICS:
+                        page.check(radio_sel)
+                        page.click("input[type=submit]")
+                        page.wait_for_load_state("networkidle")
+                        all_frames.extend(parse_report(page, metric))
+                        # reload fresh form for next metric/sub
+                        open_page(page)
+                        select_circle_region(page)
+                        page.select_option(DIV_SEL, label=div)
+                        page.wait_for_load_state("networkidle")
+                        page.select_option(SUB_SEL, label=sub)
+                        page.wait_for_load_state("networkidle")
         except Exception:
             save_debug(page, "exception")
             traceback.print_exc()
@@ -199,7 +138,7 @@ def main():
     if not all_frames:
         sys.exit("No BO-wise data extracted from any report.")
     long_df = pd.concat(all_frames, ignore_index=True)
-    metric_cols = [label for _, label in METRICS]
+    metric_cols = [m for _, m in METRICS]
     wide = None
     for mc in metric_cols:
         if mc in long_df.columns:
