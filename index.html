@@ -156,18 +156,79 @@ function handleFile(f){
   }catch(err){$('msg').textContent=err.message}};
   r.readAsArrayBuffer(f);
 }
+// The automation writes one merged workbook per KPI. Load them together and
+// pivot to one row per BO so the table, KPIs and chart keep working unchanged.
+const KPI_SOURCES=[
+  {file:'data/exports/accounts_opened_merged.xlsx',label:'Accounts Opened'},
+  {file:'data/exports/accounts_closed_merged.xlsx',label:'Accounts Closed'},
+  {file:'data/exports/net_addition_merged.xlsx',label:'Net Addition'}
+];
+const isNumCell=v=>typeof v==='number'?Number.isFinite(v):(typeof v==='string'&&v.trim()!==''&&!isNaN(Number(v)));
+function parseKpiWorkbook(matrix,label){
+  const hIdx=findHeaderRow(matrix);
+  if(hIdx<0)throw new Error(label+': header row (SOL ID / BOCODE / Name) nahi mili.');
+  const headers=matrix[hIdx].map((c,i)=>String(c??'').trim()||`col${i}`);
+  const rows=matrix.slice(hIdx+1).filter(r=>r&&r.some(c=>String(c??'').trim()!==''));
+  if(!rows.length)throw new Error(label+': header ke baad koi data row nahi mili.');
+  const nameIdx=headers.findIndex(h=>/^name$|^bo$|^bo name$|branch office/i.test(h));
+  const solIdIdx=headers.findIndex(h=>/solarid|solar id|bocode|bo code/i.test(h));
+  const dateIdx=headers.findIndex(h=>/date|din|tarikh/i.test(h));
+  const boIdx=nameIdx>=0?nameIdx:solIdIdx;
+  if(boIdx<0)throw new Error(label+': BO column (Name / SOL ID / BOCODE) nahi mila. Headers: '+headers.join(', '));
+  // The MIS export is product-wise: a BO can appear once per product, so its KPI
+  // value is the sum of its numeric cells outside the identification columns.
+  const valueIdxs=headers
+    .map((h,i)=>({h,i}))
+    .filter(({h,i})=>
+      i!==boIdx && i!==solIdIdx && i!==dateIdx &&
+      !/^__source$/i.test(h) &&
+      !/solarid|solar id|bocode|bo code|^sr\b|^s\.no|^sl\.?no/i.test(h) &&
+      rows.some(r=>isNumCell(r[i]))
+    )
+    .map(({i})=>i);
+  if(!valueIdxs.length)throw new Error(label+': koi numeric column nahi mila. Headers: '+headers.join(', '));
+  const totals={};
+  rows.forEach(r=>{
+    const bo=matchBO(r[boIdx]);
+    if(!bo)return;
+    totals[bo]=(totals[bo]||0)+valueIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
+  });
+  return {label,date:extractReportDate(matrix,hIdx),totals};
+}
+function applyKpiRows(parts){
+  const date=iso(parts[0].date||new Date());
+  const bos=[...new Set(parts.flatMap(p=>Object.keys(p.totals)))].sort((a,b)=>a.localeCompare(b));
+  ROWS=bos.map(bo=>{
+    const row={date,bo};
+    parts.forEach(p=>{row[p.label]=Number(p.totals[bo]||0)});
+    return row;
+  });
+  METRICS=parts.map(p=>p.label);
+  DATES=[date];
+  $('from').value=date;$('to').value=date;
+  setBOOptions(bos);
+  $('msg').textContent='';render();
+}
 async function autoLoad(){
-  try{
-    const res=await fetch('data/dashboard_data.xlsx');
-    if(!res.ok)throw new Error('auto data not found');
-    const buf=await res.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array',cellDates:true});
-    const matrix=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
-    if(matrix.length>1){ingestMatrix(matrix);$('autoStatus').textContent='Auto-loaded CEPT MIS data: '+(matrix.length-1)+' rows.';}
-    else $('autoStatus').textContent='Auto data file khali hai — manual upload available hai.';
-  }catch(e){
-    $('autoStatus').textContent='Auto data abhi available nahi hai — manual upload use karein.';
+  const parts=[],missing=[];
+  for(const src of KPI_SOURCES){
+    try{
+      const res=await fetch(src.file,{cache:'no-store'});
+      if(!res.ok)throw new Error(`${res.status} ${res.statusText||''}`.trim());
+      const buf=await res.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array',cellDates:true});
+      const matrix=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
+      if(matrix.length<2)throw new Error('sheet khali hai');
+      parts.push(parseKpiWorkbook(matrix,src.label));
+    }catch(e){missing.push(src.label);}
   }
+  if(!parts.length){
+    $('autoStatus').textContent='Auto data abhi available nahi hai — manual upload use karein.';
+    return;
+  }
+  applyKpiRows(parts);
+  $('autoStatus').textContent=`Auto-loaded ${parts.length}/${KPI_SOURCES.length} CEPT MIS KPI exports for ${DATES[0]} — ${ROWS.length} BOs`+
+    (missing.length?` (missing: ${missing.join(', ')})`:'')+'.';
 }
 function filtered(){
   const mode=$('mode').value,from=$('from').value,to=$('to').value,bo=$('bo').value.trim().toLowerCase();

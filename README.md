@@ -19,6 +19,7 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 ## Features
 
 - Daily Excel (.xlsx/.xls) ya CSV upload — drag & drop supported
+- **Auto-load**: `automation/cept_mis_cbs.py` ke teen merged KPI exports (`data/exports/*_merged.xlsx`) automatically load ho kar ek BO-wise table, KPI cards aur trend me pivot ho jate hain
 - BO-wise cumulative performance table with totals
 - Cumulative daily trend chart
 - Flexible date filter:
