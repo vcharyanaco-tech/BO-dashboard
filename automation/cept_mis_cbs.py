@@ -1,16 +1,15 @@
 """
-CEPT MIS CBSTrans3 BO-wise report automation.
+CEPT MIS CBSTrans3 (Product Wise A/C Report) BO-wise automation.
 
-- Opens https://mis.cept.gov.in/CBS/CBSTrans3.aspx
-- Selects Circle=Haryana Circle, Region=DivReporting Circle (fixed)
-- Iterates every Division and each of its Sub Divisions
-- Downloads each report, extracts BO-wise rows
-- Combines everything into data/dashboard_data.xlsx for the dashboard
-
-Run locally:  python automation/cept_mis_cbs.py
-GitHub Actions runs this daily and commits the result.
+Flow:
+1. Open https://mis.cept.gov.in/CBS/CBSTrans3.aspx
+2. Set End Date = today
+3. Select Circle = Haryana Circle, Region = DivReporting Circle
+4. For each Division -> each Sub Division: click 'Product Wise A/C Report'
+5. Parse rendered HTML table, keep BO-wise rows
+6. Combine all into data/dashboard_data.xlsx
 """
-import io, os, sys
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -22,86 +21,115 @@ DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
 MIS_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
-CIRCLE = "Haryana Circle"
-REGION = "DivReporting Circle"
+CIRCLE = "haryana circle"
+REGION = "divreporting circle"
 
 
-def select_by_text(page, selector, text):
-    """Select dropdown option whose visible text matches (case-insensitive)."""
-    page.select_option(selector, label=text)
+def find_select(page, option_text):
+    """Find a select whose options contain the given text (case-insensitive)."""
+    handle = page.query_selector_all("select")
+    for el in handle:
+        opts = el.eval_on_selector_all("option", "els => els.map(e => e.textContent.trim().toLowerCase())")
+        if any(option_text in o for o in opts):
+            return el
+    return None
 
 
-def get_options(page, selector):
-    return page.eval_on_selector(
-        selector,
-        "el => Array.from(el.options).map(o => o.text.trim()).filter(t => t && t.toLowerCase() !== 'select')"
+def select_by_text(page, el, text):
+    value = el.eval_on_selector_all(
+        "option",
+        "(els,t) => { const m = els.find(e => e.textContent.trim().toLowerCase().includes(t)); return m ? m.value : null; }",
+        text.lower(),
+    )
+    if value is None:
+        raise RuntimeError(f"Option not found: {text}")
+    el.select_option(value)
+    page.wait_for_load_state("networkidle")
+
+
+def options_of(el):
+    return el.eval_on_selector_all(
+        "option",
+        "els => els.map(e => e.textContent.trim()).filter(t => t && !t.toLowerCase().startsWith('select'))"
     )
 
 
-def find_selects(page):
-    """Heuristically identify Circle/Region/Division/SubDivision dropdowns by their options."""
-    selects = page.eval_on_selector_all(
-        "select",
-        "els => els.map((el,i) => ({i, id: el.id, name: el.name, options: Array.from(el.options).map(o => o.text.trim())}))"
-    )
-    circle = next((s for s in selects if any(CIRCLE.lower() in o.lower() for o in s["options"])), None)
-    region = next((s for s in selects if any(REGION.lower() in o.lower() for o in s["options"]) and s["i"] != circle["i"]), None)
-    # Division dropdown: contains 'Division' in many option texts
-    division = next((s for s in selects if s["i"] not in (circle["i"], region["i"]) and sum('division' in o.lower() for o in s["options"]) >= 3), None)
-    subdiv = next((s for s in selects if s["i"] not in (circle["i"], region["i"], division["i"]) and sum('sub' in o.lower() or 'division' in o.lower() for o in s["options"]) >= 3), None)
-    return circle, region, division, subdiv
-
-
-def sel(page, meta):
-    return f"select#{meta['id']}" if meta["id"] else f"select[name='{meta['name']}']"
+def parse_report(page):
+    """Parse the rendered report table(s) and return BO-wise rows."""
+    frames = []
+    for table in page.query_selector_all("table"):
+        html = table.evaluate("el => el.outerHTML")
+        try:
+            df = pd.read_html(io.StringIO(html))[0]
+        except Exception:
+            continue
+        if df.empty or len(df.columns) < 3:
+            continue
+        df.columns = [str(c).strip() for c in df.columns]
+        date_col = next((c for c in df.columns if "date" in c.lower()), None)
+        bo_col = next((c for c in df.columns if c.lower() in ("bo", "bo name", "office_name", "office name") or "branch" in c.lower()), None)
+        if not date_col or not bo_col:
+            continue
+        df = df.rename(columns={date_col: "Date", bo_col: "BO"})
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        df["BO"] = df["BO"].astype(str).str.strip()
+        # Keep only BO rows (exclude SO-wise rows if a type column exists)
+        type_col = next((c for c in df.columns if c.lower() in ("type", "office type", "office_type")), None)
+        if type_col:
+            df = df[df[type_col].astype(str).str.lower().str.contains("bo")]
+        keep = ["Date", "BO"] + [c for c in df.columns if c not in ("Date", "BO") and pd.api.types.is_numeric_dtype(df[c])]
+        if len(keep) > 2:
+            frames.append(df[keep].dropna(subset=["Date"]))
+    return frames
 
 
 def main():
+    import io
     all_frames = []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(accept_downloads=True)
+        page = browser.new_page()
         page.goto(MIS_URL, wait_until="networkidle")
 
-        circle, region, division, subdiv = find_selects(page)
-        if not all([circle, region, division, subdiv]):
-            sys.exit("Could not auto-detect Circle/Region/Division/SubDivision dropdowns. Page structure may have changed.")
+        # End Date = today
+        end_input = page.query_selector("input[type='text'][id*='Date'], input[id*='EndDate'], input[name*='Date']")
+        if end_input:
+            end_input.fill(date.today().strftime("%d/%m/%Y"))
 
-        select_by_text(page, sel(page, circle), CIRCLE)
-        page.wait_for_load_state("networkidle")
-        select_by_text(page, sel(page, region), REGION)
-        page.wait_for_load_state("networkidle")
+        circle_el = find_select(page, CIRCLE)
+        region_el = find_select(page, REGION)
+        if not circle_el or not region_el:
+            sys.exit("Circle/Region dropdown not found on page.")
+        select_by_text(page, circle_el, CIRCLE)
+        select_by_text(page, region_el, REGION)
 
-        divisions = get_options(page, sel(page, division))
-        for div in divisions:
-            select_by_text(page, sel(page, division), div)
-            page.wait_for_load_state("networkidle")
-            subs = get_options(page, sel(page, subdiv))
-            for sub in subs:
-                select_by_text(page, sel(page, subdiv), sub)
+        # Division and Sub Division dropdowns appear after Region postback
+        div_el = None
+        sub_el = None
+        for el in page.query_selector_all("select"):
+            opts = [o.lower() for o in options_of(el)]
+            if div_el is None and sum("division" in o for o in opts) >= 3 and el != circle_el and el != region_el:
+                div_el = el
+            elif div_el is not None and sub_el is None and el != div_el and sum("division" in o or "sub" in o for o in opts) >= 3:
+                sub_el = el
+        if not div_el or not sub_el:
+            sys.exit("Division/Sub Division dropdowns not found.")
+
+        for div in options_of(div_el):
+            select_by_text(page, div_el, div)
+            for sub in options_of(sub_el):
+                select_by_text(page, sub_el, sub)
+                page.click("input[type=submit][value*='Product Wise A/C Report']")
                 page.wait_for_load_state("networkidle")
-                # Trigger report generation/download
-                try:
-                    with page.expect_download(timeout=30000) as dl:
-                        page.click("input[type=submit][value*='Report'], a[href*='download'], input[value*='Show'], input[value*='Generate']")
-                    path = dl.value.path()
-                    df = pd.read_excel(path) if not path.endswith(".csv") else pd.read_csv(path)
-                except Exception:
-                    # Fallback: report may render as HTML table instead of file download
-                    try:
-                        df = pd.read_html(page.content())[0]
-                    except Exception:
-                        continue
-                df.columns = [str(c).strip() for c in df.columns]
-                date_col = next((c for c in df.columns if "date" in c.lower()), None)
-                bo_col = next((c for c in df.columns if c.lower() in ("bo", "bo name", "office_name", "office name") or "branch" in c.lower()), None)
-                if not date_col or not bo_col:
-                    continue
-                df = df.rename(columns={date_col: "Date", bo_col: "BO"})
-                df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                df["BO"] = df["BO"].astype(str).str.strip()
-                keep = ["Date", "BO"] + [c for c in df.columns if c not in ("Date", "BO") and pd.api.types.is_numeric_dtype(df[c])]
-                all_frames.append(df[keep].dropna(subset=["Date"]))
+                all_frames.extend(parse_report(page))
+                # go back to report form for next selection
+                page.goto(MIS_URL, wait_until="networkidle")
+                circle_el = find_select(page, CIRCLE)
+                region_el = find_select(page, REGION)
+                select_by_text(page, circle_el, CIRCLE)
+                select_by_text(page, region_el, REGION)
+                div_el = next(el for el in page.query_selector_all("select") if el != circle_el and el != region_el and sum("division" in o.lower() for o in options_of(el)) >= 3)
+                sub_el = next(el for el in page.query_selector_all("select") if el not in (circle_el, region_el, div_el) and sum("division" in o.lower() or "sub" in o.lower() for o in options_of(el)) >= 3)
         browser.close()
 
     if not all_frames:
