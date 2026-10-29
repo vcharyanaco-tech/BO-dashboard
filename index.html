@@ -71,12 +71,13 @@ const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString('en-IN');
 function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
 const iso=d=>d.toISOString().slice(0,10);
+const MASTER_LIST=(typeof BO_MASTER!=='undefined')?BO_MASTER:[];
 function normalizeBO(name){
   return String(name||'').trim().replace(/\s+/g,' ')
     .replace(/\s*B\.?O\.?$/i,' BO').replace(/\s+/g,' ').trim().toLowerCase();
 }
 const MASTER_MAP={};
-(window.BO_MASTER||[]).forEach(b=>MASTER_MAP[normalizeBO(b)]=b);
+MASTER_LIST.forEach(b=>MASTER_MAP[normalizeBO(b)]=b);
 function matchBO(name){
   const key=normalizeBO(name);
   if(MASTER_MAP[key])return MASTER_MAP[key];
@@ -87,7 +88,7 @@ function matchBO(name){
 }
 function setBOOptions(list){
   const cur=$('bo').value;
-  const all=[...new Set([...(window.BO_MASTER||[]),...list])].sort((a,b)=>a.localeCompare(b));
+  const all=[...new Set([...MASTER_LIST,...list])].sort((a,b)=>a.localeCompare(b));
   $('bo').innerHTML='<option value="">All BOs</option>'+all.map(b=>`<option>${b}</option>`).join('');
   if([...$('bo').options].some(o=>o.value===cur))$('bo').value=cur;
 }
@@ -123,7 +124,7 @@ async function autoLoad(){
     const buf=await res.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array',cellDates:true});
     const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:null,raw:true});
-    if(rows.length){ingestRows(rows);$('autoStatus').textContent='Auto-loaded CEPT MIS data: '+rows.length+' rows (last updated automatically).';}
+    if(rows.length){ingestRows(rows);$('autoStatus').textContent='Auto-loaded CEPT MIS data: '+rows.length+' rows.';}
     else $('autoStatus').textContent='Auto data file khali hai — manual upload available hai.';
   }catch(e){
     $('autoStatus').textContent='Auto data abhi available nahi hai — manual upload use karein.';
