@@ -2,7 +2,8 @@
 CEPT MIS CBSTrans3 BO-wise automation.
 
 Slow gov site: report load and dropdown postbacks can timeout.
-Retry with page refresh on failures; never crash on a single dropdown.
+Retry with page refresh on failures; never crash on a single dropdown/sub.
+Logs table headers when report parse is empty (to diagnose structure).
 """
 import io, sys, time, traceback
 from datetime import date
@@ -133,6 +134,21 @@ def select_radio(page, radio_sel):
     safe_wait(page)
 
 
+def log_tables(page, context):
+    """Log every table's headers and row count - for diagnosing report structure."""
+    tables = page.query_selector_all("table")
+    print(f"[{context}] Found {len(tables)} tables")
+    for i, table in enumerate(tables):
+        try:
+            html = table.evaluate("el => el.outerHTML")
+            df = pd.read_html(io.StringIO(html))[0]
+            print(f"[{context}] Table {i}: {len(df)} rows, columns: {list(df.columns)[:10]}")
+            if len(df) > 0:
+                print(f"[{context}] Table {i} first row: {df.iloc[0].to_dict()}")
+        except Exception as e:
+            print(f"[{context}] Table {i}: unreadable ({e})")
+
+
 def parse_report(page, metric_name):
     frames = []
     for table in page.query_selector_all("table"):
@@ -193,7 +209,8 @@ def run_metric_with_retry(page, div, sub, radio_sel, metric, max_attempts=3):
             frames = parse_report(page, metric)
             if frames:
                 return frames
-            print(f"{metric}: empty parse on attempt {attempt}, refreshing...")
+            print(f"{metric}: empty parse on attempt {attempt}, logging tables...")
+            log_tables(page, f"{metric} attempt {attempt}")
         except PWTimeout as e:
             print(f"{metric}: timeout on attempt {attempt}: {e}")
         except Exception as e:
@@ -236,10 +253,27 @@ def main():
                         continue
                 subs = options_of(page, SUB_SEL)
                 for sub in subs:
-                    page.select_option(SUB_SEL, label=sub)
-                    safe_wait(page)
-                    for radio_sel, metric in METRICS:
-                        all_frames.extend(run_metric_with_retry(page, div, sub, radio_sel, metric))
+                    try:
+                        page.select_option(SUB_SEL, label=sub)
+                        safe_wait(page)
+                        for radio_sel, metric in METRICS:
+                            all_frames.extend(run_metric_with_retry(page, div, sub, radio_sel, metric))
+                    except PWTimeout as e:
+                        print(f"{div}/{sub}: timeout ({e}) - reloading and moving to next sub")
+                        save_debug(page, f"sub_select_timeout_{norm(sub)[:30]}")
+                        try:
+                            setup_filters(page, div)
+                        except Exception:
+                            pass
+                        continue
+                    except Exception as e:
+                        print(f"{div}/{sub}: error ({e}) - reloading and moving to next sub")
+                        save_debug(page, f"sub_select_error_{norm(sub)[:30]}")
+                        try:
+                            setup_filters(page, div)
+                        except Exception:
+                            pass
+                        continue
         except Exception:
             save_debug(page, "exception")
             traceback.print_exc()
