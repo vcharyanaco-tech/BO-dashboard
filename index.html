@@ -45,7 +45,7 @@ th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:
 </header>
 <main>
   <div id="autoStatus">Checking for auto-fed CEPT MIS data…</div>
-  <div id="drop" class="no-print">Daily Excel/CSV file yahan drop karein ya click karke choose karein<br><small>Accepted headers: <b>Date</b>, <b>BO</b> / <b>Name</b> / <b>SOL ID / BOCODE</b> + numeric product columns</small><input id="file" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+  <div id="drop" class="no-print">Daily Excel/CSV file yahan drop karein ya click karke choose karein<br><small>Accepted headers: <b>Name</b> / <b>BO</b> / <b>SOL ID / BOCODE</b> + numeric product columns. Date column optional — title se 'Dated:' extract hoga.</small><input id="file" type="file" accept=".xlsx,.xls,.csv" hidden></div>
   <div class="card no-print" style="margin-bottom:16px">
     <div class="controls">
       <div><label>Filter mode</label><select id="mode" onchange="render()">
@@ -70,6 +70,7 @@ let ROWS=[], METRICS=[], DATES=[];
 const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString('en-IN');
 function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
+function parseDMY(s){const m=String(s||'').match(/(\d{2})-(\d{2})-(\d{4})/);if(!m)return null;return new Date(+m[3],+m[2]-1,+m[1]);}
 const iso=d=>d.toISOString().slice(0,10);
 const MASTER_LIST=(typeof BO_MASTER!=='undefined')?BO_MASTER:[];
 function normalizeBO(name){
@@ -92,7 +93,6 @@ function setBOOptions(list){
 }
 setBOOptions([]);
 function findHeaderRow(matrix){
-  // Find first row containing a BO-like header (SOL ID / BOCODE, Name, BO, Branch Office)
   for(let i=0;i<matrix.length;i++){
     const row=matrix[i].map(c=>String(c??'').trim());
     if(row.some(c=>/solarid|solar id|bocode|bo code|^bo$|^bo name$|branch office|^name$/i.test(c))){
@@ -101,26 +101,44 @@ function findHeaderRow(matrix){
   }
   return -1;
 }
+function extractReportDate(matrix,hIdx){
+  // Look for 'Dated: DD-MM-YYYY' in rows above header
+  for(let i=hIdx-1;i>=0;i--){
+    const line=matrix[i].map(c=>String(c??'')).join(' ');
+    const m=line.match(/Dated:\s*(\d{2}-\d{2}-\d{4})/i);
+    if(m){const d=parseDMY(m[1]);if(d)return d;}
+  }
+  return new Date();
+}
 function ingestMatrix(matrix){
   const hIdx=findHeaderRow(matrix);
   if(hIdx<0)throw new Error('Header row (SOL ID / BOCODE / Name / BO) nahi mili. Pehli few rows: '+matrix.slice(0,3).map(r=>r.join(' | ')).join(' ;; '));
   const headers=matrix[hIdx].map((c,i)=>String(c??'').trim()||`col${i}`);
   const rows=matrix.slice(hIdx+1).filter(r=>r.some(c=>String(c??'').trim()!==''));
   if(!rows.length)throw new Error('Header ke baad koi data row nahi mili.');
-  const dateIdx=headers.findIndex(h=>/date|din|tarikh/i.test(h));
+  let dateIdx=headers.findIndex(h=>/date|din|tarikh/i.test(h));
   const boIdx=headers.findIndex(h=>/solarid|solar id|bocode|bo code|^bo$|^bo name$|branch office|^name$/i.test(h));
-  if(dateIdx<0||boIdx<0)throw new Error('Date aur BO columns required hain. Headers: '+headers.join(', '));
-  METRICS=headers.map((h,i)=>i).filter(i=>i!==dateIdx&&i!==boIdx&&rows.some(r=>typeof r[i]==='number'||(typeof r[i]==='string'&&r[i]!==''&&!isNaN(Number(r[i])))));
-  if(!METRICS.length)throw new Error('Koi numeric performance column nahi mila.');
-  ROWS=rows.map(r=>{const d=parseDate(r[dateIdx]);if(!d)return null;const o={date:iso(d),bo:matchBO(r[boIdx])};METRICS.forEach(i=>o[headers[i]]=Number(r[i])||0);return o;}).filter(Boolean);
-  METRICS=METRICS.map(i=>headers[i]);
+  if(boIdx<0)throw new Error('BO column (Name / SOL ID / BOCODE / BO) nahi mila. Headers: '+headers.join(', '));
+  let fallbackDate=null;
+  if(dateIdx<0){
+    fallbackDate=extractReportDate(matrix,hIdx);
+  }
+  const metricIdxs=headers.map((h,i)=>i).filter(i=>i!==dateIdx&&i!==boIdx&&rows.some(r=>typeof r[i]==='number'||(typeof r[i]==='string'&&r[i]!==''&&!isNaN(Number(r[i])))));
+  if(!metricIdxs.length)throw new Error('Koi numeric performance column nahi mila.');
+  ROWS=rows.map(r=>{
+    const d=dateIdx>=0?parseDate(r[dateIdx]):fallbackDate;
+    if(!d)return null;
+    const o={date:iso(d),bo:matchBO(r[boIdx])};
+    metricIdxs.forEach(i=>o[headers[i]]=Number(r[i])||0);
+    return o;
+  }).filter(Boolean);
+  METRICS=metricIdxs.map(i=>headers[i]);
   DATES=[...new Set(ROWS.map(r=>r.date))].sort();
   $('from').value=DATES[0];$('to').value=DATES[DATES.length-1];
   setBOOptions([...new Set(ROWS.map(r=>r.bo))]);
   $('msg').textContent='';render();
 }
 function ingestRows(rows){
-  // Convert array-of-objects to matrix for unified header detection
   const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))];
   const matrix=[cols,...rows.map(r=>cols.map(c=>r[c]))];
   ingestMatrix(matrix);
