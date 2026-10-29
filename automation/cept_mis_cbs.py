@@ -11,7 +11,7 @@ At the end:
 - upload/use only the 3 merged files for dashboard
 """
 import io, os, re, sys, time, traceback, glob
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -38,7 +38,6 @@ CIRCLE_SEL = "#ContentPlaceHolder1_CircleDropDown"
 REGION_SEL = "#ContentPlaceHolder1_RegionDropDown"
 DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
 SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
-UPDATED_SEL = "#ContentPlaceHolder1_Label2"
 
 SUBMIT_SELECTORS = [
     "input[value*='Product Wise']",
@@ -106,39 +105,15 @@ def save_debug(page, tag):
         pass
 
 
-def latest_data_date(page):
-    """Read the portal's 'Data Updated upto: DD/MM/YYYY' banner.
-
-    The MIS only publishes figures through that date. Asking for any later
-    window renders the grid header with zero BO rows, which the readiness check
-    cannot distinguish from a slow page, so every KPI sits out its full timeout.
-    """
-    try:
-        text = page.inner_text(UPDATED_SEL, timeout=5000)
-    except Exception:
-        return None
-    m = re.search(r"(\d{2})[/-](\d{2})[/-](\d{4})", text or "")
-    if not m:
-        return None
-    try:
-        return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-    except ValueError:
-        return None
-
-
 def open_page(page):
     page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
     safe_wait(page)
-    # The form has two plain inputs (startDate/endDate), both DD-MM-YYYY. Use the
-    # date the portal says it has data for: today is usually ahead of the last
-    # upload, and a window past it yields an empty grid.
-    report_date = latest_data_date(page)
-    if report_date:
-        log(f"Reporting date: {report_date.strftime('%d-%m-%Y')} (from 'Data Updated upto')")
-    else:
-        report_date = date.today()
-        log(f"Reporting date: {report_date.strftime('%d-%m-%Y')} (banner unreadable, using today)")
+    # The form has two plain inputs (startDate/endDate), both DD-MM-YYYY. Report
+    # for yesterday: the MIS uploads with a lag, so a same-day window usually has
+    # no figures and renders an empty grid (header + blank 'Total:' only).
+    report_date = date.today() - timedelta(days=1)
     stamp = report_date.strftime("%d-%m-%Y")
+    log(f"Reporting date: {stamp} (yesterday)")
     for sel in ("#ContentPlaceHolder1_startDate", "#ContentPlaceHolder1_endDate"):
         try:
             page.fill(sel, stamp, timeout=5000)
