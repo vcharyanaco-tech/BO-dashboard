@@ -2,7 +2,7 @@
 CEPT MIS CBSTrans3 BO-wise automation - Excel export flow.
 
 For each division/sub-division and each KPI (Accounts Opened/Closed/Net Addition):
-- select radio, submit, wait up to 180s for 'Dated:' signal (iframe-aware)
+- select radio, submit, wait up to 180s for a report table with real BO rows (any frame)
 - click Excel export button, download to data/exports/{KPI}_{division}_{subdivision}.xlsx
 
 At the end:
@@ -57,6 +57,12 @@ SUBMIT_SELECTORS = [
 ]
 
 EXPORT_SELECTORS = [
+    # CBSTrans3 has no server-side export page: #example1 is a DataTables grid and
+    # the toolbar button it injects (buttons-excel) builds the workbook in the
+    # browser and hands Chromium a blob download.
+    ".dt-buttons button.buttons-excel",
+    "div.dt-buttons button:has-text('Excel')",
+    "button.buttons-excel",
     "a:has-text('Excel')",
     "button:has-text('Excel')",
     "[value*='Excel']",
@@ -102,9 +108,13 @@ def save_debug(page, tag):
 def open_page(page):
     page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
     safe_wait(page)
-    date_input = page.query_selector("input[id*='Date'], input[name*='Date'], input[type='text']")
-    if date_input:
-        date_input.fill(date.today().strftime("%d-%m-%Y"))
+    # The form has two plain inputs (startDate/endDate), both DD-MM-YYYY.
+    today = date.today().strftime("%d-%m-%Y")
+    for sel in ("#ContentPlaceHolder1_startDate", "#ContentPlaceHolder1_endDate"):
+        try:
+            page.fill(sel, today, timeout=5000)
+        except Exception:
+            pass
 
 
 def wait_for_option_match(page, sel, text, timeout=60000):
@@ -145,11 +155,25 @@ def select_fuzzy(page, sel, wanted, label):
 
 
 def report_ready(page):
-    """Check all frames (main + iframes) for report-ready signal."""
+    """True once a report table shows at least one real BO row (any frame).
+
+    The page prints its 'Dated:' header even when the submitted filters produced
+    an empty table, so the header alone cannot gate the export.
+    """
     for frame in page.frames:
         try:
-            txt = frame.evaluate("() => document.body ? document.body.innerText.toLowerCase() : ''")
-            if 'dated:' in txt or 'sol id / bocode' in txt:
+            ready = frame.evaluate(
+                "() => {"
+                "  const table = document.querySelector('table#example1, table[id^=example]');"
+                "  if (!table) return false;"
+                "  const cells = table.querySelectorAll('tr td:first-child');"
+                "  return Array.from(cells).some(td => {"
+                "    const name = (td.textContent || '').trim();"
+                "    return name.length > 0 && !/^total\\b/i.test(name);"
+                "  });"
+                "}"
+            )
+            if ready:
                 return True
         except Exception:
             continue
@@ -194,7 +218,14 @@ def try_click_submit(page):
     return False
 
 
-def try_click_export(page, timeout=60000):
+def try_click_export(page, target, timeout=60000):
+    """Click the Excel button and save the download as *target*.
+
+    The button is DataTables' excel extension, which names the file after
+    document.title - every division/sub-division therefore offers the same
+    'Product Wise A/C Report.xlsx'. Saving under our own name is what keeps the
+    per-run export identifiable and the merge glob matching.
+    """
     with page.expect_download(timeout=timeout) as dl_info:
         for sel in EXPORT_SELECTORS:
             try:
@@ -209,7 +240,8 @@ def try_click_export(page, timeout=60000):
             save_debug(page, "no_export_button")
             raise RuntimeError("No Excel export button found.")
     download = dl_info.value
-    target = EXPORT_DIR / download.suggested_filename
+    log(f"Download offered as '{download.suggested_filename}' -> saving as {target.name}")
+    target.parent.mkdir(parents=True, exist_ok=True)
     download.save_as(str(target))
     log(f"Downloaded: {target}")
     return target
@@ -267,7 +299,7 @@ def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
                 target = EXPORT_DIR / fname
                 if target.exists():
                     target.unlink()
-                try_click_export(page)
+                try_click_export(page, target)
                 if target.exists() and target.stat().st_size > 0:
                     log(f"{metric}: export success -> {target}")
                     return target
@@ -301,6 +333,14 @@ def merge_kpi_files(metric):
     for f in files:
         try:
             df = pd.read_excel(f)
+            # Each exported grid ships a server-rendered 'Total:' footer row. The
+            # dashboard treats it as a BO otherwise, so drop it while merging.
+            first = df.columns[0]
+            names = df[first].astype(str).str.strip()
+            drop = names.str.match(r"(?i)^total\b").fillna(False)
+            if drop.any():
+                log(f"{metric}: dropping {int(drop.sum())} 'Total:' footer row(s) from {Path(f).name}")
+                df = df[~drop].copy()
             df["__source"] = Path(f).stem
             frames.append(df)
         except Exception as e:
