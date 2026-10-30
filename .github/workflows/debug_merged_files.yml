@@ -1,0 +1,20 @@
+name: Debug Merged KPI Files
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install pandas openpyxl
+      - name: Inspect merged workbooks
+        run: python -u debug_merged_files.py
