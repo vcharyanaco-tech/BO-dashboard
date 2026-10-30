@@ -2,8 +2,8 @@
 CEPT MIS CBSTrans3 BO-wise automation - Excel export flow.
 
 For each division/sub-division and each KPI (Accounts Opened/Closed/Net Addition):
-- select radio, submit, wait up to 180s for 'Dated:' signal (iframe-aware)
-- click Excel export button, download to data/exports/{KPI}_{division}_{subdivision}.xlsx
+- select radio, wait up to 90s for 'Dated:' signal (iframe-aware)
+- click Excel export button, save download to data/exports/{KPI}_{division}_{subdivision}.xlsx
 
 At the end:
 - merge all files per KPI into one merged file (3 total)
@@ -38,8 +38,6 @@ CIRCLE_SEL = "#ContentPlaceHolder1_CircleDropDown"
 REGION_SEL = "#ContentPlaceHolder1_RegionDropDown"
 DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
 SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
-
-SUBMIT_SELECTORS = []
 
 EXPORT_SELECTORS = [
     "a:has-text('Excel')",
@@ -81,7 +79,6 @@ def save_debug(page, tag):
 def open_page(page):
     page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
     safe_wait(page)
-    # MIS uploads with a lag - use yesterday as the freshest complete date
     yesterday = (date.today() - timedelta(days=1)).strftime("%d/%m/%Y")
     date_inputs = page.query_selector_all("input[id*='Date'], input[name*='Date'], input[type='text']")
     for di in date_inputs[:2]:
@@ -158,7 +155,8 @@ def wait_for_report_ready(page, timeout=90000, refresh_retries=2):
     return report_ready(page)
 
 
-def try_click_export(page, timeout=60000):
+def try_click_export(page, target, timeout=60000):
+    """Click Excel export and save download to the intended target path."""
     with page.expect_download(timeout=timeout) as dl_info:
         for sel in EXPORT_SELECTORS:
             try:
@@ -173,9 +171,8 @@ def try_click_export(page, timeout=60000):
             save_debug(page, "no_export_button")
             raise RuntimeError("No Excel export button found.")
     download = dl_info.value
-    target = EXPORT_DIR / download.suggested_filename
     download.save_as(str(target))
-    log(f"Downloaded: {target}")
+    log(f"Downloaded: {target} (suggested name: {download.suggested_filename})")
     return target
 
 
@@ -216,7 +213,7 @@ def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, max_a
                 target = EXPORT_DIR / fname
                 if target.exists():
                     target.unlink()
-                try_click_export(page)
+                try_click_export(page, target)
                 if target.exists() and target.stat().st_size > 0:
                     log(f"{metric_key}: export success -> {target}")
                     return target
@@ -249,8 +246,7 @@ def merge_kpi_files(metric_key):
     frames = []
     for f in files:
         try:
-            df = pd.read_excel(f)
-            df["__source"] = Path(f).stem
+            df = pd.read_excel(f, header=None)
             frames.append(df)
         except Exception as e:
             log(f"{metric_key}: failed to read {f}: {e}")
@@ -271,7 +267,6 @@ def merge_kpi_files(metric_key):
 
 
 def generate_dashboard_data():
-    """Combine 3 merged KPI files into data/dashboard_data.xlsx for the dashboard."""
     today = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
     per_metric = {}
     for _, metric_key, metric_label in METRICS:
@@ -280,28 +275,57 @@ def generate_dashboard_data():
             log(f"{metric_key}: merged file missing, skipping")
             continue
         try:
-            df = pd.read_excel(merged_file)
+            matrix = pd.read_excel(merged_file, header=None).values.tolist()
         except Exception as e:
             log(f"{metric_key}: failed to read merged file: {e}")
             continue
-        # Find BO name column and numeric total column
-        bo_col = next((c for c in df.columns if str(c).strip().lower() in ("name", "bo", "bo name", "branch office")), None)
-        if not bo_col:
-            log(f"{metric_key}: no BO name column found in merged file")
+        # header detection
+        hIdx = -1
+        for i, row in enumerate(matrix):
+            cells = [str(c).strip() if c is not None else "" for c in row]
+            if any(c.lower() in ("name", "bo", "bo name", "branch office") or "sol id" in c.lower() or "bocode" in c.lower() for c in cells):
+                hIdx = i
+                break
+        if hIdx < 0:
+            log(f"{metric_key}: header row not found in merged file")
             continue
-        num_cols = [c for c in df.columns if c != bo_col and pd.api.types.is_numeric_dtype(df[c])]
-        if not num_cols:
-            log(f"{metric_key}: no numeric columns found in merged file")
+        raw_headers = [str(c).strip() if c is not None else "" for c in matrix[hIdx]]
+        seen = {}
+        headers = []
+        for c in raw_headers:
+            c = c or "col"
+            if c in seen:
+                seen[c] += 1
+                headers.append(f"{c}_{seen[c]}")
+            else:
+                seen[c] = 0
+                headers.append(c)
+        rows = [r for r in matrix[hIdx+1:] if any(str(c).strip() for c in r if c is not None)]
+        df = pd.DataFrame(rows, columns=headers)
+        bo_pos = next((i for i, h in enumerate(headers) if h.lower() in ("name", "bo", "bo name", "branch office") or "sol id" in h.lower() or "bocode" in h.lower()), None)
+        if bo_pos is None:
+            log(f"{metric_key}: no BO column found")
             continue
-        df[metric_label] = df[num_cols].sum(axis=1)
-        per_metric[metric_label] = df[[bo_col, metric_label]].rename(columns={bo_col: "BO"})
+        bo_series = df.iloc[:, bo_pos].astype(str).str.strip()
+        num_pos = []
+        for i in range(len(headers)):
+            if i == bo_pos:
+                continue
+            coerced = pd.to_numeric(df.iloc[:, i], errors="coerce")
+            if coerced.notna().any():
+                num_pos.append(i)
+        if not num_pos:
+            log(f"{metric_key}: no numeric columns found")
+            continue
+        metric_vals = df.iloc[:, num_pos].apply(pd.to_numeric, errors="coerce").fillna(0).sum(axis=1)
+        part = pd.DataFrame({"BO": bo_series, metric_label: metric_vals}).groupby("BO", as_index=False)[metric_label].sum()
+        per_metric[metric_label] = part
     if not per_metric:
         log("No metric data to build dashboard file.")
         return None
     combined = None
-    for label, df in per_metric.items():
-        df = df.groupby("BO", as_index=False)[label].sum()
-        combined = df if combined is None else combined.merge(df, on="BO", how="outer")
+    for label, part in per_metric.items():
+        combined = part if combined is None else combined.merge(part, on="BO", how="outer")
     combined.insert(0, "Date", today)
     for _, _, metric_label in METRICS:
         if metric_label not in combined.columns:
