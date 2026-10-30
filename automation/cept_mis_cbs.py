@@ -4,6 +4,7 @@ CEPT MIS CBSTrans3 BO-wise automation - Excel export flow.
 For each division/sub-division and each KPI (Accounts Opened/Closed/Net Addition):
 - select radio, wait up to 90s for 'Dated:' signal (iframe-aware)
 - click Excel export button, save download to data/exports/{KPI}_{division}_{subdivision}.xlsx
+- validate downloaded file has actual BO data rows (not just header)
 
 At the end:
 - merge all files per KPI into one merged file (3 total)
@@ -155,8 +156,37 @@ def wait_for_report_ready(page, timeout=90000, refresh_retries=2):
     return report_ready(page)
 
 
+def has_bo_data_rows(xlsx_path):
+    """Check if downloaded file has actual BO data rows (not just header)."""
+    try:
+        df = pd.read_excel(xlsx_path, header=None)
+        # Find header row
+        hIdx = -1
+        for i, row in enumerate(df.values.tolist()):
+            cells = [str(c).strip() if c is not None else "" for c in row]
+            if any(c.lower() in ("name", "bo", "bo name", "branch office") or "sol id" in c.lower() or "bocode" in c.lower() for c in cells):
+                hIdx = i
+                break
+        if hIdx < 0:
+            return False, 0
+        data_rows = df.iloc[hIdx+1:]
+        # Count non-empty rows that are not repeated headers
+        valid = 0
+        for _, row in data_rows.iterrows():
+            cells = [str(c).strip() if c is not None else "" for c in row]
+            if not any(cells):
+                continue
+            # Skip if it's a repeated header row
+            if any(c.lower() in ("name", "bo", "bo name") or "sol id" in c.lower() for c in cells):
+                continue
+            valid += 1
+        return valid > 0, valid
+    except Exception as e:
+        log(f"has_bo_data_rows error: {e}")
+        return False, 0
+
+
 def try_click_export(page, target, timeout=60000):
-    """Click Excel export and save download to the intended target path."""
     with page.expect_download(timeout=timeout) as dl_info:
         for sel in EXPORT_SELECTORS:
             try:
@@ -215,9 +245,14 @@ def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, max_a
                     target.unlink()
                 try_click_export(page, target)
                 if target.exists() and target.stat().st_size > 0:
-                    log(f"{metric_key}: export success -> {target}")
-                    return target
-                log(f"{metric_key}: export file missing/empty on attempt {attempt}")
+                    has_data, row_count = has_bo_data_rows(target)
+                    if has_data:
+                        log(f"{metric_key}: export success -> {target} ({row_count} BO rows)")
+                        return target
+                    else:
+                        log(f"{metric_key}: export has no BO data rows (only header) on attempt {attempt} - will retry")
+                else:
+                    log(f"{metric_key}: export file missing/empty on attempt {attempt}")
             else:
                 log(f"{metric_key}: report never rendered on attempt {attempt}")
         except PWTimeout as e:
@@ -233,7 +268,7 @@ def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, max_a
             except Exception:
                 pass
             setup_filters(page, div, sub)
-    log(f"{metric_key}: giving up after {max_attempts} attempts for {div}/{sub}")
+    log(f"{metric_key}: giving up after {max_attempts} attempts for {div}/{sub} - no valid BO data exported")
     return None
 
 
@@ -246,12 +281,16 @@ def merge_kpi_files(metric_key):
     frames = []
     for f in files:
         try:
+            has_data, _ = has_bo_data_rows(f)
+            if not has_data:
+                log(f"{metric_key}: skipping {f} - no BO data rows")
+                continue
             df = pd.read_excel(f, header=None)
             frames.append(df)
         except Exception as e:
             log(f"{metric_key}: failed to read {f}: {e}")
     if not frames:
-        log(f"{metric_key}: no readable frames")
+        log(f"{metric_key}: no readable frames with data")
         return None
     merged = pd.concat(frames, ignore_index=True)
     merged_out = EXPORT_DIR / f"{metric_key}_merged.xlsx"
@@ -279,7 +318,6 @@ def generate_dashboard_data():
         except Exception as e:
             log(f"{metric_key}: failed to read merged file: {e}")
             continue
-        # header detection
         hIdx = -1
         for i, row in enumerate(matrix):
             cells = [str(c).strip() if c is not None else "" for c in row]
@@ -307,18 +345,21 @@ def generate_dashboard_data():
             log(f"{metric_key}: no BO column found")
             continue
         bo_series = df.iloc[:, bo_pos].astype(str).str.strip()
+        # Exclude repeated header rows and SOL ID column from metrics
+        mask = ~bo_series.str.lower().isin(["name", "bo", "bo name"])
+        sol_pos = next((i for i, h in enumerate(headers) if "sol id" in h.lower() or "bocode" in h.lower()), None)
         num_pos = []
         for i in range(len(headers)):
-            if i == bo_pos:
+            if i == bo_pos or i == sol_pos:
                 continue
-            coerced = pd.to_numeric(df.iloc[:, i], errors="coerce")
+            coerced = pd.to_numeric(df.iloc[:, i].astype(str).str.replace(",", "", regex=False).str.strip(), errors="coerce")
             if coerced.notna().any():
                 num_pos.append(i)
         if not num_pos:
             log(f"{metric_key}: no numeric columns found")
             continue
-        metric_vals = df.iloc[:, num_pos].apply(pd.to_numeric, errors="coerce").fillna(0).sum(axis=1)
-        part = pd.DataFrame({"BO": bo_series, metric_label: metric_vals}).groupby("BO", as_index=False)[metric_label].sum()
+        metric_vals = df.iloc[:, num_pos].apply(lambda s: pd.to_numeric(s.astype(str).str.replace(",", "", regex=False).str.strip(), errors="coerce")).fillna(0).sum(axis=1)
+        part = pd.DataFrame({"BO": bo_series[mask], metric_label: metric_vals[mask]}).groupby("BO", as_index=False)[metric_label].sum()
         per_metric[metric_label] = part
     if not per_metric:
         log("No metric data to build dashboard file.")
