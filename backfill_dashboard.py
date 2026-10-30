@@ -1,7 +1,8 @@
 """Backfill: build data/dashboard_data.xlsx from the 3 existing merged KPI files.
 
-Merged files have title rows at top; detect the header row containing
-'Name' or 'SOL ID / BOCODE' and parse data from there.
+Merged files have title rows at top and duplicate column names;
+ detect the header row containing 'Name' or 'SOL ID / BOCODE',
+ dedupe column names, and parse data from there using positional indexing.
 """
 from datetime import date, timedelta
 from pathlib import Path
@@ -32,6 +33,20 @@ def find_header_row(matrix):
     return -1
 
 
+def dedupe(cols):
+    seen = {}
+    out = []
+    for c in cols:
+        c = str(c).strip() if c else "col"
+        if c in seen:
+            seen[c] += 1
+            out.append(f"{c}_{seen[c]}")
+        else:
+            seen[c] = 0
+            out.append(c)
+    return out
+
+
 def main():
     yesterday = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
     combined = None
@@ -45,25 +60,30 @@ def main():
         if hIdx < 0:
             log(f"{fname}: header row not found, skipping")
             continue
-        headers = [str(c).strip() if c is not None else f"col{i}" for i, c in enumerate(matrix[hIdx])]
+        raw_headers = [str(c).strip() if c is not None else "" for c in matrix[hIdx]]
+        headers = dedupe(raw_headers)
         rows = [r for r in matrix[hIdx+1:] if any(str(c).strip() for c in r if c is not None)]
         df = pd.DataFrame(rows, columns=headers)
-        bo_col = next((c for c in df.columns if c.lower() in ("name", "bo", "bo name", "branch office") or "sol id" in c.lower() or "bocode" in c.lower()), None)
-        if not bo_col:
-            log(f"{fname}: no BO column found after header detection, columns: {list(df.columns)}")
+        # Find BO column positionally
+        bo_pos = next((i for i, h in enumerate(headers) if h.lower() in ("name", "bo", "bo name", "branch office") or "sol id" in h.lower() or "bocode" in h.lower()), None)
+        if bo_pos is None:
+            log(f"{fname}: no BO column found, headers: {headers}")
             continue
-        num_cols = [c for c in df.columns if c != bo_col and pd.api.types.is_numeric_dtype(df[c])]
-        if not num_cols:
-            # coerce strings to numeric
-            for c in df.columns:
-                if c != bo_col:
-                    df[c] = pd.to_numeric(df[c], errors="coerce")
-            num_cols = [c for c in df.columns if c != bo_col and pd.api.types.is_numeric_dtype(df[c])]
-        if not num_cols:
+        bo_series = df.iloc[:, bo_pos].astype(str).str.strip()
+        # Numeric coercion positionally
+        num_pos = []
+        for i in range(len(headers)):
+            if i == bo_pos:
+                continue
+            col = df.iloc[:, i]
+            coerced = pd.to_numeric(col, errors="coerce")
+            if coerced.notna().any():
+                num_pos.append(i)
+        if not num_pos:
             log(f"{fname}: no numeric columns found")
             continue
-        df[label] = df[num_cols].sum(axis=1)
-        part = df[[bo_col, label]].rename(columns={bo_col: "BO"}).groupby("BO", as_index=False)[label].sum()
+        metric_vals = df.iloc[:, num_pos].apply(pd.to_numeric, errors="coerce").fillna(0).sum(axis=1)
+        part = pd.DataFrame({"BO": bo_series, label: metric_vals}).groupby("BO", as_index=False)[label].sum()
         combined = part if combined is None else combined.merge(part, on="BO", how="outer")
         log(f"{fname}: header at row {hIdx}, {len(part)} BO rows, metric {label}")
     if combined is None:
