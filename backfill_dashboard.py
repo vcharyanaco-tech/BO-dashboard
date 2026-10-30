@@ -3,6 +3,7 @@
 Merged files have title rows at top and duplicate column names;
  detect the header row containing 'Name' or 'SOL ID / BOCODE',
  dedupe column names, and parse data from there using positional indexing.
+Numeric cells may contain commas (e.g. '1,234') - strip before coercion.
 """
 from datetime import date, timedelta
 from pathlib import Path
@@ -23,6 +24,14 @@ METRICS = [
 
 def log(msg):
     print(msg, flush=True)
+
+
+def clean_numeric(series):
+    """Strip commas/spaces then coerce to numeric."""
+    return pd.to_numeric(
+        series.astype(str).str.replace(",", "", regex=False).str.replace(" ", "", regex=False).str.strip(),
+        errors="coerce",
+    )
 
 
 def find_header_row(matrix):
@@ -64,25 +73,22 @@ def main():
         headers = dedupe(raw_headers)
         rows = [r for r in matrix[hIdx+1:] if any(str(c).strip() for c in r if c is not None)]
         df = pd.DataFrame(rows, columns=headers)
-        # Find BO column positionally
         bo_pos = next((i for i, h in enumerate(headers) if h.lower() in ("name", "bo", "bo name", "branch office") or "sol id" in h.lower() or "bocode" in h.lower()), None)
         if bo_pos is None:
             log(f"{fname}: no BO column found, headers: {headers}")
             continue
         bo_series = df.iloc[:, bo_pos].astype(str).str.strip()
-        # Numeric coercion positionally
         num_pos = []
         for i in range(len(headers)):
             if i == bo_pos:
                 continue
-            col = df.iloc[:, i]
-            coerced = pd.to_numeric(col, errors="coerce")
+            coerced = clean_numeric(df.iloc[:, i])
             if coerced.notna().any():
                 num_pos.append(i)
         if not num_pos:
             log(f"{fname}: no numeric columns found")
             continue
-        metric_vals = df.iloc[:, num_pos].apply(pd.to_numeric, errors="coerce").fillna(0).sum(axis=1)
+        metric_vals = pd.concat([clean_numeric(df.iloc[:, i]) for i in num_pos], axis=1).fillna(0).sum(axis=1)
         part = pd.DataFrame({"BO": bo_series, label: metric_vals}).groupby("BO", as_index=False)[label].sum()
         combined = part if combined is None else combined.merge(part, on="BO", how="outer")
         log(f"{fname}: header at row {hIdx}, {len(part)} BO rows, metric {label}")
