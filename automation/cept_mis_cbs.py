@@ -2,7 +2,7 @@
 CEPT MIS CBSTrans3 BO-wise automation - Excel export flow.
 
 For each division/sub-division and each KPI (Accounts Opened/Closed/Net Addition):
-- select radio, submit, wait up to 90s for a report table with real BO rows (any frame)
+- select radio (its postback renders the report), wait up to 90s for real BO rows (any frame)
 - click Excel export button, download to data/exports/{KPI}_{division}_{subdivision}.xlsx
 
 At the end:
@@ -38,23 +38,6 @@ CIRCLE_SEL = "#ContentPlaceHolder1_CircleDropDown"
 REGION_SEL = "#ContentPlaceHolder1_RegionDropDown"
 DIV_SEL = "#ContentPlaceHolder1_DivisionDropDown"
 SUB_SEL = "#ContentPlaceHolder1_SubDivisionDropDown"
-
-SUBMIT_SELECTORS = [
-    "input[value*='Product Wise']",
-    "a:has-text('Product Wise')",
-    "[value*='Report']",
-    "[onclick*='Product']",
-    "input[type=submit]",
-    "button[type=submit]",
-    "a:has-text('Show')",
-    "a:has-text('Report')",
-    "a:has-text('Generate')",
-    "button:has-text('Show')",
-    "button:has-text('Report')",
-    "[onclick*='Show']",
-    "[onclick*='Report']",
-    "[onclick*='Generate']",
-]
 
 EXPORT_SELECTORS = [
     # CBSTrans3 has no server-side export page: #example1 is a DataTables grid and
@@ -206,22 +189,6 @@ def wait_for_report_ready(page, timeout=90000, refresh_retries=2):
     return report_ready(page)
 
 
-def try_click_submit(page):
-    for sel in SUBMIT_SELECTORS:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=1500):
-                log(f"Submitting via: {sel}")
-                loc.click(no_wait_after=True, timeout=10000)
-                safe_wait(page, timeout=30000)
-                return True
-        except Exception:
-            continue
-    save_debug(page, "no_submit_button")
-    log("No submit button found.")
-    return False
-
-
 def try_click_export(page, target, timeout=60000):
     """Click the Excel button and save the download as *target*.
 
@@ -294,8 +261,9 @@ def run_metric_export(page, div, sub, radio_sel, metric, max_attempts=3):
     for attempt in range(1, max_attempts + 1):
         try:
             log(f"{metric} | {div} / {sub} | attempt {attempt}/{max_attempts}")
+            # The radio's onclick posts back and renders the report itself; clicking
+            # the 'Product Wise' anchor navigates to CBSTrans3.aspx and loses the grid.
             select_radio(page, radio_sel)
-            try_click_submit(page)
             log(f"{metric}: waiting up to 90s for report to render (iframe-aware, with refresh retry)...")
             if wait_for_report_ready(page, timeout=90000):
                 page.wait_for_load_state("domcontentloaded", timeout=10000)
