@@ -66,6 +66,23 @@ REPORT_START_DATE=01-10-2026 REPORT_END_DATE=30-10-2026 python automation/cept_m
 `REPORT_CIRCLE` (default `Haryana Circle`) aur `REPORT_REGION` (default
 `DivReportingCircle`) se cascade bhi override ho sakta hai.
 
+## Report granularity
+
+`REPORT_LEVEL=division` exports one workbook per division per KPI instead of one per
+sub-division (default). Division-level returns the same BO rows - verified on Ambala
+Division: 308 ACO rows at division level = sum of its four sub-divisions (81 + 72 + ...) -
+with ~4x fewer page loads, which matters because the server slows down and can answer
+HTTP 500 under sustained load.
+
+## Dashboard columns
+
+`data/dashboard_data.xlsx` carries
+`Date | BO | SO | SOL ID | Accounts Opened | Accounts Closed | Net Addition | Total Accounts`.
+
+`SO` is the parent Sub Office of a B.O row; it is blank for S.O rows because they *are* the
+Sub Office (the source grid does not print a parent for them). `Total Accounts` is the per-BO
+sum of the three KPI columns. The dashboard builds the totals row from these values.
+
 ## Setup
 
 ```bash

@@ -54,6 +54,9 @@ DEBUG_DIR.mkdir(exist_ok=True)
 REPORT_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
 CIRCLE = os.getenv("REPORT_CIRCLE", "Haryana Circle")
 REGION = os.getenv("REPORT_REGION", "DivReportingCircle")
+# "subdivision" (default) or "division": division runs return the same BO rows
+# with ~4x fewer page loads, which the fragile server tolerates much better.
+REPORT_LEVEL = os.getenv("REPORT_LEVEL", "subdivision").strip().lower()
 
 # Page date inputs are DD-MM-YYYY (datepicker "dd-mm-yy");
 # the "Data Updated upto" label is DD/MM/YYYY.
@@ -97,7 +100,20 @@ def norm(s):
     return "".join(str(s).lower().split())
 
 
-def safe_wait(page, timeout=20000):
+def cell_text(value):
+    """Cell -> stripped text. Excel blanks arrive as NaN, so treat them as empty."""
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    return "" if text.lower() in ("nan", "none") else text
+
+
+def safe_wait(page, timeout=6000):
     try:
         page.wait_for_load_state("networkidle", timeout=timeout)
     except PWTimeout:
@@ -385,14 +401,14 @@ def has_bo_data_rows(xlsx_path):
         matrix = df.values.tolist()
         h_idx = -1
         for i, row in enumerate(matrix):
-            if is_header_row([str(c).strip() if c is not None else "" for c in row]):
+            if is_header_row([cell_text(c) for c in row]):
                 h_idx = i
                 break
         if h_idx < 0:
             return False, 0
         valid = 0
         for row in matrix[h_idx + 1:]:
-            cells = [str(c).strip() if c is not None else "" for c in row]
+            cells = [cell_text(c) for c in row]
             if not any(cells):
                 continue
             if is_header_row(cells) or is_footer_row(cells) or is_title_row(cells):
@@ -446,6 +462,11 @@ def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, windo
                 log(f"{metric_key}: report caption {dated[0]} - {dated[1]}")
 
             if rows < 1:
+                if dated == (start_s, end_s):
+                    # Report rendered for the right window with zero BOs - a valid empty
+                    # result (e.g. no net change). Retrying would just burn 3x90s.
+                    log(f"{metric_key}: 0 BO rows in {start_s} -> {end_s}; nothing to export")
+                    return None
                 log(f"{metric_key}: grid rendered no BO rows on attempt {attempt}")
             else:
                 log(f"{metric_key}: {rows} BO rows rendered")
@@ -509,7 +530,7 @@ def merge_kpi_files(metric_key):
     keep = []
     header_kept = False
     for _, row in merged.iterrows():
-        cells = [str(c).strip() if c is not None else "" for c in row]
+        cells = [cell_text(c) for c in row]
         if is_header_row(cells):
             keep.append(not header_kept)
             header_kept = True
@@ -519,9 +540,9 @@ def merge_kpi_files(metric_key):
             continue
         keep.append(True)
 
-    cleaned = merged[keep].reset_index(drop=True)
+    cleaned = merged.loc[[i for i, keep_row in enumerate(keep) if keep_row]].reset_index(drop=True)
     merged_out = EXPORT_DIR / f"{metric_key}_merged.xlsx"
-    cleaned.to_excel(merged_out, index=False)
+    cleaned.to_excel(merged_out, index=False, header=False)
     log(f"{metric_key}: merged {len(frames)} files -> {merged_out} ({len(cleaned) - 1} BO rows)")
     for f in files:
         try:
@@ -532,103 +553,116 @@ def merge_kpi_files(metric_key):
     return merged_out
 
 
+SO_COL_RE = re.compile(r"^so\s*name$|^sub\s*office|^so$", re.I)
+SOL_COL_RE = re.compile(r"sol\s*id|bocode|bo\s*code", re.I)
+
+
+def _read_merged(metric_key):
+    """Read one merged KPI workbook -> {BO: {sol, so, value}}."""
+    merged_file = EXPORT_DIR / f"{metric_key}_merged.xlsx"
+    if not merged_file.exists():
+        log(f"{metric_key}: merged file missing, skipping")
+        return {}
+    try:
+        matrix = pd.read_excel(merged_file, header=None).values.tolist()
+    except Exception as e:
+        log(f"{metric_key}: failed to read merged file: {e}")
+        return {}
+    h_idx = -1
+    for i, row in enumerate(matrix):
+        if is_header_row([cell_text(c) for c in row]):
+            h_idx = i
+            break
+    if h_idx < 0:
+        log(f"{metric_key}: header row not found in merged file")
+        return {}
+
+    headers = [cell_text(c) or f"col{i}" for i, c in enumerate(matrix[h_idx])]
+    bo_pos = next((i for i, h in enumerate(headers)
+                   if h.lower() in HEADER_HINTS or "sol id" in h.lower() or "bocode" in h.lower()), None)
+    if bo_pos is None:
+        log(f"{metric_key}: no BO column found")
+        return {}
+    sol_pos = next((i for i, h in enumerate(headers) if SOL_COL_RE.search(h)), None)
+    so_pos = next((i for i, h in enumerate(headers) if SO_COL_RE.search(h)), None)
+
+    body = matrix[h_idx + 1:]
+    num_pos = []
+    for i in range(len(headers)):
+        if i in (bo_pos, sol_pos):
+            continue
+        coerced = pd.to_numeric(
+            pd.Series([cell_text(r[i]) if i < len(r) else "" for r in body]).str.replace(",", "", regex=False),
+            errors="coerce",
+        )
+        if coerced.notna().any():
+            num_pos.append(i)
+    if not num_pos:
+        log(f"{metric_key}: no numeric columns found")
+        return {}
+
+    out = {}
+    for r in body:
+        cells = [cell_text(c) for c in r]
+        if not any(cells) or is_footer_row(cells) or is_title_row(cells) or is_header_row(cells):
+            continue
+        bo = cells[bo_pos] if bo_pos < len(cells) else ""
+        if not bo or bo.lower().startswith("total"):
+            continue
+        value = 0.0
+        for i in num_pos:
+            if i < len(cells):
+                try:
+                    value += float(cells[i].replace(",", "") or 0)
+                except ValueError:
+                    pass
+        entry = out.setdefault(bo, {"sol": "", "so": "", "value": 0.0})
+        entry["value"] += value
+        if not entry["sol"] and sol_pos is not None and sol_pos < len(cells):
+            entry["sol"] = cells[sol_pos]
+        if not entry["so"] and so_pos is not None and so_pos < len(cells):
+            entry["so"] = cells[so_pos]
+    return out
+
+
 def generate_dashboard_data():
+    """Build data/dashboard_data.xlsx: one row per BO with SO, SOL ID, all three KPIs and a total."""
     today = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
-    per_metric = {}
+    metric_values = {}
+    meta = {}
     for _, metric_key, metric_label in METRICS:
-        merged_file = EXPORT_DIR / f"{metric_key}_merged.xlsx"
-        if not merged_file.exists():
-            log(f"{metric_key}: merged file missing, skipping")
+        data = _read_merged(metric_key)
+        if not data:
             continue
-        try:
-            matrix = pd.read_excel(merged_file, header=None).values.tolist()
-        except Exception as e:
-            log(f"{metric_key}: failed to read merged file: {e}")
-            continue
-        h_idx = -1
-        for i, row in enumerate(matrix):
-            if is_header_row([str(c).strip() if c is not None else "" for c in row]):
-                h_idx = i
-                break
-        if h_idx < 0:
-            log(f"{metric_key}: header row not found in merged file")
-            continue
+        metric_values[metric_label] = {bo: v["value"] for bo, v in data.items()}
+        for bo, v in data.items():
+            m = meta.setdefault(bo, {"sol": "", "so": ""})
+            m["sol"] = m["sol"] or v["sol"]
+            m["so"] = m["so"] or v["so"]
 
-        raw_headers = [str(c).strip() if c is not None else "" for c in matrix[h_idx]]
-        seen = {}
-        headers = []
-        for c in raw_headers:
-            c = c or "col"
-            if c in seen:
-                seen[c] += 1
-                headers.append(f"{c}_{seen[c]}")
-            else:
-                seen[c] = 0
-                headers.append(c)
-
-        rows = [
-            r for r in matrix[h_idx + 1:]
-            if any(str(c).strip() for c in r if c is not None)
-            and not is_footer_row([str(c).strip() if c is not None else "" for c in r])
-            and not is_title_row([str(c).strip() if c is not None else "" for c in r])
-        ]
-        df = pd.DataFrame(rows, columns=headers)
-        bo_pos = next(
-            (i for i, h in enumerate(headers)
-             if h.lower() in HEADER_HINTS or "sol id" in h.lower() or "bocode" in h.lower()),
-            None,
-        )
-        if bo_pos is None:
-            log(f"{metric_key}: no BO column found")
-            continue
-
-        bo_series = df.iloc[:, bo_pos].astype(str).str.strip()
-        # Skip repeated header rows, the "Total:" footer and blank BO cells.
-        low = bo_series.str.lower()
-        mask = ~low.isin(["name", "bo", "bo name"]) & ~low.str.startswith("total") & (bo_series != "")
-        sol_pos = next((i for i, h in enumerate(headers) if "sol id" in h.lower() or "bocode" in h.lower()), None)
-
-        num_pos = []
-        for i in range(len(headers)):
-            if i == bo_pos or i == sol_pos:
-                continue
-            coerced = pd.to_numeric(
-                df.iloc[:, i].astype(str).str.replace(",", "", regex=False).str.strip(), errors="coerce"
-            )
-            if coerced.notna().any():
-                num_pos.append(i)
-        if not num_pos:
-            log(f"{metric_key}: no numeric columns found")
-            continue
-
-        metric_vals = (
-            df.iloc[:, num_pos]
-            .apply(lambda s: pd.to_numeric(s.astype(str).str.replace(",", "", regex=False).str.strip(), errors="coerce"))
-            .fillna(0)
-            .sum(axis=1)
-        )
-        part = (
-            pd.DataFrame({"BO": bo_series[mask], metric_label: metric_vals[mask]})
-            .groupby("BO", as_index=False)[metric_label]
-            .sum()
-        )
-        per_metric[metric_label] = part
-
-    if not per_metric:
+    if not metric_values:
         log("No metric data to build dashboard file.")
         return None
 
-    combined = None
-    for label, part in per_metric.items():
-        combined = part if combined is None else combined.merge(part, on="BO", how="outer")
-    combined.insert(0, "Date", today)
-    for _, _, metric_label in METRICS:
-        if metric_label not in combined.columns:
-            combined[metric_label] = 0
-    combined = combined.fillna(0)
+    labels = [m[2] for m in METRICS]
+    bos = sorted(meta)
+    frame = pd.DataFrame({
+        "Date": today,
+        "BO": bos,
+        "SO": [meta[b]["so"] for b in bos],
+        "SOL ID": [meta[b]["sol"] for b in bos],
+    })
+    for label in labels:
+        values = metric_values.get(label)
+        if values is None:
+            log(f"{label}: no data in this run, filled with 0")
+            values = {}
+        frame[label] = [values.get(b, 0) for b in bos]
+    frame["Total Accounts"] = frame[labels].sum(axis=1)
     out = DATA_DIR / "dashboard_data.xlsx"
-    combined.to_excel(out, index=False)
-    log(f"Dashboard data written: {out} ({len(combined)} BO rows)")
+    frame.to_excel(out, index=False)
+    with_so = sum(1 for s in frame["SO"] if s)
+    log(f"Dashboard data written: {out} ({len(frame)} BO rows, {with_so} with SO names)")
     return out
 
 
@@ -666,11 +700,16 @@ def main():
                     except PWTimeout:
                         log(f"{div}: still timing out - skipping this division")
                         continue
-                subs = options_of(page, SUB_SEL)
-                log(f"{div}: {len(subs)} sub divisions")
+                if REPORT_LEVEL == "division":
+                    subs = ["All"]
+                    log(f"{div}: division-level run (one export per KPI)")
+                else:
+                    subs = options_of(page, SUB_SEL)
+                    log(f"{div}: {len(subs)} sub divisions")
                 for sub in subs:
                     try:
-                        page.select_option(SUB_SEL, label=sub, timeout=60000)
+                        if sub != "All":
+                            page.select_option(SUB_SEL, label=sub, timeout=60000)
                         safe_wait(page)
                         ensure_window(page, window)
                         click_submit(page)

@@ -27,6 +27,9 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
   - **Date range**: kisi bhi from–to range ka data
   - **Single date**: sirf ek din ka data
 - BO-wise filter (All BOs ya koi ek BO) with master-list pre-set and fuzzy name matching
+- **KPI filter** — All KPIs ya koi ek KPI (Accounts Opened / Accounts Closed / Net Addition)
+- **SO filter** — Sub Office wise filter (B.O rows apne parent S.O ke saath aate hain)
+- **Total Accounts** column per BO + totals row footer me
 - **Export Excel**: currently filtered data `.xlsx` me download
 - **Export PDF**: browser print dialog se PDF save (print-optimized layout)
 
