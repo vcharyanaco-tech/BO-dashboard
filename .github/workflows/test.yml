@@ -1,0 +1,37 @@
+name: Dashboard tests
+
+# Runs the dependency-free Node test suite (tests/dashboard.test.js — checks
+# app.js behavior plus repo files: index.html CSP/SRI, manifest.json,
+# history.csv) and a Python syntax check of the automation scripts.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'bo_master.js'
+      - 'tests/**'
+      - 'data/history.csv'
+      - 'data/exports/manifest.json'
+      - 'automation/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: JS tests (app.js + repo data files)
+        run: node tests/dashboard.test.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python syntax check
+        run: python -m py_compile automation/*.py backfill_dashboard.py debug_merged_files.py

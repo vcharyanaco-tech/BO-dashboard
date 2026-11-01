@@ -1,0 +1,28 @@
+name: Smoke test deployed dashboard
+
+# Loads the live GitHub Pages URL in headless Chromium and fails if the auto-fed
+# data did not render (KPI cards + BO table rows + no page errors).
+
+on:
+  workflow_run:
+    workflows: ["Deploy BO Dashboard to GitHub Pages"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r automation/requirements.txt
+      - run: playwright install --with-deps chromium
+      - name: Check live dashboard
+        run: python -u automation/smoke_test.py

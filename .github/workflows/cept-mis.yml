@@ -1,18 +1,32 @@
 name: Fetch CEPT MIS CBSTrans3 BO reports and update dashboard
 
+# Single automation entry point (this used to be split across cept-mis.yml and
+# dashboard.yml, which raced on commits to main). Runs twice a day and commits
+# data/exports/*_merged.xlsx + data/exports/manifest.json + data/history.csv +
+# data/dashboard_data.xlsx.
+
 on:
   push:
     branches: [main]
+    paths:
+      - 'automation/**'
+      - '.github/workflows/**'
   schedule:
     - cron: '30 12 * * *'
+    - cron: '30 18 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: cept-mis-update
+  cancel-in-progress: false
+
 jobs:
   fetch-and-update:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,17 +34,25 @@ jobs:
           python-version: '3.12'
       - run: pip install -r automation/requirements.txt
       - run: playwright install --with-deps chromium
-      - run: python automation/cept_mis_cbs.py
+      - name: Run CEPT MIS automation
+        run: python -u automation/cept_mis_cbs.py
+      - name: Sanity-check merged exports before committing
+        run: python -u automation/sanity_check.py
       - name: Upload debug artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: mis-debug
           path: debug/
-      - name: Commit merged KPI workbooks
+      - name: Commit and push data (exports, manifest, history)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/exports
-          git diff --cached --quiet || git commit -m "Auto-update CEPT MIS KPI exports $(date -u +%F)"
-          git push
+          git add data/
+          if git diff --cached --quiet; then
+            echo "No data changes - nothing to commit."
+          else
+            git commit -m "Auto-update CEPT MIS KPI exports + history $(date -u +%F)"
+            git pull --rebase origin main
+            git push
+          fi
