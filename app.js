@@ -36,6 +36,17 @@ function isSORow(name){
   const n=String(name||'').trim();
   return SO_ROW_RE.test(n)&&!MASTER_MAP[normalizeBO(n)];
 }
+// In the CEPT export, office summary rows (S.O / H.O / G.P.O like 'Ambala G.P.O.')
+// have a BLANK 'SO Name' cell - their figures are SO-level, not BO-level, so they are
+// kept as kind='so' rows and shown separately. (Manual uploads may legitimately lack
+// an SO column, so there only the name pattern is used.) A name present in the BO
+// master list is always a real BO and is never reclassified.
+function isOfficeRow(name,soVal){
+  const n=String(name||'').trim();
+  if(MASTER_MAP[normalizeBO(n)])return false;
+  return SO_ROW_RE.test(n)||String(soVal||'').trim()==='';
+}
+function soKey(s){return String(s||'').trim().toLowerCase().replace(/\.+$/,'').replace(/\s+/g,' ');}
 function setBOOptions(list){
   const all=[...new Set([...MASTER_LIST,...list].filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   $('boList').innerHTML=all.map(b=>`<option value="${esc(b)}">`).join('');
@@ -73,7 +84,7 @@ function finishIngest(){
   DATES=[...new Set(ROWS.map(r=>r.date))].sort();
   if(DATES.length){$('from').value=DATES[0];$('to').value=DATES[DATES.length-1];}
   $('dataAsOf').textContent=DATES.length?DATES[DATES.length-1]:'—';
-  setBOOptions([...new Set(ROWS.map(r=>r.bo))]);
+  setBOOptions([...new Set(ROWS.filter(r=>r.kind!=='so').map(r=>r.bo))]);
   setSOOptions(ROWS.map(r=>r.so));
   $('msg').textContent='';updateMode();render();
 }
@@ -96,10 +107,11 @@ function ingestMatrix(matrix){
   if(!metricIdxs.length)throw new Error('Koi numeric performance column nahi mila.');
   ROWS=rows.map(r=>{
     const name=String(r[boIdx]??'').trim();
-    if(!name||/^total\b/i.test(name)||isHeaderLike(name)||isSORow(name))return null;
+    if(!name||/^total\b/i.test(name)||isHeaderLike(name))return null;
     const d=dateIdx>=0?parseDate(r[dateIdx]):fallbackDate;
     if(!d)return null;
-    const o={date:iso(d),bo:matchBO(name),so:soIdx>=0?String(r[soIdx]??'').trim():'',sol:solIdIdx>=0?String(r[solIdIdx]??'').trim():''};
+    const soVal=soIdx>=0?String(r[soIdx]??'').trim():'';const soRow=isSORow(name);
+    const o={date:iso(d),bo:soRow?name:matchBO(name),so:soRow?name:soVal,sol:solIdIdx>=0?String(r[solIdIdx]??'').trim():'',kind:soRow?'so':'bo'};
     metricIdxs.forEach(i=>o[headers[i]]=Number(r[i])||0);
     return o;
   }).filter(Boolean);
@@ -153,17 +165,19 @@ async function loadHistory(){
   const rows=parseCsvText(await res.text());
   if(rows.length<2)throw new Error('history khali hai');
   const h=rows[0].map(s=>String(s).trim().toLowerCase());
-  const iDate=h.indexOf('date'),iBo=h.indexOf('bo'),iSo=h.indexOf('so'),iSol=h.indexOf('sol'),iKpi=h.indexOf('kpi'),iVal=h.indexOf('value');
+  const iDate=h.indexOf('date'),iBo=h.indexOf('bo'),iSo=h.indexOf('so'),iSol=h.indexOf('sol'),iKind=h.indexOf('kind'),iKpi=h.indexOf('kpi'),iVal=h.indexOf('value');
   if(iDate<0||iBo<0||iKpi<0||iVal<0)throw new Error('history headers galat hain: '+rows[0].join(','));
   const byKey=new Map();const metrics=new Set();
   rows.slice(1).forEach(r=>{
     const d=String(r[iDate]||'').trim(),bo=String(r[iBo]||'').trim(),kpi=String(r[iKpi]||'').trim();
-    if(!d||!bo||!kpi||isSORow(bo))return;
+    if(!d||!bo||!kpi)return;
     const v=Number(String(r[iVal]||'').replace(/,/g,''))||0;
-    const key=d+'|'+bo;
+    const kind=(iKind>=0&&String(r[iKind]||'').trim().toLowerCase()==='so')?'so':'bo';
+    const key=d+'|'+bo+'|'+kind;
     let row=byKey.get(key);
-    if(!row){row={date:d,bo:matchBO(bo),so:'',sol:''};byKey.set(key,row);}
+    if(!row){row={date:d,bo:kind==='so'?bo:matchBO(bo),so:'',sol:'',kind};byKey.set(key,row);}
     row[kpi]=v;
+    if(kind==='so'){row.bo=bo;row.so=bo;}
     if(iSo>=0&&!row.so)row.so=String(r[iSo]||'').trim();
     if(iSol>=0&&!row.sol)row.sol=String(r[iSol]||'').trim();
     metrics.add(kpi);
@@ -196,18 +210,29 @@ function parseKpiWorkbook(matrix,label){
     )
     .map(({i})=>i);
   if(!valueIdxs.length)throw new Error(label+': koi numeric column nahi mila. Headers: '+headers.join(', '));
-  const totals={},so={},sol={};
+  const totals={},so={},sol={},soTotals={};
   rows.forEach(r=>{
     const name=String(r[boIdx]??'').trim();
-    // The exported sheet carries a 'Total:' footer row; repeated headers are not BOs either.
-    if(!name||/^total\b/i.test(name)||isHeaderLike(name)||isSORow(name))return;
+    // The exported sheet carries a 'Total:' footer row and office summary rows
+    // (S.O/H.O/G.P.O - recognisable by a blank SO Name cell); repeated headers are not rows.
+    if(!name||/^total\b/i.test(name)||isHeaderLike(name))return;
+    const soVal=soIdx>=0?String(r[soIdx]??'').trim():'';
+    const v=valueIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
+    if(isOfficeRow(name,soVal)){
+      // SO-level figure from the office's own summary row - kept SEPARATE from BO sums.
+      const k=soKey(name);
+      const e=soTotals[k]??(soTotals[k]={name,total:0,sol:''});
+      e.total+=v;
+      if(solIdIdx>=0&&!e.sol)e.sol=String(r[solIdIdx]??'').trim();
+      return;
+    }
     const bo=matchBO(name);
     if(!bo)return;
-    totals[bo]=(totals[bo]||0)+valueIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
-    if(soIdx>=0&&!so[bo])so[bo]=String(r[soIdx]??'').trim();
+    totals[bo]=(totals[bo]||0)+v;
+    if(soIdx>=0&&!so[bo])so[bo]=soVal;
     if(solIdIdx>=0&&!sol[bo])sol[bo]=String(r[solIdIdx]??'').trim();
   });
-  return {label,date:extractReportDate(matrix,hIdx),totals,so,sol};
+  return {label,date:extractReportDate(matrix,hIdx),totals,soTotals,so,sol};
 }
 function overlayKpiParts(parts){
   // Latest exports replace any history rows of the same date, keyed by date|BO,
@@ -219,10 +244,19 @@ function overlayKpiParts(parts){
     Object.entries(p.totals).forEach(([bo,v])=>{
       const k=key(d,bo);
       let row=byKey.get(k);
-      if(!row){row={date:d,bo,so:'',sol:''};byKey.set(k,row);}
+      if(!row){row={date:d,bo,so:'',sol:'',kind:'bo'};byKey.set(k,row);}
       row[p.label]=Number(v)||0;
       if(!row.so&&p.so&&p.so[bo])row.so=p.so[bo];
       if(!row.sol&&p.sol&&p.sol[bo])row.sol=p.sol[bo];
+    });
+    // SO-level summary rows from the export: kept as kind='so' so the SO-wise view
+    // can show the SO's own reported figure separately from the sum of its BOs.
+    Object.entries(p.soTotals||{}).forEach(([k,e])=>{
+      const name=e.name||k;
+      const kk=key(d,name);
+      let row=byKey.get(kk);
+      if(!row){row={date:d,bo:name,so:name,sol:e.sol||'',kind:'so'};byKey.set(kk,row);}
+      row[p.label]=Number(e.total)||0;
     });
   });
   ROWS=[...byKey.values()];
@@ -290,41 +324,68 @@ function render(){
   if(!ROWS.length)return;
   const rows=filtered(), act=activeMetrics();
   const gby=$('groupBy').value;
-  const days=[...new Set(rows.map(r=>r.date))].sort();
+  // SO summary rows (kind='so') are SO-level figures: exclude them from KPI cards,
+  // the trend chart and the BO-wise table so nothing is double-counted.
+  const boRows=rows.filter(r=>r.kind!=='so');
+  const soRows=rows.filter(r=>r.kind==='so');
+  const days=[...new Set(boRows.map(r=>r.date))].sort();
   // Per-day sums drive the day-over-day delta (▲/▼ vs previous day) on metric KPI cards.
   const daySum={};
-  rows.forEach(r=>{daySum[r.date]??={};act.forEach(m=>daySum[r.date][m]=(daySum[r.date][m]||0)+(Number(r[m])||0));});
+  boRows.forEach(r=>{daySum[r.date]??={};act.forEach(m=>daySum[r.date][m]=(daySum[r.date][m]||0)+(Number(r[m])||0));});
   const lastD=days[days.length-1], prevD=days.length>1?days[days.length-2]:null;
   const deltaOf=m=>prevD?((daySum[lastD]?.[m]||0)-(daySum[prevD]?.[m]||0)):null;
-  const kpis=[['BOs',new Set(rows.map(r=>r.bo)).size],
+  const kpis=[['BOs',new Set(boRows.map(r=>r.bo)).size],
               ['SOs',new Set(rows.map(r=>r.so).filter(Boolean)).size],
-              ...act.map(m=>[m,rows.reduce((s,r)=>s+(Number(r[m])||0),0)])];
+              ...act.map(m=>[m,boRows.reduce((s,r)=>s+(Number(r[m])||0),0)])];
   $('kpis').innerHTML=kpis.map(([l,v])=>{
     const d=act.includes(l)?deltaOf(l):null;
     const sub=d===null?'':`<div class="d ${d>=0?'good':'bad'}">${d>=0?'▲':'▼'} ${fmt(Math.abs(d))} vs ${esc(prevD)}</div>`;
     return `<div class="kpi"><div class="l">${esc(l)}</div><div class="v">${fmt(v)}</div>${sub}</div>`;
   }).join('');
-  // Aggregate rows into groups (BO-wise or SO-wise).
-  const groups=new Map();
-  rows.forEach(r=>{
-    const k=gby==='so'?(r.so||'(no SO)'):r.bo;
-    let g=groups.get(k);
-    if(!g){g={name:k,so:'',bos:new Set(),vals:{},total:0};groups.set(k,g);}
-    if(gby==='bo'&&!g.so&&r.so)g.so=r.so;
-    g.bos.add(r.bo);
-    act.forEach(m=>{const v=Number(r[m])||0;g.vals[m]=(g.vals[m]||0)+v;g.total+=v;});
-  });
-  let list=[...groups.values()].map(g=>({name:g.name,so:g.so,bos:g.bos.size,vals:g.vals,total:g.total}));
+  // Aggregate into groups. BO-wise = BO rows only. SO-wise = BO rows summed per SO,
+  // with the SO's own reported (summary-row) figures kept separately in soVals.
+  let list;
+  if(gby==='so'){
+    const groups=new Map();
+    boRows.forEach(r=>{
+      const k=soKey(r.so)||'(no so)';
+      let g=groups.get(k);
+      if(!g){g={name:(r.so||'').trim()||'(no SO)',bos:new Set(),vals:{},total:0,soVals:null};groups.set(k,g);}
+      g.bos.add(r.bo);
+      act.forEach(m=>{const v=Number(r[m])||0;g.vals[m]=(g.vals[m]||0)+v;g.total+=v;});
+    });
+    soRows.forEach(r=>{
+      const k=soKey(r.so||r.bo);
+      let g=groups.get(k);
+      if(!g){g={name:(r.bo||'').trim(),bos:new Set(),vals:{},total:0,soVals:{}};groups.set(k,g);}
+      if(g.name==='(no SO)')g.name=(r.bo||'').trim();
+      g.soVals=g.soVals||{};
+      act.forEach(m=>g.soVals[m]=Number(r[m])||0);
+    });
+    list=[...groups.values()].map(g=>({name:g.name,so:'',bos:g.bos.size,vals:g.vals,total:g.total,soVals:g.soVals}));
+  }else{
+    const groups=new Map();
+    boRows.forEach(r=>{
+      let g=groups.get(r.bo);
+      if(!g){g={name:r.bo,so:'',bos:new Set(),vals:{},total:0};groups.set(r.bo,g);}
+      if(!g.so&&r.so)g.so=r.so;
+      g.bos.add(r.bo);
+      act.forEach(m=>{const v=Number(r[m])||0;g.vals[m]=(g.vals[m]||0)+v;g.total+=v;});
+    });
+    list=[...groups.values()].map(g=>({name:g.name,so:g.so,bos:g.bos.size,vals:g.vals,total:g.total,soVals:null}));
+  }
   const q=$('quick').value;
   let sk=sortState.key, sd=sortState.dir;
   if(q==='top'){sk='total';sd=-1;}
   else if(q==='bottom'){sk='total';sd=1;}
+  const soValOf=(g,base)=>!g.soVals?0:(base==='total'?Object.values(g.soVals).reduce((x,y)=>x+Number(y||0),0):(g.soVals[base]||0));
   list.sort((a,b)=>{
     let va,vb;
     if(sk==='name'){va=a.name;vb=b.name;}
     else if(sk==='so'){va=a.so;vb=b.so;}
     else if(sk==='bos'){va=a.bos;vb=b.bos;}
     else if(sk==='total'){va=a.total;vb=b.total;}
+    else if(sk.indexOf('so:')===0){const base=sk.slice(3);va=soValOf(a,base);vb=soValOf(b,base);}
     else{va=a.vals[sk]||0;vb=b.vals[sk]||0;}
     return (typeof va==='string')?sd*va.localeCompare(vb):sd*(va-vb);
   });
@@ -332,33 +393,42 @@ function render(){
   if(q==='top'||q==='bottom')list=list.slice(0,10);
   const arrow=key=>(sk===key)?(sd>0?' ▲':' ▼'):'';
   const th=(key,label)=>`<th class="sortable" data-k="${esc(key)}">${esc(label)}${arrow(key)}</th>`;
-  const head='<thead><tr>'+
-    th('name',gby==='so'?'SO':'BO')+
-    (gby==='so'?th('bos','BOs'):th('so','SO'))+
-    act.map(m=>th(m,m)).join('')+
-    th('total','Total')+
-    '</tr></thead>';
-  const body=list.map(g=>{
-    const second=gby==='so'?String(g.bos):(g.so||'');
-    return `<tr><td>${esc(g.name)}</td><td>${esc(second)}</td>`+
+  // SO-wise view keeps the two figures separate: "<metric> (ΣBO)" = sum of the SO's BO
+  // rows, "<metric> (SO)" = the office's own summary-row figure ('—' when the report
+  // has no such row). '(no SO)' buckets BO rows whose SO Name is blank in the report.
+  const head=gby==='so'
+    ?'<thead><tr>'+th('name','SO')+th('bos','BOs')+
+     act.map(m=>th(m,m+' (ΣBO)')+th('so:'+m,m+' (SO)')).join('')+
+     th('total','Total (ΣBO)')+th('so:total','Total (SO)')+'</tr></thead>'
+    :'<thead><tr>'+th('name','BO')+th('so','SO')+act.map(m=>th(m,m)).join('')+th('total','Total')+'</tr></thead>';
+  const body=gby==='so'
+    ?list.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.bos}</td>`+
+      act.map(m=>`<td><b>${fmt(g.vals[m]||0)}</b></td><td>${g.soVals?fmt(g.soVals[m]||0):'—'}</td>`).join('')+
+      `<td><b>${fmt(g.total)}</b></td><td>${g.soVals?fmt(soValOf(g,'total')):'—'}</td></tr>`).join('')
+    :list.map(g=>`<tr><td>${esc(g.name)}</td><td>${esc(g.so||'')}</td>`+
       act.map(m=>`<td><b>${fmt(g.vals[m]||0)}</b></td>`).join('')+
-      `<td><b>${fmt(g.total)}</b></td></tr>`;
-  }).join('');
-  const foot='<tfoot><tr><td><b>Total</b></td><td><b>'+totalGroups+'</b></td>'+
-    act.map(m=>`<td><b>${fmt(rows.reduce((s,r)=>s+(Number(r[m])||0),0))}</b></td>`).join('')+
-    `<td><b>${fmt(rows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0))}</b></td>`+
-    '</tr></tfoot>';
+      `<td><b>${fmt(g.total)}</b></td></tr>`).join('');
+  const boMetricTotal=m=>boRows.reduce((s,r)=>s+(Number(r[m])||0),0);
+  const soMetricTotal=m=>soRows.reduce((s,r)=>s+(Number(r[m])||0),0);
+  const foot=gby==='so'
+    ?'<tfoot><tr><td><b>Total</b></td><td><b>'+totalGroups+'</b></td>'+
+     act.map(m=>`<td><b>${fmt(boMetricTotal(m))}</b></td><td><b>${fmt(soMetricTotal(m))}</b></td>`).join('')+
+     `<td><b>${fmt(boRows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0))}</b></td>`+
+     `<td><b>${fmt(soRows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0))}</b></td></tr></tfoot>`
+    :'<tfoot><tr><td><b>Total</b></td><td><b>'+totalGroups+'</b></td>'+
+     act.map(m=>`<td><b>${fmt(boMetricTotal(m))}</b></td>`).join('')+
+     `<td><b>${fmt(boRows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0))}</b></td></tr></tfoot>`;
   $('tbl').innerHTML=head+'<tbody>'+body+'</tbody>'+foot;
   $('tblTitle').textContent=(gby==='so'?'SO-wise':'BO-wise')+' cumulative performance';
   const skLabel=sk==='name'?(gby==='so'?'SO':'BO'):sk;
   $('tblInfo').textContent=`Showing ${list.length} of ${totalGroups} ${gby==='so'?'SOs':'BOs'}`+
-    (q!=='all'?` (${q} 10)`:'')+` • ${rows.length} data rows • sorted by ${skLabel} ${sd>0?'▲':'▼'}`;
+    (q!=='all'?` (${q} 10)`:'')+` • ${boRows.length} BO rows${soRows.length?` + ${soRows.length} SO rows`:''} • sorted by ${skLabel} ${sd>0?'▲':'▼'}`;
   $('printHead').innerHTML=`<h1 style="font-size:16px">BO Performance Dashboard</h1>`+
     `<div style="font-size:12px">Mode: ${esc($('mode').value)} • From: ${esc($('from').value||'—')} • To: ${esc($('to').value||'—')}`+
     ` • BO filter: ${esc($('bo').value||'All')} • SO filter: ${esc($('so').value||'All')} • Group by: ${esc(gby)} • Data as of ${esc($('dataAsOf').textContent)}</div>`;
   let run={};const series={};act.forEach(m=>series[m]=[]);
   days.forEach(d=>{
-    rows.filter(r=>r.date===d).forEach(r=>act.forEach(m=>run[m]=(run[m]||0)+(Number(r[m])||0)));
+    boRows.filter(r=>r.date===d).forEach(r=>act.forEach(m=>run[m]=(run[m]||0)+(Number(r[m])||0)));
     act.forEach(m=>series[m].push(run[m]||0));
   });
   const data={labels:days,datasets:act.map(m=>({label:m,data:series[m],tension:.3}))};
@@ -371,9 +441,10 @@ function render(){
 function exportExcel(){
   if(!ROWS.length)return alert('Pehle data load karein.');
   const act=activeMetrics();
-  const rows=filtered();
-  const out=rows.map(r=>{
-    const o={Date:r.date,BO:r.bo,SO:r.so||'','SOL ID':r.sol||''};
+  const all=filtered();
+  const rows=all.filter(r=>r.kind!=='so'); // BO-wise pivot from BO rows only
+  const out=all.map(r=>{
+    const o={Date:r.date,Kind:r.kind||'bo',BO:r.bo,SO:r.so||'','SOL ID':r.sol||''};
     act.forEach(m=>o[m]=Number(r[m])||0);
     return o;
   });

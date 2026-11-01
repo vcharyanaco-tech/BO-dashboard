@@ -32,7 +32,8 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
   - **Single date**: sirf ek din ka data
 - BO-wise filter (All BOs ya koi ek BO) with master-list pre-set and fuzzy name matching
 - **SO filter** — Sub Office wise filter (B.O rows apne parent S.O ke saath aate hain)
-- **Accounts Opened** per BO (product columns ka sum) + totals row footer me. CEPT grid ki **S.O summary rows** (`Adhoya S.O`, `Achina SO`) BO table se automatically drop ho jati hain (master-list guard ke saath, koi real BO kabhi nahi drop hota)
+- **Accounts Opened** per BO (product columns ka sum) + totals row footer me
+- **Office summary rows kept separate**: CEPT report ki S.O/H.O/G.P.O summary rows (blank `SO Name` cell, ya `S.O`-ending name — master-list BO kabhi nahi) `kind='so'` rows ban kar rakhi jati hain. BO-wise table, KPI cards aur trend chart inhe kabhi include nahi karte (double-counting nahi). **SO-wise view me har SO ke liye do alag sortable columns**: `<metric> (ΣBO)` = us SO ke BO rows ka sum, aur `<metric> (SO)` = office ki apni summary row ka reported figure (`—` agar report me woh row nahi). `(no SO)` bucket = woh BO rows jinki SO Name blank hai (jaise `Brahman Majra B.O`)
 - **KPI cards par day-over-day delta** (▲/▼ vs previous day) — history file ki wajah se
 - **Export Excel**: filtered raw data + BO-wise pivot, dono sheets me
 - **Export PDF**: browser print dialog se PDF save (print header me active filters + data-as-of date ke saath)
@@ -44,7 +45,7 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 |---|---|---|
 | `data/exports/{kpi}_merged.xlsx` | `cept_mis_cbs.py` | one header row + BO data rows |
 | `data/exports/manifest.json` | `write_manifest()` | `[{"file": "data/exports/...", "label": "Accounts Opened", "date": "2026-11-01"}]` — dashboard isi list ko auto-load karta hai (naya KPI add karne ke liye frontend change nahi chahiye). `date` report ki apni date hai kyunki merged file me `Dated:` title row nahi rehta |
-| `data/history.csv` | `append_history()` | long format: `date,bo,so,sol,kpi,value` — har report date ki rows us date ki purani rows ko replace karti hain (idempotent) |
+| `data/history.csv` | `append_history()` | long format: `date,bo,so,sol,kind,kpi,value` — `kind` = `bo` ya `so` (office summary row). Har report date ki rows us date ki purani rows ko replace karti hain (idempotent) |
 | `data/dashboard_data.xlsx` | `generate_dashboard_data()` | one row per BO (Date/BO/SO/SOL ID + KPI columns) |
 
 ## Local run

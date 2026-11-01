@@ -64,11 +64,11 @@ T('manifest.json is a non-empty array with file+label', Array.isArray(manifest) 
 T('manifest-referenced files exist', manifest.every(e => fs.existsSync(path.join(ROOT, e.file))));
 
 const histLines = fs.readFileSync(path.join(ROOT, 'data/history.csv'), 'utf8').trim().split('\n');
-T('history.csv header is date,bo,so,sol,kpi,value', histLines[0] === 'date,bo,so,sol,kpi,value');
-T('history.csv: ISO dates, >=1 row, no SO pseudo-BO rows', histLines.length > 1 && histLines.slice(1).every(l => {
+T('history.csv header is date,bo,so,sol,kind,kpi,value', histLines[0] === 'date,bo,so,sol,kind,kpi,value');
+T('history.csv: ISO dates, >=1 row, kind=bo rows are never SO-named, kind=so rows exist', histLines.length > 1 && histLines.slice(1).every(l => {
   const c = l.split(',');
-  return /^\d{4}-\d{2}-\d{2}$/.test(c[0]) && !/\bs\.?\s?o\.?\s*$/i.test(c[1]);
-}));
+  return /^\d{4}-\d{2}-\d{2}$/.test(c[0]) && (c[4] !== 'bo' || !/\bs\.?\s?o\.?\s*$/i.test(c[1]));
+}) && histLines.slice(1).some(l => l.split(',')[4] === 'so'));
 
 // ---- run app.js + behavioral test body in one scope -------------------------
 const testBody = fs.readFileSync(path.join(__dirname, 'app.testbody.js'), 'utf8');
