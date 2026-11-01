@@ -81,6 +81,9 @@ def main():
         rows_so = page.locator("#tbl tbody tr").count()
         check("group by SO-wise applies", "SO-wise" in title and 0 < rows_so < rows_all,
               f"title={title!r}, rows={rows_so} vs {rows_all}")
+        head_txt = page.locator("#tbl thead").inner_text()
+        check("SO view keeps ΣBO and SO-reported columns separate",
+              "ΣBO" in head_txt and "(SO)" in head_txt, head_txt[:100])
         page.select_option("#groupBy", "bo")
         page.wait_for_timeout(300)
 

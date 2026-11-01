@@ -684,7 +684,7 @@ def _read_merged(metric_key):
         if not any(cells) or is_footer_row(cells) or is_title_row(cells) or is_header_row(cells):
             continue
         bo = cells[bo_pos] if bo_pos < len(cells) else ""
-        if not bo or bo.lower().startswith("total") or is_so_row(bo):
+        if not bo or bo.lower().startswith("total"):
             continue
         value = 0.0
         for i in num_pos:
@@ -693,12 +693,21 @@ def _read_merged(metric_key):
                     value += float(cells[i].replace(",", "") or 0)
                 except ValueError:
                     pass
-        entry = out.setdefault(bo, {"sol": "", "so": "", "value": 0.0})
+        so_cell = cells[so_pos] if (so_pos is not None and so_pos < len(cells)) else ""
+        sol_cell = cells[sol_pos] if (sol_pos is not None and sol_pos < len(cells)) else ""
+        # Office summary rows (S.O/H.O/G.P.O: blank SO Name cell or S.O-style name,
+        # and not a known BO from bo_master.js) carry SO-LEVEL figures - keep them
+        # separate as kind='so' so the dashboard never mixes them into BO sums.
+        office = is_so_row(bo) or (so_cell == "" and bo.lower() not in BO_MASTER_LOWER)
+        kind = "so" if office else "bo"
+        entry = out.setdefault(bo, {"sol": "", "so": "", "value": 0.0, "kind": kind})
         entry["value"] += value
-        if not entry["sol"] and sol_pos is not None and sol_pos < len(cells):
-            entry["sol"] = cells[sol_pos]
-        if not entry["so"] and so_pos is not None and so_pos < len(cells):
-            entry["so"] = cells[so_pos]
+        if not entry["sol"] and sol_cell:
+            entry["sol"] = sol_cell
+        if kind == "so":
+            entry["so"] = bo  # the office row groups under its own name
+        elif not entry["so"] and so_cell:
+            entry["so"] = so_cell
     return out
 
 
@@ -713,6 +722,9 @@ def generate_dashboard_data(report_date_iso=None):
     meta = {}
     for _, metric_key, metric_label in METRICS:
         data = _read_merged(metric_key)
+        # dashboard_data.xlsx stays BO-only; SO-level rows (kind='so') are excluded
+        # here - the dashboard reads those from history.csv/exports, kept separate.
+        data = {bo: v for bo, v in data.items() if v.get("kind", "bo") != "so"}
         if not data:
             continue
         metric_values[metric_label] = {bo: v["value"] for bo, v in data.items()}
@@ -766,6 +778,7 @@ def append_history(report_date_iso):
                 "bo": bo,
                 "so": v.get("so", ""),
                 "sol": v.get("sol", ""),
+                "kind": v.get("kind", "bo"),
                 "kpi": metric_label,
                 "value": v.get("value", 0),
             })
@@ -776,9 +789,9 @@ def append_history(report_date_iso):
     if HISTORY_FILE.exists():
         try:
             old = pd.read_csv(HISTORY_FILE, dtype=str)
-            for col in ("date", "bo", "so", "sol", "kpi", "value"):
+            for col in ("date", "bo", "so", "sol", "kind", "kpi", "value"):
                 if col not in old.columns:
-                    old[col] = ""
+                    old[col] = "" if col != "kind" else "bo"
             old = old[old["date"] != report_date_iso]
             combined = pd.concat([old, new], ignore_index=True)
         except Exception as e:
@@ -786,10 +799,10 @@ def append_history(report_date_iso):
             combined = new
     else:
         combined = new
-    combined = combined.drop_duplicates(subset=["date", "bo", "kpi"], keep="last")
-    combined = combined.sort_values(["date", "kpi", "bo"]).reset_index(drop=True)
-    for col in ("date", "bo", "so", "sol", "kpi"):
-        combined[col] = combined[col].fillna("")
+    combined = combined.drop_duplicates(subset=["date", "bo", "kind", "kpi"], keep="last")
+    combined = combined.sort_values(["date", "kpi", "bo", "kind"]).reset_index(drop=True)
+    for col in ("date", "bo", "so", "sol", "kind", "kpi"):
+        combined[col] = combined[col].fillna("" if col != "kind" else "bo")
     vals = pd.to_numeric(combined["value"], errors="coerce").fillna(0)
     if (vals % 1 == 0).all():
         vals = vals.astype("int64")
