@@ -55,7 +55,6 @@ th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:
       </select></div>
       <div id="fromWrap"><label>From date</label><input type="date" id="from" onchange="render()"></div>
       <div><label>To date</label><input type="date" id="to" onchange="render()"></div>
-      <div><label>KPI</label><select id="kpi" onchange="render()"><option value="all">All KPIs</option></select></div>
       <div><label>BO (type to search)</label><input list="boList" id="bo" placeholder="All BOs — type to search" oninput="render()"><datalist id="boList"></datalist></div>
       <div><label>SO (type to search)</label><input list="soList" id="so" placeholder="All SOs — type to search" oninput="render()"><datalist id="soList"></datalist></div>
     </div>
@@ -97,12 +96,7 @@ function setSOOptions(list){
   const all=[...new Set(list.filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   $('soList').innerHTML=all.map(s=>`<option value="${s}">`).join('');
 }
-function setKpiOptions(){
-  const sel=$('kpi'),cur=sel.value;
-  sel.innerHTML='<option value="all">All KPIs</option>'+METRICS.map(m=>`<option value="${m}">${m}</option>`).join('');
-  sel.value=(cur==='all'||METRICS.includes(cur))?cur:'all';
-}
-function activeMetrics(){const v=$('kpi').value;return v==='all'?METRICS:METRICS.filter(m=>m===v);}
+function activeMetrics(){return METRICS;}
 function totalOf(row){return METRICS.reduce((s,m)=>s+(Number(row[m])||0),0);}
 function isNumCell(v){return typeof v==='number'?Number.isFinite(v):(typeof v==='string'&&v.trim()!==''&&!isNaN(Number(v)));}
 function findHeaderRow(matrix){
@@ -128,7 +122,6 @@ function finishIngest(){
   if(DATES.length){$('from').value=DATES[0];$('to').value=DATES[DATES.length-1];}
   setBOOptions([...new Set(ROWS.map(r=>r.bo))]);
   setSOOptions(ROWS.map(r=>r.so));
-  setKpiOptions();
   $('msg').textContent='';render();
 }
 function ingestMatrix(matrix){
@@ -179,9 +172,7 @@ function handleFile(f){
 // The automation writes one merged workbook per KPI. Load them together and
 // pivot to one row per BO (carrying its SO) so the table, KPIs and chart work.
 const KPI_SOURCES=[
-  {file:'data/exports/accounts_opened_merged.xlsx',label:'Accounts Opened'},
-  {file:'data/exports/accounts_closed_merged.xlsx',label:'Accounts Closed'},
-  {file:'data/exports/net_addition_merged.xlsx',label:'Net Addition'}
+  {file:'data/exports/accounts_opened_merged.xlsx',label:'Accounts Opened'}
 ];
 function parseKpiWorkbook(matrix,label){
   const hIdx=findHeaderRow(matrix);
@@ -208,16 +199,6 @@ function parseKpiWorkbook(matrix,label){
     )
     .map(({i})=>i);
   if(!valueIdxs.length)throw new Error(label+': koi numeric column nahi mila. Headers: '+headers.join(', '));
-  // Net Addition ke grid ke columns grouped hote hain
-  // (Name | A/c Opened | A/c Closed | Total | Cert Issued | ...) - iska KPI wo pehla
-  // "Total" column hai. Saare numeric columns jodne se opened + closed + certificate
-  // figures ek saath jud jate hain. Baaki do grids me "Total" column hota hi nahi.
-  const netLike=headers.some(h=>/^a\/c\s*opened$/i.test(h))&&headers.some(h=>/^a\/c\s*closed$/i.test(h));
-  let useIdxs=valueIdxs;
-  if(netLike){
-    const totalIdx=headers.findIndex(h=>/^total$/i.test(h));
-    if(totalIdx>=0)useIdxs=[totalIdx];
-  }
   const totals={},so={},sol={};
   rows.forEach(r=>{
     const name=String(r[boIdx]??'').trim();
@@ -225,7 +206,7 @@ function parseKpiWorkbook(matrix,label){
     if(!name||/^total\b/i.test(name)||isHeaderLike(name))return;
     const bo=matchBO(name);
     if(!bo)return;
-    totals[bo]=(totals[bo]||0)+useIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
+    totals[bo]=(totals[bo]||0)+valueIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
     if(soIdx>=0&&!so[bo])so[bo]=String(r[soIdx]??'').trim();
     if(solIdIdx>=0&&!sol[bo])sol[bo]=String(r[solIdIdx]??'').trim();
   });
@@ -281,30 +262,26 @@ function filtered(){
 function render(){
   if(!ROWS.length)return;
   const rows=filtered(), act=activeMetrics();
-  const totalAll=rows.reduce((s,r)=>s+totalOf(r),0);
   const kpis=[['BOs',new Set(rows.map(r=>r.bo)).size],
               ['SOs',new Set(rows.map(r=>r.so).filter(Boolean)).size],
-              ...act.map(m=>[m,rows.reduce((s,r)=>s+(Number(r[m])||0),0)]),
-              ['Total Accounts',totalAll]];
+              ...act.map(m=>[m,rows.reduce((s,r)=>s+(Number(r[m])||0),0)])];
   $('kpis').innerHTML=kpis.map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(v)}</div></div>`).join('');
   const byBO={};
   rows.forEach(r=>{
     byBO[r.bo]??={bo:r.bo,so:'',vals:{},total:0};
     if(!byBO[r.bo].so&&r.so)byBO[r.bo].so=r.so;
     METRICS.forEach(m=>byBO[r.bo].vals[m]=(byBO[r.bo].vals[m]||0)+(Number(r[m])||0));
-    byBO[r.bo].total+=totalOf(r);
   });
   const bos=Object.keys(byBO).sort((a,b)=>a.localeCompare(b));
-  const head='<thead><tr><th>BO</th><th>SO</th>'+act.map(m=>`<th>${m}</th>`).join('')+'<th>Total Accounts</th></tr></thead>';
+  const head='<thead><tr><th>BO</th><th>SO</th>'+act.map(m=>`<th>${m}</th>`).join('')+'</tr></thead>';
   const body=bos.map(b=>{
     const o=byBO[b];
     return `<tr><td>${o.bo}</td><td>${o.so||''}</td>`+
-      act.map(m=>`<td>${fmt(o.vals[m]||0)}</td>`).join('')+
-      `<td><b>${fmt(o.total)}</b></td></tr>`;
+      act.map(m=>`<td><b>${fmt(o.vals[m]||0)}</b></td>`).join('')+'</tr>';
   }).join('');
   const foot='<tfoot><tr><td><b>Total</b></td><td><b>'+bos.length+' BOs</b></td>'+
     act.map(m=>`<td><b>${fmt(rows.reduce((s,r)=>s+(Number(r[m])||0),0))}</b></td>`).join('')+
-    `<td><b>${fmt(totalAll)}</b></td></tr></tfoot>`;
+    '</tr></tfoot>';
   $('tbl').innerHTML=head+'<tbody>'+body+'</tbody>'+foot;
   const days=[...new Set(rows.map(r=>r.date))].sort();
   let run={};const series={};act.forEach(m=>series[m]=[]);
@@ -322,7 +299,6 @@ function exportExcel(){
   const out=rows.map(r=>{
     const o={Date:r.date,BO:r.bo,SO:r.so||'','SOL ID':r.sol||''};
     act.forEach(m=>o[m]=Number(r[m])||0);
-    o['Total Accounts']=totalOf(r);
     return o;
   });
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Filtered Data');

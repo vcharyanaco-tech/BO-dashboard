@@ -19,7 +19,7 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 ## Features
 
 - Daily Excel (.xlsx/.xls) ya CSV upload — drag & drop supported
-- **Auto-load**: `automation/cept_mis_cbs.py` ke teen merged KPI exports (`data/exports/*_merged.xlsx`) automatically load ho kar ek BO-wise table, KPI cards aur trend me pivot ho jate hain
+- **Auto-load**: `automation/cept_mis_cbs.py` ka Accounts Opened export (`data/exports/accounts_opened_merged.xlsx`) automatically load ho kar BO-wise table, KPI cards aur trend me pivot ho jata hai
 - BO-wise cumulative performance table with totals
 - Cumulative daily trend chart
 - Flexible date filter:
@@ -27,9 +27,8 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
   - **Date range**: kisi bhi from–to range ka data
   - **Single date**: sirf ek din ka data
 - BO-wise filter (All BOs ya koi ek BO) with master-list pre-set and fuzzy name matching
-- **KPI filter** — All KPIs ya koi ek KPI (Accounts Opened / Accounts Closed / Net Addition)
 - **SO filter** — Sub Office wise filter (B.O rows apne parent S.O ke saath aate hain)
-- **Total Accounts** column per BO + totals row footer me
+- **Accounts Opened** per BO (product columns ka sum) + totals row footer me
 - **Export Excel**: currently filtered data `.xlsx` me download
 - **Export PDF**: browser print dialog se PDF save (print-optimized layout)
 

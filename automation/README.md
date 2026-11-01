@@ -19,9 +19,9 @@ Flow (per division/sub-division, per KPI) — live page par verify kiya gaya:
    isliye postback ke beech me select karne se option miss nahi hota.
 5. **Submit** button (`button.btn-danger`, `__doPostBack('ctl00$ContentPlaceHolder1$ctl00','')`)
    current filters + dates ke saath report render karta hai. Grid `#example1` hai.
-6. KPI radio (`#ContentPlaceHolder1_ACO` / `_ACC` / `_NET`, name `Group1`) har ek
-   postback karke `#example1` ko us KPI ke liye re-render karta hai. Wait real BO rows
-   par hota hai — sirf header aana kaafi nahi.
+6. Sirf Accounts Opened radio (`#ContentPlaceHolder1_ACO`, name `Group1`) tick hota hai
+   aur uska postback grid ko re-render karta hai. Wait real BO rows par hota hai —
+   sirf header aana kaafi nahi.
 7. Grid ready hone par DataTables ka **Excel button** click hota hai.
 
 ### Export (client-side, koi server export URL nahi)
@@ -50,7 +50,7 @@ hain, warna dashboard use ek BO samajh leta hai.
 ### Output
 
 - `data/exports/{kpi}_{division}_{subdivision}.xlsx` — per sub-division intermediate (run ke ant me delete)
-- `data/exports/{kpi}_merged.xlsx` — ek KPI ke saare rows, ek header row + sirf data rows (3 files)
+- `data/exports/accounts_opened_merged.xlsx` — Accounts Opened ke saare rows, ek header row + sirf data rows
 - `data/dashboard_data.xlsx` — dashboard ka BO-wise file
 - `debug/*.png` + `debug/*.html` — failure par page snapshot (CI me artifact ke roop me upload hota hai)
 
@@ -76,12 +76,12 @@ HTTP 500 under sustained load.
 
 ## Dashboard columns
 
-`data/dashboard_data.xlsx` carries
-`Date | BO | SO | SOL ID | Accounts Opened | Accounts Closed | Net Addition | Total Accounts`.
+`data/dashboard_data.xlsx` carries `Date | BO | SO | SOL ID | Accounts Opened`.
 
-`SO` is the parent Sub Office of a B.O row; it is blank for S.O rows because they *are* the
-Sub Office (the source grid does not print a parent for them). `Total Accounts` is the per-BO
-sum of the three KPI columns. The dashboard builds the totals row from these values.
+The dashboard reports one KPI. `Accounts Opened` is the per-BO sum of the product cells
+(`MIS`, `PPFGP`, `SSA`, ...), and the totals row at the foot of the table sums the BOs
+currently shown. `SO` is the parent Sub Office of a B.O row; it is blank for S.O rows
+because they *are* the Sub Office (the source grid does not print a parent for them).
 
 ## Setup
 

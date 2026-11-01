@@ -17,8 +17,8 @@ Workflow as verified against the live page (https://mis.cept.gov.in/CBS/CBSTrans
   Data rows are plain `<tr>` elements (there is NO <tbody>), and `<tfoot>` holds
   a "Total:" row that DataTables fills in and the Excel export includes
   (button config uses `footer: true`).
-- KPI radios `#ContentPlaceHolder1_ACO` / `_ACC` / `_NET` (name Group1) each fire
-  a postback that re-renders `#example1` for that KPI.
+- The Accounts Opened radio `#ContentPlaceHolder1_ACO` (name Group1) fires a
+  postback that re-renders the result grid.
 - Export is client-side: `dom: 'Bifrtp'` + `{extend: 'excel', footer: true}` means
   the button is `.dt-buttons button.buttons-excel` inside `#example1_wrapper`.
   There is no server-side export URL; the workbook is built in the browser and
@@ -63,10 +63,9 @@ REPORT_LEVEL = os.getenv("REPORT_LEVEL", "subdivision").strip().lower()
 DATE_FMT = "%d-%m-%Y"
 LABEL_DATE_FMT = "%d/%m/%Y"
 
+# Only Accounts Opened is fetched: the dashboard reports that single KPI.
 METRICS = [
     ("#ContentPlaceHolder1_ACO", "accounts_opened", "Accounts Opened"),
-    ("#ContentPlaceHolder1_ACC", "accounts_closed", "Accounts Closed"),
-    ("#ContentPlaceHolder1_NET", "net_addition", "Net Addition"),
 ]
 
 CIRCLE_SEL = "#ContentPlaceHolder1_CircleDropDown"
@@ -647,15 +646,6 @@ def _read_merged(metric_key):
         )
         if coerced.notna().any():
             num_pos.append(i)
-    if metric_key == "net_addition":
-        # This grid exports grouped leaf columns:
-        #   Name | A/c Opened | A/c Closed | Total | Cert Issued | Cert Discharged | Total | ...
-        # The accounts net addition is that first "Total"; summing every numeric column
-        # would add opened + closed + certificate figures together.
-        total_col = next((i for i, h in enumerate(headers) if h.strip().lower() == "total"), None)
-        if total_col is not None:
-            num_pos = [total_col]
-
     if not num_pos:
         log(f"{metric_key}: no numeric columns found")
         return {}
@@ -685,7 +675,7 @@ def _read_merged(metric_key):
 
 
 def generate_dashboard_data():
-    """Build data/dashboard_data.xlsx: one row per BO with SO, SOL ID, all three KPIs and a total."""
+    """Build data/dashboard_data.xlsx: one row per BO with SO, SOL ID and Accounts Opened."""
     today = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
     metric_values = {}
     meta = {}
@@ -717,7 +707,6 @@ def generate_dashboard_data():
             log(f"{label}: no data in this run, filled with 0")
             values = {}
         frame[label] = [values.get(b, 0) for b in bos]
-    frame["Total Accounts"] = frame[labels].sum(axis=1)
     out = DATA_DIR / "dashboard_data.xlsx"
     frame.to_excel(out, index=False)
     with_so = sum(1 for s in frame["SO"] if s)
