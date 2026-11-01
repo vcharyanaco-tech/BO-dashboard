@@ -4,3 +4,4 @@ automation/raw/
 __pycache__/
 *.pyc
 data/exports/*_all.xlsx
+debug/
