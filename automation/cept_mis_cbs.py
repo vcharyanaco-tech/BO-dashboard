@@ -28,14 +28,18 @@ Workflow as verified against the live page (https://mis.cept.gov.in/CBS/CBSTrans
 Per division/sub-division and KPI the export is saved to
 data/exports/{KPI}_{division}_{subdivision}.xlsx and validated to contain real BO
 rows. At the end the per-sub-division files are merged per KPI into
-data/exports/{kpi}_merged.xlsx (one header row + data rows only) and
-generate_dashboard_data() builds data/dashboard_data.xlsx for the dashboard.
+data/exports/{kpi}_merged.xlsx (one header row + data rows only),
+generate_dashboard_data() builds data/dashboard_data.xlsx for the dashboard,
+append_history() appends the run to data/history.csv (daily snapshots that feed
+the dashboard's trend chart), and write_manifest() writes
+data/exports/manifest.json (the KPI list the dashboard auto-loads).
 """
 import os
 import re
 import sys
 import time
 import glob
+import json
 import traceback
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -46,6 +50,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 ROOT = Path(__file__).parent.parent
 DATA_DIR = ROOT / "data"
 EXPORT_DIR = DATA_DIR / "exports"
+HISTORY_FILE = DATA_DIR / "history.csv"
 DEBUG_DIR = ROOT / "debug"
 DATA_DIR.mkdir(exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -604,6 +609,29 @@ def merge_kpi_files(metric_key):
 
 SO_COL_RE = re.compile(r"^so\s*name$|^sub\s*office|^so$", re.I)
 SOL_COL_RE = re.compile(r"sol\s*id|bocode|bo\s*code", re.I)
+SO_NAME_RE = re.compile(r"\bs\.?\s?o\.?\s*$", re.I)
+
+
+def load_bo_master():
+    """BO names from bo_master.js (lowercased) - so a real BO is never dropped as an S.O row."""
+    try:
+        txt = (ROOT / "bo_master.js").read_text(encoding="utf-8")
+        m = re.search(r"BO_MASTER\s*=\s*(\[.*\])\s*;?\s*$", txt, re.S)
+        if not m:
+            return set()
+        return {str(b).strip().lower() for b in json.loads(m.group(1))}
+    except Exception as e:
+        log(f"bo_master: could not load master list ({e}) - S.O filter falls back to name pattern only")
+        return set()
+
+
+BO_MASTER_LOWER = load_bo_master()
+
+
+def is_so_row(bo):
+    """True for S.O summary rows interleaved in the CEPT grid ('Adhoya S.O', 'Achina SO')."""
+    b = str(bo or "").strip()
+    return bool(SO_NAME_RE.search(b)) and b.lower() not in BO_MASTER_LOWER
 
 
 def _read_merged(metric_key):
@@ -656,7 +684,7 @@ def _read_merged(metric_key):
         if not any(cells) or is_footer_row(cells) or is_title_row(cells) or is_header_row(cells):
             continue
         bo = cells[bo_pos] if bo_pos < len(cells) else ""
-        if not bo or bo.lower().startswith("total"):
+        if not bo or bo.lower().startswith("total") or is_so_row(bo):
             continue
         value = 0.0
         for i in num_pos:
@@ -674,9 +702,13 @@ def _read_merged(metric_key):
     return out
 
 
-def generate_dashboard_data():
-    """Build data/dashboard_data.xlsx: one row per BO with SO, SOL ID and Accounts Opened."""
-    today = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+def generate_dashboard_data(report_date_iso=None):
+    """Build data/dashboard_data.xlsx: one row per BO with SO, SOL ID and KPI values.
+
+    report_date_iso is the end of the reporting window (the report's own date),
+    falling back to yesterday when unknown.
+    """
+    report_date = report_date_iso or (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
     metric_values = {}
     meta = {}
     for _, metric_key, metric_label in METRICS:
@@ -696,7 +728,7 @@ def generate_dashboard_data():
     labels = [m[2] for m in METRICS]
     bos = sorted(meta)
     frame = pd.DataFrame({
-        "Date": today,
+        "Date": report_date,
         "BO": bos,
         "SO": [meta[b]["so"] for b in bos],
         "SOL ID": [meta[b]["sol"] for b in bos],
@@ -714,8 +746,90 @@ def generate_dashboard_data():
     return out
 
 
+def append_history(report_date_iso):
+    """Append this run's BO-wise KPI values to data/history.csv (long format).
+
+    Columns: date,bo,so,sol,kpi,value — one row per BO per KPI per report date.
+    Idempotent per report date: re-running for the same date replaces that date's
+    rows instead of duplicating them, so the dashboard's cumulative trend chart
+    never double-counts a re-run.
+    """
+    if not report_date_iso:
+        log("history: no report date given - skipped")
+        return HISTORY_FILE if HISTORY_FILE.exists() else None
+    rows = []
+    for _, metric_key, metric_label in METRICS:
+        data = _read_merged(metric_key)
+        for bo, v in data.items():
+            rows.append({
+                "date": report_date_iso,
+                "bo": bo,
+                "so": v.get("so", ""),
+                "sol": v.get("sol", ""),
+                "kpi": metric_label,
+                "value": v.get("value", 0),
+            })
+    if not rows:
+        log("history: no metric data this run - history file left unchanged")
+        return HISTORY_FILE if HISTORY_FILE.exists() else None
+    new = pd.DataFrame(rows)
+    if HISTORY_FILE.exists():
+        try:
+            old = pd.read_csv(HISTORY_FILE, dtype=str)
+            for col in ("date", "bo", "so", "sol", "kpi", "value"):
+                if col not in old.columns:
+                    old[col] = ""
+            old = old[old["date"] != report_date_iso]
+            combined = pd.concat([old, new], ignore_index=True)
+        except Exception as e:
+            log(f"history: could not read existing {HISTORY_FILE} ({e}) - rewriting it")
+            combined = new
+    else:
+        combined = new
+    combined = combined.drop_duplicates(subset=["date", "bo", "kpi"], keep="last")
+    combined = combined.sort_values(["date", "kpi", "bo"]).reset_index(drop=True)
+    for col in ("date", "bo", "so", "sol", "kpi"):
+        combined[col] = combined[col].fillna("")
+    vals = pd.to_numeric(combined["value"], errors="coerce").fillna(0)
+    if (vals % 1 == 0).all():
+        vals = vals.astype("int64")
+    combined["value"] = vals
+    combined.to_csv(HISTORY_FILE, index=False)
+    log(f"history: appended {len(new)} rows for {report_date_iso} -> {HISTORY_FILE} "
+        f"(total {len(combined)} rows, {combined['date'].nunique()} day(s))")
+    return HISTORY_FILE
+
+
+def write_manifest(report_date_iso=None):
+    """Write data/exports/manifest.json listing the merged KPI workbooks to auto-load.
+
+    The dashboard fetches this manifest instead of a hardcoded KPI list, so adding
+    a KPI to METRICS needs no frontend change. Each entry carries the report date
+    because the merged workbooks no longer keep their 'Dated:' title row.
+    """
+    manifest = []
+    for _, metric_key, metric_label in METRICS:
+        f = EXPORT_DIR / f"{metric_key}_merged.xlsx"
+        if not f.exists():
+            log(f"manifest: {f.name} missing - excluded")
+            continue
+        has_data, _ = has_bo_data_rows(f)
+        if not has_data:
+            log(f"manifest: {f.name} has no BO data rows - excluded")
+            continue
+        entry = {"file": f"data/exports/{f.name}", "label": metric_label}
+        if report_date_iso:
+            entry["date"] = report_date_iso
+        manifest.append(entry)
+    out = EXPORT_DIR / "manifest.json"
+    out.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    log(f"manifest: wrote {out} ({len(manifest)} KPI source(s))")
+    return out
+
+
 def main():
     merged_files = []
+    report_iso = None
     launch_args = ["--no-sandbox", "--disable-dev-shm-usage"] if os.getenv("CI") else []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=launch_args)
@@ -726,6 +840,7 @@ def main():
             open_page(page)
             updated, label = read_updated_label(page)
             start, end = resolve_window(updated)
+            report_iso = end.isoformat()
             window = (start.strftime(DATE_FMT), end.strftime(DATE_FMT))
             log(f"Data window: {window[0]} -> {window[1]}")
             if label:
@@ -800,11 +915,15 @@ def main():
         if out:
             merged_files.append(out)
 
-    dashboard_file = generate_dashboard_data()
+    dashboard_file = generate_dashboard_data(report_iso)
+    history_file = append_history(report_iso)
+    manifest_file = write_manifest(report_iso)
     if not dashboard_file:
         sys.exit("No dashboard data file produced.")
     log(f"Done. Merged files: {[str(f) for f in merged_files]}")
     log(f"Dashboard data: {dashboard_file}")
+    log(f"History: {history_file}")
+    log(f"Manifest: {manifest_file}")
 
 
 if __name__ == "__main__":

@@ -50,9 +50,13 @@ hain, warna dashboard use ek BO samajh leta hai.
 ### Output
 
 - `data/exports/{kpi}_{division}_{subdivision}.xlsx` — per sub-division intermediate (run ke ant me delete)
-- `data/exports/accounts_opened_merged.xlsx` — Accounts Opened ke saare rows, ek header row + sirf data rows
-- `data/dashboard_data.xlsx` — dashboard ka BO-wise file
+- `data/exports/{kpi}_merged.xlsx` — har KPI ke saare rows, ek header row + sirf data rows. **S.O summary rows** (`Adhoya S.O`, `Achina SO`) `is_so_row()` se drop hoti hain (bo_master.js guard ke saath), taaki woh BO nahi banen
+- `data/exports/manifest.json` — dashboard ko batata hai kaun-kaun se merged files auto-load karne hain, har entry me report `date` bhi (merged file me `Dated:` title row nahi rehta). Naya KPI `METRICS` me add karne par dashboard me koi change nahi chahiye
+- `data/history.csv` — daily snapshots, long format `date,bo,so,sol,kpi,value`; same date ka re-run us date ki rows replace karta hai (idempotent). Isi se dashboard ka cumulative trend chart multi-day hota hai aur KPI cards ka day-over-day delta kaam karta hai. ~150 KB/day grow karta hai — bahut purana data prune karne ke liye `append_history()` me ek retention window add ki ja sakti hai
+- `data/dashboard_data.xlsx` — dashboard ka BO-wise file (report window ki end date ke saath)
 - `debug/*.png` + `debug/*.html` — failure par page snapshot (CI me artifact ke roop me upload hota hai)
+
+CI (`cept-mis.yml`) run ke baad `automation/sanity_check.py` naye merged files ko git HEAD wali copy se compare karta hai — BO rows 50%+ kam ya khali file milne par commit nahi hota. Deploy ke baad `smoke-test.yml` live page ko check karta hai.
 
 ## Date window
 
