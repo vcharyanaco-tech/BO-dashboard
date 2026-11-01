@@ -327,50 +327,77 @@ def click_submit(page):
 # --------------------------------------------------------------------------- #
 GRID_ROW_JS = """
 () => {
-  const t = document.querySelector('#example1');
-  if (!t) return -1;
-  // DataTables paginates the grid, so prefer its own row count over the DOM rows.
-  try {
-    const $ = window.jQuery;
-    if ($ && $.fn && $.fn.dataTable && $.fn.dataTable.isDataTable('#example1')) {
-      return $('#example1').DataTable().rows().count();
+  // The CEPT page reuses several DataTables and moves the rendered report between
+  // them: Accounts Opened/Closed land in #example1 while Net Addition lands in
+  // #example4. Pick the visible table that actually holds rows instead of assuming.
+  const $ = window.jQuery;
+  const cands = Array.from(document.querySelectorAll('table.dataTable, table[id^="example"]'));
+  let best = {id: null, rows: -1};
+  for (const t of cands) {
+    if (!t.offsetParent) continue;                       // hidden table
+    let rows = 0;
+    try {
+      if ($ && $.fn.dataTable && $.fn.dataTable.isDataTable(t)) {
+        rows = $(t).DataTable().rows().count();
+      }
+    } catch (e) { rows = 0; }
+    if (!rows) {
+      for (const tr of t.querySelectorAll('tr')) {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 3) continue;                    // header/footer cells are <th>
+        if ((tds[0].innerText || '').trim().toLowerCase().startsWith('total')) continue;
+        rows++;
+      }
     }
-  } catch (e) { /* fall through to DOM counting */ }
-  let n = 0;
-  for (const tr of t.querySelectorAll('tr')) {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length < 3) continue;                      // header/footer cells are <th>
-    const first = (tds[0].innerText || '').trim().toLowerCase();
-    if (first.startsWith('total')) continue;           // DataTables footer row
-    n++;
+    if (rows > best.rows) best = {id: t.id || null, rows: rows};
   }
-  return n;
+  return best;
 }
 """
 
 
-def grid_row_count(page):
+def current_grid(page):
+    """Visible report table as {'id': ..., 'rows': ...}."""
     try:
-        n = page.evaluate(GRID_ROW_JS)
-        return -1 if n is None else int(n)
+        grid = page.evaluate(GRID_ROW_JS)
     except Exception:
-        return -1
+        grid = None
+    if not isinstance(grid, dict):
+        return {"id": None, "rows": -1}
+    return {"id": grid.get("id"), "rows": int(grid.get("rows", -1))}
 
 
 def wait_for_grid(page, timeout=90000, min_rows=1):
-    """Poll until #example1 has real BO rows (fresh page has no grid at all)."""
+    """Poll until the rendered report has real BO rows (fresh page has no grid at all)."""
     deadline = time.time() + timeout
-    rows = -1
+    grid = {"id": None, "rows": -1}
     while time.time() < deadline:
-        rows = grid_row_count(page)
-        if rows >= min_rows:
-            return rows
+        grid = current_grid(page)
+        if grid["rows"] >= min_rows:
+            return grid
         time.sleep(2)
-    return rows
+    return grid
 
 
 def select_radio(page, radio_sel):
-    page.click(radio_sel, no_wait_after=True, timeout=15000)
+    """Tick a KPI radio and fire its postback without blocking on the navigation.
+
+    page.click() waits for the navigation its click triggers, and the CEPT server can
+    leave that request hanging forever (observed on Net Addition), which froze the whole
+    sweep. Dispatching from JS keeps every wait bounded.
+    """
+    page.evaluate(
+        """sel => {
+            const el = document.querySelector(sel);
+            if (!el) throw new Error('radio not found: ' + sel);
+            el.click();
+        }""",
+        radio_sel,
+    )
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=30000)
+    except PWTimeout:
+        pass
     safe_wait(page)
 
 
@@ -420,10 +447,26 @@ def has_bo_data_rows(xlsx_path):
         return False, 0
 
 
-def try_click_export(page, target, timeout=90000):
+def export_selectors(grid_id=None):
+    """Excel button for the rendered grid first, generic ones only as a last resort."""
+    scoped = []
+    if grid_id:
+        scoped = [
+            f"#{grid_id}_wrapper .dt-buttons button.buttons-excel",
+            f"#{grid_id}_wrapper .dt-buttons .buttons-excel",
+            f"#{grid_id}_wrapper button.buttons-excel",
+        ]
+    fallback = list(EXPORT_SELECTORS) if not grid_id else [
+        "#example1_wrapper .dt-buttons button.buttons-excel",
+        "button:has-text('Excel')",
+    ]
+    return scoped + [sel for sel in fallback if sel not in scoped]
+
+
+def try_click_export(page, target, grid_id=None, timeout=90000):
     with page.expect_download(timeout=timeout) as dl_info:
         used = None
-        for sel in EXPORT_SELECTORS:
+        for sel in export_selectors(grid_id):
             try:
                 loc = page.locator(sel)
                 if loc.count() and loc.first.is_visible(timeout=1500):
@@ -444,11 +487,18 @@ def try_click_export(page, target, timeout=90000):
 
 def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, window, max_attempts=3):
     start_s, end_s = window
+    target = EXPORT_DIR / f"{metric_key}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
+    if os.getenv("SKIP_EXISTING", "1") == "1" and target.exists():
+        has_data, row_count = has_bo_data_rows(target)
+        if has_data:
+            log(f"{metric_key}: already downloaded -> {target.name} ({row_count} BO rows)")
+            return target
     for attempt in range(1, max_attempts + 1):
         try:
             log(f"{metric_key} | {div} / {sub} | attempt {attempt}/{max_attempts} | window {start_s} -> {end_s}")
             select_radio(page, radio_sel)
-            rows = wait_for_grid(page, timeout=90000)
+            grid = wait_for_grid(page, timeout=90000)
+            rows = grid["rows"]
 
             dated = dated_window(page)
             if dated and dated != (start_s, end_s):
@@ -456,7 +506,8 @@ def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, windo
                 ensure_window(page, window)
                 click_submit(page)
                 select_radio(page, radio_sel)
-                rows = wait_for_grid(page, timeout=90000)
+                grid = wait_for_grid(page, timeout=90000)
+                rows = grid["rows"]
                 dated = dated_window(page)
             if dated:
                 log(f"{metric_key}: report caption {dated[0]} - {dated[1]}")
@@ -470,10 +521,9 @@ def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, windo
                 log(f"{metric_key}: grid rendered no BO rows on attempt {attempt}")
             else:
                 log(f"{metric_key}: {rows} BO rows rendered")
-                target = EXPORT_DIR / f"{metric_key}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
                 if target.exists():
                     target.unlink()
-                try_click_export(page, target)
+                try_click_export(page, target, grid.get("id"))
                 if target.exists() and target.stat().st_size > 0:
                     has_data, row_count = has_bo_data_rows(target)
                     if has_data:
@@ -597,6 +647,15 @@ def _read_merged(metric_key):
         )
         if coerced.notna().any():
             num_pos.append(i)
+    if metric_key == "net_addition":
+        # This grid exports grouped leaf columns:
+        #   Name | A/c Opened | A/c Closed | Total | Cert Issued | Cert Discharged | Total | ...
+        # The accounts net addition is that first "Total"; summing every numeric column
+        # would add opened + closed + certificate figures together.
+        total_col = next((i for i, h in enumerate(headers) if h.strip().lower() == "total"), None)
+        if total_col is not None:
+            num_pos = [total_col]
+
     if not num_pos:
         log(f"{metric_key}: no numeric columns found")
         return {}
@@ -672,7 +731,8 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=launch_args)
         page = browser.new_page(accept_downloads=True)
-        page.set_default_timeout(60000)
+        page.set_default_timeout(25000)
+        page.set_default_navigation_timeout(45000)
         try:
             open_page(page)
             updated, label = read_updated_label(page)
@@ -686,6 +746,10 @@ def main():
 
             setup_filters(page, window)
             divisions = options_of(page, DIV_SEL)
+            only = [d.strip().lower() for d in os.getenv("REPORT_DIVISIONS", "").split(",") if d.strip()]
+            if only:
+                divisions = [d for d in divisions if any(o in d.lower() for o in only)]
+                log(f"REPORT_DIVISIONS filter -> {divisions}")
             log(f"Divisions ({len(divisions)}): {divisions}")
             for div in divisions:
                 try:
@@ -737,6 +801,10 @@ def main():
             raise
         finally:
             browser.close()
+
+    if os.getenv("SKIP_MERGE", "") == "1":
+        log("SKIP_MERGE=1: merge + dashboard build left to the caller")
+        return
 
     for _, metric_key, _ in METRICS:
         out = merge_kpi_files(metric_key)
