@@ -59,6 +59,24 @@
   sortBy('total'); const i1 = els['tblInfo'].textContent; const t1 = els['tbl'].innerHTML;
   sortBy('total'); const i2 = els['tblInfo'].textContent; const t2 = els['tbl'].innerHTML;
   T('sortBy toggles direction', i1.includes('▲') && i2.includes('▼') && t1 !== t2);
+
+  // CSP-safe wiring: controls must be driven by listeners attached in app.js
+  // (inline on* HTML attributes are refused by the CSP). Fire the stored handlers.
+  T('all controls have addEventListener handlers', ['mode','from','to','bo','so','groupBy','quick','btnExcel','btnPdf','tbl'].every(id => els[id] && els[id]._h && Object.keys(els[id]._h).length > 0));
+  els['quick'].value = 'top'; els['quick']._h.change();
+  T('quick-view listener applies top 10', els['tblInfo'].textContent.includes('top 10'));
+  els['quick'].value = 'all'; els['quick']._h.change();
+  const infoBefore = els['tblInfo'].textContent;
+  els['tbl']._h.click({ target: { closest: () => ({ dataset: { k: 'name' } }) } });
+  T('delegated th click sorts', els['tblInfo'].textContent.includes('sorted by BO') && els['tblInfo'].textContent !== infoBefore);
+  els['groupBy'].value = 'so'; els['groupBy']._h.change();
+  T('groupBy listener switches to SO-wise', els['tblTitle'].textContent.includes('SO-wise'));
+  els['groupBy'].value = 'bo'; els['groupBy']._h.change();
+  els['bo'].value = 'achhanpur'; els['bo']._h.input();
+  await new Promise(r => setTimeout(r, 250)); // onFilterInput debounces 150ms
+  T('BO input listener filters (debounced)', els['tbl'].innerHTML.includes('Achhanpur B.O') && !els['tbl'].innerHTML.includes('Adhoyi B.O'));
+  els['bo'].value = ''; els['bo']._h.input();
+  await new Promise(r => setTimeout(r, 250));
   els['groupBy'].value = 'so'; sortState = { key: 'name', dir: 1 }; render();
   T('SO-wise grouping', els['tblTitle'].textContent.includes('SO-wise') && els['tbl'].innerHTML.includes('SO1') && els['tblInfo'].textContent.includes('SOs'));
   els['groupBy'].value = 'bo';

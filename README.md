@@ -36,7 +36,7 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 - **KPI cards par day-over-day delta** (▲/▼ vs previous day) — history file ki wajah se
 - **Export Excel**: filtered raw data + BO-wise pivot, dono sheets me
 - **Export PDF**: browser print dialog se PDF save (print header me active filters + data-as-of date ke saath)
-- **Security**: CSP meta (script-src: self + jsdelivr only) + SRI hashes on dono CDN scripts; saara JS ab `app.js` me hai (inline script nahi)
+- **Security**: CSP meta (script-src: self + jsdelivr only — isliye koi inline `on*` handler nahi chalega) + SRI hashes on dono CDN scripts; saara JS `app.js` me hai aur saare event listeners wahin `addEventListener` se wire hote hain (inline script/handlers nahi)
 
 ## Auto-fed data files
 

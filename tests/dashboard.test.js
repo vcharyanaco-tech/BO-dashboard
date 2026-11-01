@@ -25,9 +25,11 @@ const makeEl = (id) => ({
   classList: { add() {}, remove() {} },
   onclick: null, onchange: null, oninput: null,
   ondragover: null, ondragleave: null, ondrop: null,
+  _h: {},
+  addEventListener(t, fn) { this._h[t] = fn; },
 });
 global.document = { getElementById(id) { return els[id] || (els[id] = makeEl(id)); } };
-global.window = {};
+global.window = { print() {} };
 global.fetchHandler = async () => ({ ok: false, status: 404, statusText: 'not found' });
 global.fetch = (url) => global.fetchHandler(url);
 global.XLSX = {
@@ -53,6 +55,8 @@ T('index.html loads external app.js', /<script src="app\.js"><\/script>/.test(ht
 T('every <script> tag has a src (no inline script)', (html.match(/<script(?![^>]*src=)[^>]*>/g) || []).length === 0);
 T('CSP meta restricts script-src to self + jsdelivr', /http-equiv="Content-Security-Policy"/.test(html) && /script-src 'self' https:\/\/cdn\.jsdelivr\.net/.test(html));
 T('both CDN scripts carry SRI sha384 + crossorigin', (html.match(/integrity="sha384-[A-Za-z0-9+/]{64}" crossorigin="anonymous"/g) || []).length === 2);
+T('index.html has no inline on* handlers (CSP script-src has no unsafe-inline)', !/\son[a-z]+\s*=\s*"/i.test(html));
+T('app.js wires controls via addEventListener', (appCode.match(/addEventListener/g) || []).length >= 10);
 T('app.js has no dead totalOf/ingestRows', !/function (totalOf|ingestRows)\b/.test(appCode));
 
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/exports/manifest.json'), 'utf8'));
