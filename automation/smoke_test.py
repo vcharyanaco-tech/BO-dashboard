@@ -1,8 +1,14 @@
 """Smoke test for the deployed dashboard.
 
 Loads the live page in headless Chromium and asserts that the auto-fed data
-actually rendered: KPI cards exist, the BO table has rows, the auto-load status
-is not the "not available" fallback, and no uncaught page errors occurred.
+rendered AND that the interactive controls actually work (the CSP forbids
+inline event handlers, so controls must be wired via addEventListener in
+app.js — this test fires them for real):
+
+  1. KPI cards + BO table rows render, no page/console errors
+  2. Quick view = Top 10 applies ("top 10" in the info line, <= 10 rows)
+  3. Group by = SO-wise switches the table title and shrinks the row count
+  4. BO text filter narrows the table
 
 Exit 0 = healthy, 1 = broken. Override the target with DASHBOARD_URL, e.g.:
     DASHBOARD_URL=http://localhost:8000/ python -u automation/smoke_test.py
@@ -17,6 +23,13 @@ URL = os.getenv("DASHBOARD_URL", "https://vcharyanaco-tech.github.io/BO-dashboar
 
 def main():
     errors = []
+    failures = []
+
+    def check(name, cond, detail=""):
+        print(f"smoke: {'PASS' if cond else 'FAIL'} - {name}" + (f" ({detail})" if detail else ""))
+        if not cond:
+            failures.append(name)
+
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
@@ -37,27 +50,60 @@ def main():
                 status = page.locator("#autoStatus").inner_text()
             except Exception:
                 pass
-            print(f"FAIL: no KPI cards rendered within 45s. autoStatus: {status!r}")
+            print(f"smoke: FAIL - no KPI cards rendered within 45s. autoStatus: {status!r}")
             browser.close()
             return 1
+
         kpis = page.locator("#kpis .kpi").count()
-        rows = page.locator("#tbl tbody tr").count()
+        rows_all = page.locator("#tbl tbody tr").count()
         status = page.locator("#autoStatus").inner_text()
         asof = page.locator("#dataAsOf").inner_text()
-        print(f"smoke: KPI cards={kpis}, table rows={rows}, data as of={asof}")
+        print(f"smoke: KPI cards={kpis}, table rows={rows_all}, data as of={asof}")
         print(f"smoke: autoStatus: {status}")
-        ok = kpis > 0 and rows > 0 and not errors
-        if "available nahi" in status:
-            print("smoke: FAIL - auto data did not load (fallback message shown)")
-            ok = False
+        check("KPI cards rendered", kpis > 0)
+        check("BO table has rows", rows_all > 0, f"{rows_all} rows")
+        check("auto data loaded", "available nahi" not in status, status[:80])
+
+        # --- interaction 1: quick view = Top 10 (select fires 'change') ---
+        page.select_option("#quick", "top")
+        page.wait_for_timeout(400)
+        info = page.locator("#tblInfo").inner_text()
+        rows_top = page.locator("#tbl tbody tr").count()
+        check("quick view Top 10 applies", "top 10" in info and rows_top <= 10,
+              f"tblInfo={info!r}, rows={rows_top}")
+        page.select_option("#quick", "all")
+        page.wait_for_timeout(300)
+
+        # --- interaction 2: group by SO (select fires 'change') ---
+        page.select_option("#groupBy", "so")
+        page.wait_for_timeout(400)
+        title = page.locator("#tblTitle").inner_text()
+        rows_so = page.locator("#tbl tbody tr").count()
+        check("group by SO-wise applies", "SO-wise" in title and 0 < rows_so < rows_all,
+              f"title={title!r}, rows={rows_so} vs {rows_all}")
+        page.select_option("#groupBy", "bo")
+        page.wait_for_timeout(300)
+
+        # --- interaction 3: BO text filter (fires 'input', debounced 150ms) ---
+        page.fill("#bo", "a")
+        page.wait_for_timeout(600)
+        rows_f = page.locator("#tbl tbody tr").count()
+        check("BO filter narrows table", 0 <= rows_f < rows_all, f"rows={rows_f} vs {rows_all}")
+        page.fill("#bo", "")
+        page.wait_for_timeout(600)
+
         if errors:
             print("smoke: page errors:")
             for e in errors:
                 print("  " + e)
-            ok = False
+        check("no page/console errors", not errors, f"{len(errors)} error(s)")
+
         browser.close()
-        print("smoke: PASS" if ok else "smoke: FAIL")
-        return 0 if ok else 1
+        if failures:
+            print(f"smoke: FAIL - {len(failures)} check(s) failed: {failures}")
+            return 1
+        print("smoke: PASS")
+        return 0
 
 
 if __name__ == "__main__":

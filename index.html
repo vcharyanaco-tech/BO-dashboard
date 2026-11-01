@@ -45,8 +45,8 @@ th.sortable:hover{color:var(--accent)}
 <header>
   <div><h1>BO Performance Dashboard</h1><div class="sub">CEPT MIS auto-fed • BO &amp; SO-wise cumulative performance • Data as of <b id="dataAsOf">—</b></div></div>
   <div class="no-print" style="display:flex;gap:8px">
-    <button class="secondary" onclick="exportExcel()">Export Excel</button>
-    <button onclick="window.print()">Export PDF</button>
+    <button class="secondary" id="btnExcel">Export Excel</button>
+    <button id="btnPdf">Export PDF</button>
   </div>
 </header>
 <main>
@@ -55,20 +55,20 @@ th.sortable:hover{color:var(--accent)}
   <div id="drop" class="no-print">Daily Excel/CSV file yahan drop karein ya click karke choose karein<br><small>Accepted headers: <b>Name</b> / <b>BO</b> / <b>SOL ID / BOCODE</b> + numeric product columns. Date column optional — title se 'Dated:' extract hoga.</small><input id="file" type="file" accept=".xlsx,.xls,.csv" hidden></div>
   <div class="card no-print" style="margin-bottom:16px">
     <div class="controls">
-      <div><label>Filter mode</label><select id="mode" onchange="updateMode();render()">
+      <div><label>Filter mode</label><select id="mode">
         <option value="upto">Upto date (start se selected date tak)</option>
         <option value="range">Date range</option>
         <option value="single">Single date</option>
       </select></div>
-      <div id="fromWrap"><label>From date</label><input type="date" id="from" onchange="onFilterInput()"></div>
-      <div><label>To date</label><input type="date" id="to" onchange="onFilterInput()"></div>
-      <div><label>BO (type to search)</label><input list="boList" id="bo" placeholder="All BOs — type to search" oninput="onFilterInput()"><datalist id="boList"></datalist></div>
-      <div><label>SO (type to search)</label><input list="soList" id="so" placeholder="All SOs — type to search" oninput="onFilterInput()"><datalist id="soList"></datalist></div>
-      <div><label>Group by</label><select id="groupBy" onchange="render()">
+      <div id="fromWrap"><label>From date</label><input type="date" id="from"></div>
+      <div><label>To date</label><input type="date" id="to"></div>
+      <div><label>BO (type to search)</label><input list="boList" id="bo" placeholder="All BOs — type to search" ><datalist id="boList"></datalist></div>
+      <div><label>SO (type to search)</label><input list="soList" id="so" placeholder="All SOs — type to search" ><datalist id="soList"></datalist></div>
+      <div><label>Group by</label><select id="groupBy">
         <option value="bo">BO-wise</option>
         <option value="so">SO-wise</option>
       </select></div>
-      <div><label>Quick view</label><select id="quick" onchange="render()">
+      <div><label>Quick view</label><select id="quick">
         <option value="all">All</option>
         <option value="top">Top 10 (by total)</option>
         <option value="bottom">Bottom 10 (by total)</option>

@@ -331,7 +331,7 @@ function render(){
   const totalGroups=list.length;
   if(q==='top'||q==='bottom')list=list.slice(0,10);
   const arrow=key=>(sk===key)?(sd>0?' ▲':' ▼'):'';
-  const th=(key,label)=>`<th class="sortable" data-k="${esc(key)}" onclick="sortBy(this.dataset.k)">${esc(label)}${arrow(key)}</th>`;
+  const th=(key,label)=>`<th class="sortable" data-k="${esc(key)}">${esc(label)}${arrow(key)}</th>`;
   const head='<thead><tr>'+
     th('name',gby==='so'?'SO':'BO')+
     (gby==='so'?th('bos','BOs'):th('so','SO'))+
@@ -404,5 +404,24 @@ $('file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};
 drop.ondragleave=()=>drop.classList.remove('drag');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');e.dataTransfer.files[0]&&handleFile(e.dataTransfer.files[0])};
+// All control wiring lives here via addEventListener: the CSP (script-src without
+// 'unsafe-inline') refuses inline on* attributes in the HTML, so handlers must be
+// attached from this external script.
+$('mode').addEventListener('change',()=>{updateMode();render();});
+$('from').addEventListener('input',onFilterInput);
+$('from').addEventListener('change',onFilterInput);
+$('to').addEventListener('input',onFilterInput);
+$('to').addEventListener('change',onFilterInput);
+$('bo').addEventListener('input',onFilterInput);
+$('so').addEventListener('input',onFilterInput);
+$('groupBy').addEventListener('change',render);
+$('quick').addEventListener('change',render);
+$('btnExcel').addEventListener('click',exportExcel);
+$('btnPdf').addEventListener('click',()=>window.print());
+// Sortable table headers: one delegated listener instead of per-th inline onclick.
+$('tbl').addEventListener('click',e=>{
+  const th=e.target.closest('th.sortable');
+  if(th)sortBy(th.dataset.k);
+});
 updateMode();
 autoLoad();
