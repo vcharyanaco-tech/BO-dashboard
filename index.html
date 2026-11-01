@@ -208,6 +208,16 @@ function parseKpiWorkbook(matrix,label){
     )
     .map(({i})=>i);
   if(!valueIdxs.length)throw new Error(label+': koi numeric column nahi mila. Headers: '+headers.join(', '));
+  // Net Addition ke grid ke columns grouped hote hain
+  // (Name | A/c Opened | A/c Closed | Total | Cert Issued | ...) - iska KPI wo pehla
+  // "Total" column hai. Saare numeric columns jodne se opened + closed + certificate
+  // figures ek saath jud jate hain. Baaki do grids me "Total" column hota hi nahi.
+  const netLike=headers.some(h=>/^a\/c\s*opened$/i.test(h))&&headers.some(h=>/^a\/c\s*closed$/i.test(h));
+  let useIdxs=valueIdxs;
+  if(netLike){
+    const totalIdx=headers.findIndex(h=>/^total$/i.test(h));
+    if(totalIdx>=0)useIdxs=[totalIdx];
+  }
   const totals={},so={},sol={};
   rows.forEach(r=>{
     const name=String(r[boIdx]??'').trim();
@@ -215,7 +225,7 @@ function parseKpiWorkbook(matrix,label){
     if(!name||/^total\b/i.test(name)||isHeaderLike(name))return;
     const bo=matchBO(name);
     if(!bo)return;
-    totals[bo]=(totals[bo]||0)+valueIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
+    totals[bo]=(totals[bo]||0)+useIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
     if(soIdx>=0&&!so[bo])so[bo]=String(r[soIdx]??'').trim();
     if(solIdIdx>=0&&!sol[bo])sol[bo]=String(r[solIdIdx]??'').trim();
   });
