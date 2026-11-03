@@ -5,6 +5,7 @@
 (async () => {
   // ---------- pure helpers ----------
   T('esc escapes html', esc('<b>"x"&\'') === '&lt;b&gt;&quot;x&quot;&amp;&#39;');
+  T('fmtDate renders DD-MM-YYYY', fmtDate('2026-11-02') === '02-11-2026' && fmtDate('') === '');
   const csv = 'date,bo,so,sol,kpi,value\n2026-11-01,"Adhoyi B.O",SO1,1,Accounts Opened,5\n2026-11-01,"BO ""Q"" Chandigarh",SO2,2,Accounts Opened,7\n';
   const pr = parseCsvText(csv);
   T('csv parse rows+quotes', pr.length === 3 && pr[1][1] === 'Adhoyi B.O' && pr[2][1] === 'BO "Q" Chandigarh' && pr[2][5] === '7');
@@ -34,7 +35,7 @@
   // ---------- finishIngest + render ----------
   finishIngest();
   T('DATES sorted', DATES.join(',') === '2026-11-01,2026-11-02');
-  T('dataAsOf set', els['dataAsOf'].textContent === '2026-11-02');
+  T('dataAsOf set in DD-MM-YYYY', els['dataAsOf'].textContent === '02-11-2026');
   els['mode'].value = 'upto'; els['from'].value = '2026-11-01'; els['to'].value = '2026-11-02';
   els['bo'].value = ''; els['so'].value = ''; els['groupBy'].value = 'bo'; els['quick'].value = 'all';
   render();
@@ -45,13 +46,14 @@
   T('BO count includes the full master list', els['tblInfo'].textContent.includes(`${MASTER_LIST.length} of ${MASTER_LIST.length} BOs`));
   T('table has Total col+value', tbl.includes('Total') && tbl.includes('>104<')); // 5+99
   T('no SO pseudo-BO in table', !/Adhoya/.test(tbl));
-  T('KPI delta vs prev day shown', els['kpis'].innerHTML.includes('vs 2026-11-01') && /[▲▼] \d/.test(els['kpis'].innerHTML));
+  T('KPI delta vs prev day shown', els['kpis'].innerHTML.includes('vs 01-11-2026') && /[▲▼] \d/.test(els['kpis'].innerHTML));
   const deltaTxt = els['kpis'].innerHTML.match(/class="d (good|bad)">([^<]*)</);
   T('KPI delta value correct (+136: (99+42)-5)', deltaTxt && deltaTxt[2].includes('136') && deltaTxt[1] === 'good');
   T('chart created once', chartCreated === 1);
   render();
   T('chart updated in place', chartCreated === 1 && chartUpdated >= 1);
-  T('tblInfo + printHead filled', els['tblInfo'].textContent.includes('sorted by') && els['printHead'].innerHTML.includes('2026-11-02'));
+  T('tblInfo + printHead filled', els['tblInfo'].textContent.includes('sorted by') && els['printHead'].innerHTML.includes('02-11-2026'));
+  T('chart labels use DD-MM-YYYY', chartInstance.data.labels.join(',') === '01-11-2026,02-11-2026');
 
   // ---------- sorting / quick view / grouping ----------
   const savedROWS = ROWS;

@@ -19,7 +19,7 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 ## Features
 
 - Daily Excel (.xlsx/.xls) ya CSV upload — drag & drop supported
-- **Auto-load**: `data/history.csv` (daily snapshots) + `data/exports/manifest.json` me listed KPI exports automatically load ho kar BO-wise table, KPI cards aur trend me pivot ho jate hain. Header me **"Data as of"** date dikhti hai. Manual upload agar pehle ho gaya to auto-load usse overwrite nahi karta.
+- **Auto-load**: `data/history.csv` (daily snapshots) + `data/exports/manifest.json` me listed KPI exports automatically load ho kar BO-wise table, KPI cards aur trend me pivot ho jate hain. Header me **"Data as of"** date dikhti hai. Manual upload agar pehle ho gaya to auto-load usse overwrite nahi karta. UI, print header, chart labels aur Excel export me dates **DD-MM-YYYY** (jaise `02-11-2026`) format me dikhti hain; internal/history data ISO (`YYYY-MM-DD`) hi rehta hai.
 - BO-wise cumulative performance table with totals:
   - **Click-to-sort** har column par (BO/SO/metric/Total)
   - **Total column** per row + totals footer

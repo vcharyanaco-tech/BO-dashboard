@@ -14,6 +14,7 @@ Exit 0 = healthy, 1 = broken. Override the target with DASHBOARD_URL, e.g.:
     DASHBOARD_URL=http://localhost:8000/ python -u automation/smoke_test.py
 """
 import os
+import re
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -66,6 +67,13 @@ def main():
         check("all BO master rows rendered", master_count > 0 and rows_all >= master_count,
               f"{rows_all} rows for {master_count} master BOs")
         check("auto data loaded", "available nahi" not in status, status[:80])
+        check("data-as-of uses DD-MM-YYYY", bool(re.fullmatch(r"\d{2}-\d{2}-\d{4}", asof)), asof)
+        labels = page.evaluate(
+            "() => { const c = Chart.getChart(document.getElementById('chart')); return c ? c.data.labels : []; }"
+        )
+        check("chart labels use DD-MM-YYYY",
+              bool(labels) and all(re.fullmatch(r"\d{2}-\d{2}-\d{4}", str(v)) for v in labels),
+              f"{labels[:3]}")
 
         # --- interaction 1: quick view = Top 10 (select fires 'change') ---
         page.select_option("#quick", "top")

@@ -8,6 +8,9 @@ function onFilterInput(){clearTimeout(debT);debT=setTimeout(render,150);}
 function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
 function parseDMY(s){const m=String(s||'').match(/(\d{2})-(\d{2})-(\d{4})/);if(!m)return null;return new Date(+m[3],+m[2]-1,+m[1]);}
 const iso=d=>d.toISOString().slice(0,10);
+// All dates shown in the UI/exports use DD-MM-YYYY. ISO dates stay internal for
+// sorting, filtering, history.csv and manifest.json.
+const fmtDate=v=>{const s=String(v||'').slice(0,10);const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:s;};
 const MASTER_LIST=(typeof BO_MASTER!=='undefined')?BO_MASTER:[];
 // Dashboard reporting period: earlier history snapshots (e.g. 31-10-2026) stay in
 // history.csv for audit, but must never appear in KPIs, trend, table or exports.
@@ -87,7 +90,7 @@ function finishIngest(){
   ROWS=ROWS.filter(r=>r.date>=DATA_START);
   DATES=[...new Set(ROWS.map(r=>r.date))].sort();
   if(DATES.length){$('from').value=DATES[0];$('to').value=DATES[DATES.length-1];}
-  $('dataAsOf').textContent=DATES.length?DATES[DATES.length-1]:'—';
+  $('dataAsOf').textContent=DATES.length?fmtDate(DATES[DATES.length-1]):'—';
   setBOOptions([...new Set(ROWS.filter(r=>r.kind!=='so').map(r=>r.bo))]);
   setSOOptions(ROWS.map(r=>r.so));
   $('msg').textContent='';updateMode();render();
@@ -306,7 +309,7 @@ async function autoLoad(){
   const missingMaster=MASTER_LIST.filter(b=>!reportedBOs.has(b)).length;
   const bits=[];
   if(hist)bits.push(`history ${DATES.length} day(s)`);
-  if(parts.length)bits.push(`${parts.length}/${sources.length} KPI export(s) @ ${DATES[DATES.length-1]}`);
+  if(parts.length)bits.push(`${parts.length}/${sources.length} KPI export(s) @ ${fmtDate(DATES[DATES.length-1])}`);
   if(missing.length)bits.push(`missing: ${missing.join(', ')}`);
   bits.push(`${ROWS.length} rows, ${reportedBOs.size} BOs reported, ${missingMaster} master BOs at 0, ${soCount} SOs`);
   $('autoStatus').textContent='Auto-loaded '+bits.join(' • ')+'.';
@@ -380,7 +383,7 @@ function render(){
               ...act.map(m=>[m,boRows.reduce((s,r)=>s+(Number(r[m])||0),0)])];
   $('kpis').innerHTML=kpis.map(([l,v])=>{
     const d=act.includes(l)?deltaOf(l):null;
-    const sub=d===null?'':`<div class="d ${d>=0?'good':'bad'}">${d>=0?'▲':'▼'} ${fmt(Math.abs(d))} vs ${esc(prevD)}</div>`;
+    const sub=d===null?'':`<div class="d ${d>=0?'good':'bad'}">${d>=0?'▲':'▼'} ${fmt(Math.abs(d))} vs ${esc(fmtDate(prevD))}</div>`;
     return `<div class="kpi"><div class="l">${esc(l)}</div><div class="v">${fmt(v)}</div>${sub}</div>`;
   }).join('');
   // Aggregate into groups. BO-wise = BO rows only. SO-wise = BO rows summed per SO,
@@ -468,14 +471,14 @@ function render(){
   $('tblInfo').textContent=`Showing ${list.length} of ${totalGroups} ${gby==='so'?'SOs':'BOs'}`+
     (q!=='all'?` (${q} 10)`:'')+` • ${boRows.length} BO rows${soRows.length?` + ${soRows.length} SO rows`:''} • sorted by ${skLabel} ${sd>0?'▲':'▼'}`;
   $('printHead').innerHTML=`<h1 style="font-size:16px">BO Performance Dashboard</h1>`+
-    `<div style="font-size:12px">Mode: ${esc($('mode').value)} • From: ${esc($('from').value||'—')} • To: ${esc($('to').value||'—')}`+
+    `<div style="font-size:12px">Mode: ${esc($('mode').value)} • From: ${esc($('from').value?fmtDate($('from').value):'—')} • To: ${esc($('to').value?fmtDate($('to').value):'—')}`+
     ` • BO filter: ${esc($('bo').value||'All')} • SO filter: ${esc($('so').value||'All')} • Group by: ${esc(gby)} • Data as of ${esc($('dataAsOf').textContent)}</div>`;
   let run={};const series={};act.forEach(m=>series[m]=[]);
   days.forEach(d=>{
     boRows.filter(r=>r.date===d).forEach(r=>act.forEach(m=>run[m]=(run[m]||0)+(Number(r[m])||0)));
     act.forEach(m=>series[m].push(run[m]||0));
   });
-  const data={labels:days,datasets:act.map(m=>({label:m,data:series[m],tension:.3}))};
+  const data={labels:days.map(fmtDate),datasets:act.map(m=>({label:m,data:series[m],tension:.3}))};
   const opts={responsive:true,
     plugins:{legend:{labels:{color:'#e2e8f0'}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}},
     scales:{x:{ticks:{color:'#94a3b8',autoSkip:true,maxRotation:45}},y:{beginAtZero:true,ticks:{color:'#94a3b8',callback:v=>fmt(v)}}}};
@@ -488,7 +491,7 @@ function exportExcel(){
   const all=filtered();
   const rows=all.filter(r=>r.kind!=='so'); // BO-wise pivot from BO rows only
   const out=all.map(r=>{
-    const o={Date:r.date,Kind:r.kind||'bo',BO:r.bo,SO:r.so||'','SOL ID':r.sol||''};
+    const o={Date:fmtDate(r.date),Kind:r.kind||'bo',BO:r.bo,SO:r.so||'','SOL ID':r.sol||''};
     act.forEach(m=>o[m]=Number(r[m])||0);
     return o;
   });
@@ -514,7 +517,7 @@ function exportExcel(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Filtered Data');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(piv),'BO-wise');
-  XLSX.writeFile(wb,`BO_dashboard_${$('to').value||'export'}.xlsx`);
+  XLSX.writeFile(wb,`BO_dashboard_${fmtDate($('to').value)||'export'}.xlsx`);
 }
 const drop=$('drop');drop.onclick=()=>$('file').click();
 $('file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
