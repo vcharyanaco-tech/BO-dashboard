@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: cept-mis-update
@@ -56,3 +57,12 @@ jobs:
             git pull --rebase origin main
             git push
           fi
+      # Commits pushed with GITHUB_TOKEN do NOT trigger other workflows (GitHub
+      # suppresses recursive runs), so pages.yml would otherwise keep serving the
+      # previous data after every automated update. workflow_dispatch is the one
+      # documented exception, so explicitly kick off the Pages deployment.
+      - name: Trigger GitHub Pages deploy
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main

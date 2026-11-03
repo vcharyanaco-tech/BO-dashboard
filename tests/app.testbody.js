@@ -5,7 +5,7 @@
 (async () => {
   // ---------- pure helpers ----------
   T('esc escapes html', esc('<b>"x"&\'') === '&lt;b&gt;&quot;x&quot;&amp;&#39;');
-  const csv = 'date,bo,so,sol,kpi,value\n2026-10-30,"Adhoyi B.O",SO1,1,Accounts Opened,5\n2026-10-30,"BO ""Q"" Chandigarh",SO2,2,Accounts Opened,7\n';
+  const csv = 'date,bo,so,sol,kpi,value\n2026-11-01,"Adhoyi B.O",SO1,1,Accounts Opened,5\n2026-11-01,"BO ""Q"" Chandigarh",SO2,2,Accounts Opened,7\n';
   const pr = parseCsvText(csv);
   T('csv parse rows+quotes', pr.length === 3 && pr[1][1] === 'Adhoyi B.O' && pr[2][1] === 'BO "Q" Chandigarh' && pr[2][5] === '7');
   T('matchBO exact', matchBO('Adhoyi B.O') === 'Adhoyi B.O');
@@ -16,7 +16,7 @@
 
   // ---------- loadHistory: no global side effects; kind column respected ----------
   fetchHandler = async (url) => {
-    if (url.includes('history.csv')) return { ok: true, text: async () => 'date,bo,so,sol,kind,kpi,value\n2026-10-30,Adhoyi B.O,SO1,1,bo,Accounts Opened,5\n2026-10-30,Adhoya S.O,,999,so,Accounts Opened,50\n2026-10-31,Adhoyi B.O,SO1,1,bo,Accounts Opened,8\n2026-10-31,Achhanpur B.O,SO2,2,bo,Accounts Opened,3\n' };
+    if (url.includes('history.csv')) return { ok: true, text: async () => 'date,bo,so,sol,kind,kpi,value\n2026-11-01,Adhoyi B.O,SO1,1,bo,Accounts Opened,5\n2026-11-01,Adhoya S.O,,999,so,Accounts Opened,50\n2026-11-02,Adhoyi B.O,SO1,1,bo,Accounts Opened,8\n2026-11-02,Achhanpur B.O,SO2,2,bo,Accounts Opened,3\n' };
     return { ok: false, status: 404, statusText: 'nf' };
   };
   const hist = await loadHistory();
@@ -25,34 +25,37 @@
   ROWS = hist.rows; METRICS = hist.metrics;
 
   // ---------- overlay: same date replaced, other dates kept ----------
-  overlayKpiParts([{ label: 'Accounts Opened', date: new Date('2026-10-31T00:00:00Z'), totals: { 'Adhoyi B.O': 99, 'Achhanpur B.O': 42 }, soTotals: { 'adhoya s.o': { name: 'Adhoya S.O', total: 50, sol: '999' } }, so: { 'Adhoyi B.O': 'SO1', 'Achhanpur B.O': 'SO2' }, sol: {} }]);
-  const a31 = ROWS.filter(r => r.date === '2026-10-31' && r.kind !== 'so');
+  overlayKpiParts([{ label: 'Accounts Opened', date: new Date('2026-11-02T00:00:00Z'), totals: { 'Adhoyi B.O': 99, 'Achhanpur B.O': 42 }, soTotals: { 'adhoya s.o': { name: 'Adhoya S.O', total: 50, sol: '999' } }, so: { 'Adhoyi B.O': 'SO1', 'Achhanpur B.O': 'SO2' }, sol: {} }]);
+  const a31 = ROWS.filter(r => r.date === '2026-11-02' && r.kind !== 'so');
   T('overlay replaces same-date BO rows', a31.length === 2 && a31.find(r => r.bo === 'Adhoyi B.O')['Accounts Opened'] === 99);
-  T('overlay adds SO-level row as kind=so (separate)', ROWS.some(r => r.kind === 'so' && r.bo === 'Adhoya S.O' && r.date === '2026-10-31' && r['Accounts Opened'] === 50));
-  T('overlay keeps other dates', ROWS.some(r => r.date === '2026-10-30' && r['Accounts Opened'] === 5));
+  T('overlay adds SO-level row as kind=so (separate)', ROWS.some(r => r.kind === 'so' && r.bo === 'Adhoya S.O' && r.date === '2026-11-02' && r['Accounts Opened'] === 50));
+  T('overlay keeps other dates', ROWS.some(r => r.date === '2026-11-01' && r['Accounts Opened'] === 5));
 
   // ---------- finishIngest + render ----------
   finishIngest();
-  T('DATES sorted', DATES.join(',') === '2026-10-30,2026-10-31');
-  T('dataAsOf set', els['dataAsOf'].textContent === '2026-10-31');
-  els['mode'].value = 'upto'; els['from'].value = '2026-10-30'; els['to'].value = '2026-10-31';
+  T('DATES sorted', DATES.join(',') === '2026-11-01,2026-11-02');
+  T('dataAsOf set', els['dataAsOf'].textContent === '2026-11-02');
+  els['mode'].value = 'upto'; els['from'].value = '2026-11-01'; els['to'].value = '2026-11-02';
   els['bo'].value = ''; els['so'].value = ''; els['groupBy'].value = 'bo'; els['quick'].value = 'all';
   render();
   const tbl = els['tbl'].innerHTML;
   T('table has BO rows', tbl.includes('Adhoyi B.O') && tbl.includes('Achhanpur B.O'));
+  const zeroRow = tbl.split('</tr>').find(r => r.includes('<td>Abubshahar BO</td>'));
+  T('every master BO is shown (missing report row -> 0)', !!zeroRow && (zeroRow.match(/>0<\/b>/g) || []).length >= 2);
+  T('BO count includes the full master list', els['tblInfo'].textContent.includes(`${MASTER_LIST.length} of ${MASTER_LIST.length} BOs`));
   T('table has Total col+value', tbl.includes('Total') && tbl.includes('>104<')); // 5+99
   T('no SO pseudo-BO in table', !/Adhoya/.test(tbl));
-  T('KPI delta vs prev day shown', els['kpis'].innerHTML.includes('vs 2026-10-30') && /[▲▼] \d/.test(els['kpis'].innerHTML));
+  T('KPI delta vs prev day shown', els['kpis'].innerHTML.includes('vs 2026-11-01') && /[▲▼] \d/.test(els['kpis'].innerHTML));
   const deltaTxt = els['kpis'].innerHTML.match(/class="d (good|bad)">([^<]*)</);
   T('KPI delta value correct (+136: (99+42)-5)', deltaTxt && deltaTxt[2].includes('136') && deltaTxt[1] === 'good');
   T('chart created once', chartCreated === 1);
   render();
   T('chart updated in place', chartCreated === 1 && chartUpdated >= 1);
-  T('tblInfo + printHead filled', els['tblInfo'].textContent.includes('sorted by') && els['printHead'].innerHTML.includes('2026-10-31'));
+  T('tblInfo + printHead filled', els['tblInfo'].textContent.includes('sorted by') && els['printHead'].innerHTML.includes('2026-11-02'));
 
   // ---------- sorting / quick view / grouping ----------
   const savedROWS = ROWS;
-  ROWS = [...ROWS, ...Array.from({ length: 15 }, (_, i) => ({ date: '2026-10-31', bo: 'Fake BO ' + i, so: 'SOX', sol: '', 'Accounts Opened': i + 1 }))];
+  ROWS = [...ROWS, ...Array.from({ length: 15 }, (_, i) => ({ date: '2026-11-02', bo: 'Fake BO ' + i, so: 'SOX', sol: '', 'Accounts Opened': i + 1 }))];
   els['quick'].value = 'top'; render();
   const topRows = (els['tbl'].innerHTML.match(/<tbody>([\s\S]*?)<\/tbody>/)[1].match(/<tr>/g) || []).length;
   T('top10 quick view shows 10 rows', topRows === 10 && els['tblInfo'].textContent.includes('top 10'));
@@ -83,9 +86,9 @@
   els['groupBy'].value = 'bo';
 
   // ---------- filters ----------
-  els['mode'].value = 'single'; els['to'].value = '2026-10-30'; render();
+  els['mode'].value = 'single'; els['to'].value = '2026-11-01'; render();
   T('single-date filter', els['tbl'].innerHTML.includes('>5<') && !els['tbl'].innerHTML.includes('>99<'));
-  els['mode'].value = 'upto'; els['to'].value = '2026-10-31'; render();
+  els['mode'].value = 'upto'; els['to'].value = '2026-11-02'; render();
   els['bo'].value = 'achhanpur'; render();
   T('BO substring filter', els['tbl'].innerHTML.includes('Achhanpur B.O') && !els['tbl'].innerHTML.includes('Adhoyi B.O'));
   els['bo'].value = '';
@@ -94,17 +97,17 @@
   els['mode'].value = 'upto'; updateMode(); T('from hidden in upto', els['fromWrap'].style.display === 'none');
 
   // ---------- race guard: manual upload must survive in-flight auto-load ----------
-  ROWS = [{ date: '2026-10-30', bo: 'Adhoyi B.O', so: 'SO1', sol: '1', 'Accounts Opened': 5 }]; METRICS = ['Accounts Opened']; DATES = ['2026-10-30'];
+  ROWS = [{ date: '2026-11-01', bo: 'Adhoyi B.O', so: 'SO1', sol: '1', 'Accounts Opened': 5 }]; METRICS = ['Accounts Opened']; DATES = ['2026-11-01'];
   userLoaded = true;
   fetchHandler = async () => ({ ok: true, text: async () => 'date,bo,so,sol,kpi,value\n2026-01-01,Adhoyi B.O,,1,X,1\n' });
   await autoLoad();
-  T('race guard: auto skipped, ROWS intact', els['autoStatus'].textContent.includes('Manual file loaded') && ROWS.length === 1 && ROWS[0].date === '2026-10-30');
+  T('race guard: auto skipped, ROWS intact', els['autoStatus'].textContent.includes('Manual file loaded') && ROWS.length === 1 && ROWS[0].date === '2026-11-01');
   userLoaded = false;
 
   // ---------- full autoLoad: manifest + xlsx (SO row + Total row skipped) ----------
   fetchHandler = async (url) => {
-    if (url.includes('history.csv')) return { ok: true, text: async () => 'date,bo,so,sol,kpi,value\n2026-10-30,Adhoyi B.O,SO1,1,Accounts Opened,5\n' };
-    if (url.includes('manifest.json')) return { ok: true, json: async () => [{ file: 'data/exports/accounts_opened_merged.xlsx', label: 'Accounts Opened', date: '2026-10-31' }] };
+    if (url.includes('history.csv')) return { ok: true, text: async () => 'date,bo,so,sol,kpi,value\n2026-11-01,Adhoyi B.O,SO1,1,Accounts Opened,5\n' };
+    if (url.includes('manifest.json')) return { ok: true, json: async () => [{ file: 'data/exports/accounts_opened_merged.xlsx', label: 'Accounts Opened', date: '2026-11-02' }] };
     if (url.includes('.xlsx')) return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
     return { ok: false, status: 404, statusText: 'nf' };
   };
@@ -115,21 +118,21 @@
   };
   ROWS = []; METRICS = []; DATES = [];
   await autoLoad();
-  T('autoLoad history+manifest', ROWS.length === 3 && DATES.join(',') === '2026-10-30,2026-10-31');
-  const r31 = ROWS.find(r => r.date === '2026-10-31' && r.bo === 'Adhoyi B.O');
+  T('autoLoad history+manifest', ROWS.length === 3 && DATES.join(',') === '2026-11-01,2026-11-02');
+  const r31 = ROWS.find(r => r.date === '2026-11-02' && r.bo === 'Adhoyi B.O');
   T('manifest date used; product cols summed; Total row skipped', !!r31 && r31['Accounts Opened'] === 7 && !ROWS.some(r => String(r.bo).startsWith('Total')));
   T('office row kept separately as kind=so (not in BO totals)', ROWS.some(r => r.kind === 'so' && r.bo === 'Adhoya S.O' && r['Accounts Opened'] === 20) && !ROWS.some(r => r.kind !== 'so' && /s\.?\s?o\.?\s*$/i.test(r.bo)));
   T('autoStatus summary', els['autoStatus'].textContent.includes('history 2 day(s)') && els['autoStatus'].textContent.includes('1/1 KPI export'));
 
   // ---------- SO-wise view: ΣBO and SO-reported kept separate; '(no SO)' bucket ----------
   ROWS = [
-    { date: '2026-10-31', bo: 'Adhoyi B.O', so: 'Adhoya S.O', sol: 'I1895', kind: 'bo', 'Accounts Opened': 7 },
-    { date: '2026-10-31', bo: 'Brahman Majra B.O', so: '', sol: '', kind: 'bo', 'Accounts Opened': 2 },
-    { date: '2026-10-31', bo: 'Adhoya S.O', so: 'Adhoya S.O', sol: '13320501', kind: 'so', 'Accounts Opened': 20 },
+    { date: '2026-11-02', bo: 'Adhoyi B.O', so: 'Adhoya S.O', sol: 'I1895', kind: 'bo', 'Accounts Opened': 7 },
+    { date: '2026-11-02', bo: 'Brahman Majra B.O', so: '', sol: '', kind: 'bo', 'Accounts Opened': 2 },
+    { date: '2026-11-02', bo: 'Adhoya S.O', so: 'Adhoya S.O', sol: '13320501', kind: 'so', 'Accounts Opened': 20 },
   ];
-  METRICS = ['Accounts Opened']; DATES = ['2026-10-31'];
+  METRICS = ['Accounts Opened']; DATES = ['2026-11-02'];
   finishIngest();
-  els['mode'].value = 'single'; els['to'].value = '2026-10-31';
+  els['mode'].value = 'single'; els['to'].value = '2026-11-02';
   els['bo'].value = ''; els['so'].value = ''; els['quick'].value = 'all';
   els['groupBy'].value = 'so'; render();
   const soTbl = els['tbl'].innerHTML;
@@ -140,6 +143,14 @@
   T('KPI cards count BO rows only (9, not 29)', els['kpis'].innerHTML.includes('>9<') && !els['kpis'].innerHTML.includes('>29<'));
   els['groupBy'].value = 'bo'; render();
   T('BO view hides SO summary rows', !/<tr><td>Adhoya S\.O<\/td>/.test(els['tbl'].innerHTML) && els['tbl'].innerHTML.includes('Brahman Majra B.O'));
+
+  // ---------- reporting-period cutoff ----------
+  ROWS = [
+    { date: '2026-10-31', bo: 'Old BO', so: 'S1', sol: '1', kind: 'bo', 'Accounts Opened': 100 },
+    { date: '2026-11-01', bo: 'New BO', so: 'S1', sol: '2', kind: 'bo', 'Accounts Opened': 5 },
+  ];
+  METRICS = ['Accounts Opened']; finishIngest();
+  T('rows before 2026-11-01 are excluded', ROWS.length === 1 && ROWS[0].bo === 'New BO' && DATES.join(',') === '2026-11-01');
 
   console.log(__failures ? `FAILED: ${__failures} assertion(s)` : 'ALL PASS');
   process.exitCode = __failures ? 1 : 0;

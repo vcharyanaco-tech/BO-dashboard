@@ -31,6 +31,8 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
   - **Date range**: kisi bhi from–to range ka data (From field sirf range mode me dikhta hai)
   - **Single date**: sirf ek din ka data
 - BO-wise filter (All BOs ya koi ek BO) with master-list pre-set and fuzzy name matching
+- **Poora BO master list**: BO-wise table me `bo_master.js` ke saare BOs hamesha dikhte hain. Jin BOs ne selected date window me koi account nahi khola unki row **0** ke saath aati hai (report se gayab hone se row drop nahi hoti). Excel export ka BO-wise sheet bhi isi list ko mirror karta hai.
+- **Reporting period `2026-11-01` se**: is date se pehle ke snapshots (jaise 31-10-2026) KPI cards, trend, BO table aur Excel/PDF export me include nahi hote. Purani history audit ke liye `history.csv` me rah sakti hai, lekin dashboard sirf 01-11-2026 onwards dikhata hai.
 - **SO filter** — Sub Office wise filter (B.O rows apne parent S.O ke saath aate hain)
 - **Accounts Opened** per BO (product columns ka sum) + totals row footer me
 - **Office summary rows kept separate**: CEPT report ki S.O/H.O/G.P.O summary rows (blank `SO Name` cell, ya `S.O`-ending name — master-list BO kabhi nahi) `kind='so'` rows ban kar rakhi jati hain. BO-wise table, KPI cards aur trend chart inhe kabhi include nahi karte (double-counting nahi). **SO-wise view me har SO ke liye do alag sortable columns**: `<metric> (ΣBO)` = us SO ke BO rows ka sum, aur `<metric> (SO)` = office ki apni summary row ka reported figure (`—` agar report me woh row nahi). `(no SO)` bucket = woh BO rows jinki SO Name blank hai (jaise `Brahman Majra B.O`)
@@ -66,7 +68,7 @@ Live URL: https://vcharyanaco-tech.github.io/BO-dashboard/
 
 Workflows:
 
-- `cept-mis.yml` — **single** automation entry point (pehle `cept-mis.yml` + `dashboard.yml` dono chal rahe the aur main par race karte the; ab ek hi hai, din me 2 baar cron + concurrency group ke saath). Run ke baad `automation/sanity_check.py` naye merged exports ko HEAD se compare karta hai — agar BO rows 50%+ gir gaye ya file khali hai to commit nahi hota. Commit karta hai: merged exports, `manifest.json`, `history.csv`, `dashboard_data.xlsx`.
+- `cept-mis.yml` — **single** automation entry point (pehle `cept-mis.yml` + `dashboard.yml` dono chal rahe the aur main par race karte the; ab ek hi hai, din me 2 baar cron + concurrency group ke saath). Run ke baad `automation/sanity_check.py` naye merged exports ko HEAD se compare karta hai — agar BO rows 50%+ gir gaye ya file khali hai to commit nahi hota. Commit karta hai: merged exports, `manifest.json`, `history.csv`, `dashboard_data.xlsx`. Data commit ke baad workflow `pages.yml` ko dispatch karta hai, kyunki `GITHUB_TOKEN` se kiya gaya push apne aap dusre workflows trigger nahi karta — warna live dashboard purane data par atka rehta hai.
 - `test.yml` — har push/PR par `node tests/dashboard.test.js` (dashboard logic + repo data files) aur Python syntax check chalata hai.
 - `smoke-test.yml` — Pages deploy ke baad (ya manually) live URL ko headless Chromium me load karke check karta hai ki KPI cards + BO table render hue aur koi page error nahi aaya.
 - `backfill_dashboard.yml`, `debug_merged_files.yml` — manual helpers.

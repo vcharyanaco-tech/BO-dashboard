@@ -9,6 +9,9 @@ function parseDate(v){if(v instanceof Date)return v;const d=new Date(v);return i
 function parseDMY(s){const m=String(s||'').match(/(\d{2})-(\d{2})-(\d{4})/);if(!m)return null;return new Date(+m[3],+m[2]-1,+m[1]);}
 const iso=d=>d.toISOString().slice(0,10);
 const MASTER_LIST=(typeof BO_MASTER!=='undefined')?BO_MASTER:[];
+// Dashboard reporting period: earlier history snapshots (e.g. 31-10-2026) stay in
+// history.csv for audit, but must never appear in KPIs, trend, table or exports.
+const DATA_START='2026-11-01';
 function normalizeBO(name){
   return String(name||'').trim().replace(/\s+/g,' ')
     .replace(/\s*B\.?O\.?$/i,' BO').replace(/\s+/g,' ').trim().toLowerCase();
@@ -81,6 +84,7 @@ function updateMode(){
   $('fromWrap').style.display=($('mode').value==='range')?'':'none';
 }
 function finishIngest(){
+  ROWS=ROWS.filter(r=>r.date>=DATA_START);
   DATES=[...new Set(ROWS.map(r=>r.date))].sort();
   if(DATES.length){$('from').value=DATES[0];$('to').value=DATES[DATES.length-1];}
   $('dataAsOf').textContent=DATES.length?DATES[DATES.length-1]:'—';
@@ -298,11 +302,13 @@ async function autoLoad(){
   if(parts.length)overlayKpiParts(parts);
   finishIngest();
   const soCount=new Set(ROWS.map(r=>r.so).filter(Boolean)).size;
+  const reportedBOs=new Set(ROWS.filter(r=>r.kind!=='so').map(r=>r.bo));
+  const missingMaster=MASTER_LIST.filter(b=>!reportedBOs.has(b)).length;
   const bits=[];
   if(hist)bits.push(`history ${DATES.length} day(s)`);
   if(parts.length)bits.push(`${parts.length}/${sources.length} KPI export(s) @ ${DATES[DATES.length-1]}`);
   if(missing.length)bits.push(`missing: ${missing.join(', ')}`);
-  bits.push(`${ROWS.length} rows, ${new Set(ROWS.map(r=>r.bo)).size} BOs, ${soCount} SOs`);
+  bits.push(`${ROWS.length} rows, ${reportedBOs.size} BOs reported, ${missingMaster} master BOs at 0, ${soCount} SOs`);
   $('autoStatus').textContent='Auto-loaded '+bits.join(' • ')+'.';
 }
 function filtered(){
@@ -320,6 +326,40 @@ function sortBy(key){
   else sortState={key,dir:1};
   render();
 }
+// BO metadata (SO/SOL) from every loaded row, not just the selected date range,
+// so a master BO that had no accounts opened in the window still shows its SO.
+function boMetaMap(){
+  const meta=new Map();
+  ROWS.forEach(r=>{
+    if(r.kind==='so')return;
+    let m=meta.get(r.bo);
+    if(!m){m={so:'',sol:''};meta.set(r.bo,m);}
+    if(!m.so&&r.so)m.so=r.so;
+    if(!m.sol&&r.sol)m.sol=r.sol;
+  });
+  return meta;
+}
+// BO-wise view = BOs present in the report UNION every BO from bo_master.js.
+// A master BO with no accounts opened in the selected window is kept with zeros
+// instead of disappearing from the table.
+function visibleBOMap(boRows){
+  const meta=boMetaMap(), view=new Map();
+  boRows.forEach(r=>{
+    let m=view.get(r.bo);
+    if(!m){m={name:r.bo,so:r.so||'',sol:r.sol||''};view.set(r.bo,m);}
+    else{if(!m.so&&r.so)m.so=r.so;if(!m.sol&&r.sol)m.sol=r.sol;}
+  });
+  const boF=$('bo').value.trim().toLowerCase(), soF=$('so').value.trim().toLowerCase();
+  MASTER_LIST.forEach(name=>{
+    if(view.has(name))return;
+    if(boF&&!name.toLowerCase().includes(boF))return;
+    const known=meta.get(name)||{so:'',sol:''};
+    // With an SO filter, only include master BOs whose SO is known to match.
+    if(soF&&!String(known.so||'').toLowerCase().includes(soF))return;
+    view.set(name,{name,so:known.so||'',sol:known.sol||''});
+  });
+  return view;
+}
 function render(){
   if(!ROWS.length)return;
   const rows=filtered(), act=activeMetrics();
@@ -327,6 +367,7 @@ function render(){
   // SO summary rows (kind='so') are SO-level figures: exclude them from KPI cards,
   // the trend chart and the BO-wise table so nothing is double-counted.
   const boRows=rows.filter(r=>r.kind!=='so');
+  const boView=visibleBOMap(boRows);
   const soRows=rows.filter(r=>r.kind==='so');
   const days=[...new Set(boRows.map(r=>r.date))].sort();
   // Per-day sums drive the day-over-day delta (▲/▼ vs previous day) on metric KPI cards.
@@ -334,7 +375,7 @@ function render(){
   boRows.forEach(r=>{daySum[r.date]??={};act.forEach(m=>daySum[r.date][m]=(daySum[r.date][m]||0)+(Number(r[m])||0));});
   const lastD=days[days.length-1], prevD=days.length>1?days[days.length-2]:null;
   const deltaOf=m=>prevD?((daySum[lastD]?.[m]||0)-(daySum[prevD]?.[m]||0)):null;
-  const kpis=[['BOs',new Set(boRows.map(r=>r.bo)).size],
+  const kpis=[['BOs',boView.size],
               ['SOs',new Set(rows.map(r=>r.so).filter(Boolean)).size],
               ...act.map(m=>[m,boRows.reduce((s,r)=>s+(Number(r[m])||0),0)])];
   $('kpis').innerHTML=kpis.map(([l,v])=>{
@@ -365,9 +406,12 @@ function render(){
     list=[...groups.values()].map(g=>({name:g.name,so:'',bos:g.bos.size,vals:g.vals,total:g.total,soVals:g.soVals}));
   }else{
     const groups=new Map();
+    // Seed every visible BO (master list + report) so BOs with no accounts
+    // opened in this window stay in the table with 0 values.
+    boView.forEach(m=>groups.set(m.name,{name:m.name,so:m.so||'',bos:new Set([m.name]),vals:{},total:0,soVals:null}));
     boRows.forEach(r=>{
       let g=groups.get(r.bo);
-      if(!g){g={name:r.bo,so:'',bos:new Set(),vals:{},total:0};groups.set(r.bo,g);}
+      if(!g){g={name:r.bo,so:'',bos:new Set(),vals:{},total:0,soVals:null};groups.set(r.bo,g);}
       if(!g.so&&r.so)g.so=r.so;
       g.bos.add(r.bo);
       act.forEach(m=>{const v=Number(r[m])||0;g.vals[m]=(g.vals[m]||0)+v;g.total+=v;});
@@ -448,12 +492,14 @@ function exportExcel(){
     act.forEach(m=>o[m]=Number(r[m])||0);
     return o;
   });
-  // BO-wise pivot sheet mirroring the on-screen table.
+  // BO-wise pivot sheet mirroring the on-screen table: every master BO appears,
+  // with zeros when it opened no accounts in the filtered window.
   const byBO={};
+  visibleBOMap(rows).forEach(m=>{byBO[m.name]={BO:m.name,SO:m.so||'',_t:0};});
   rows.forEach(r=>{
-    byBO[r.bo]??={BO:r.bo,SO:r.so||'',_t:0};
-    if(!byBO[r.bo].SO&&r.so)byBO[r.bo].SO=r.so;
-    act.forEach(m=>{const v=Number(r[m])||0;byBO[r.bo][m]=(byBO[r.bo][m]||0)+v;byBO[r.bo]._t+=v;});
+    const o=byBO[r.bo]??(byBO[r.bo]={BO:r.bo,SO:r.so||'',_t:0});
+    if(!o.SO&&r.so)o.SO=r.so;
+    act.forEach(m=>{const v=Number(r[m])||0;o[m]=(o[m]||0)+v;o._t+=v;});
   });
   const piv=Object.values(byBO).sort((a,b)=>a.BO.localeCompare(b.BO)).map(o=>{
     const p={BO:o.BO,SO:o.SO};

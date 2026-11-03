@@ -63,7 +63,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/exports/manife
 T('manifest.json is a non-empty array with file+label', Array.isArray(manifest) && manifest.length > 0 && manifest.every(e => e.file && e.label));
 T('manifest-referenced files exist', manifest.every(e => fs.existsSync(path.join(ROOT, e.file))));
 
-const histLines = fs.readFileSync(path.join(ROOT, 'data/history.csv'), 'utf8').trim().split('\n');
+const histLines = fs.readFileSync(path.join(ROOT, 'data/history.csv'), 'utf8').replace(/\r\n/g, '\n').trim().split('\n');
 T('history.csv header is date,bo,so,sol,kind,kpi,value', histLines[0] === 'date,bo,so,sol,kind,kpi,value');
 T('history.csv: ISO dates, >=1 row, kind=bo rows are never SO-named, kind=so rows exist', histLines.length > 1 && histLines.slice(1).every(l => {
   const c = l.split(',');

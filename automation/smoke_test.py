@@ -5,7 +5,7 @@ rendered AND that the interactive controls actually work (the CSP forbids
 inline event handlers, so controls must be wired via addEventListener in
 app.js — this test fires them for real):
 
-  1. KPI cards + BO table rows render, no page/console errors
+  1. KPI cards + all BO-master rows in the table render, no page/console errors
   2. Quick view = Top 10 applies ("top 10" in the info line, <= 10 rows)
   3. Group by = SO-wise switches the table title and shrinks the row count
   4. BO text filter narrows the table
@@ -56,12 +56,15 @@ def main():
 
         kpis = page.locator("#kpis .kpi").count()
         rows_all = page.locator("#tbl tbody tr").count()
+        master_count = page.evaluate("() => (typeof BO_MASTER !== 'undefined') ? BO_MASTER.length : 0")
         status = page.locator("#autoStatus").inner_text()
         asof = page.locator("#dataAsOf").inner_text()
-        print(f"smoke: KPI cards={kpis}, table rows={rows_all}, data as of={asof}")
+        print(f"smoke: KPI cards={kpis}, table rows={rows_all}, master BOs={master_count}, data as of={asof}")
         print(f"smoke: autoStatus: {status}")
         check("KPI cards rendered", kpis > 0)
         check("BO table has rows", rows_all > 0, f"{rows_all} rows")
+        check("all BO master rows rendered", master_count > 0 and rows_all >= master_count,
+              f"{rows_all} rows for {master_count} master BOs")
         check("auto data loaded", "available nahi" not in status, status[:80])
 
         # --- interaction 1: quick view = Top 10 (select fires 'change') ---
