@@ -117,6 +117,19 @@ warna canonical naam, aur office summary rows `so:<name>` namespace me rehte hai
 45 per-BO figure galat aur ~96 offices missing/inflated the; ab code-keyed hai aur yeh
 behaviour `tests/automation.test.py` me locked hai (`python3 tests/automation.test.py`).
 
+## Ek snapshot = ek din
+
+MIS ke kuch reports din bhar badalte nahi (same figures, dobara download ho jaate hain).
+`append_history()` har date ka snapshot fingerprint (`office, kpi, value` ka sorted tuple)
+nikalta hai: do alag dates ka fingerprint same hua to woh ek hi report ki do filing hai,
+isliye **sirf newest stamp rakha jata hai** aur purani date history se gir jaati hai — log
+me line aati hai `history: 2026-11-04 holds the same snapshot as 2026-11-05 - filed once,
+as 2026-11-05`. Warn `sanity_check.py` se pehle hi milta hai (byte-identical workbook).
+Is rule se pehle 31-10/01-11/02-11 teen din ban kar baithe the, aur cumulative card un
+teeno ka jod (yaani ek hi report ka multiple) dikha raha tha. Locked in
+`tests/automation.test.py` ("an identical snapshot is not filed as an extra day",
+"the duplicate keeps the newer stamp").
+
 ## Download fail hua to run fail
 
 Kisi bhi date ke liye ek bhi KPI workbook download nahi hui (server down, export grid

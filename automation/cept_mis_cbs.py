@@ -834,13 +834,23 @@ def generate_dashboard_data(report_date_iso=None):
     return out
 
 
+def _snapshot_fingerprints(frame):
+    """{date: ((office, kpi, value), ...)} - a fingerprint of one day's snapshot."""
+    prints = {}
+    for date, group in frame.groupby("date"):
+        group = group.sort_values(["_id", "kpi"])
+        prints[date] = tuple(zip(group["_id"], group["kpi"], group["_num"]))
+    return prints
+
+
 def append_history(report_date_iso):
     """Append this run's BO-wise KPI values to data/history.csv (long format).
 
     Columns: date,bo,so,sol,kpi,value — one row per BO per KPI per report date.
     Idempotent per report date: re-running for the same date replaces that date's
     rows instead of duplicating them, so the dashboard's cumulative trend chart
-    never double-counts a re-run.
+    never double-counts a re-run. Two different dates holding an identical snapshot
+    are the same report filed twice, so only the newest of those stamps is kept.
     """
     if not report_date_iso:
         log("history: no report date given - skipped")
@@ -882,7 +892,25 @@ def append_history(report_date_iso):
     combined["_id"] = [row_identity(k, b, s) for k, b, s in
                        zip(combined["kind"], combined["bo"], combined["sol"])]
     combined = combined.drop_duplicates(subset=["date", "_id", "kind", "kpi"], keep="last")
-    combined = combined.drop(columns=["_id"])
+    combined["_num"] = pd.to_numeric(combined["value"], errors="coerce").fillna(0)
+    # One snapshot = one day. When a date's rows are identical, office for office, to
+    # another date's, that day carries no new activity - it is the same report filed
+    # again (a scrape that downloaded nothing, or a site that ignores the window).
+    # Keeping both would make the cumulative card add one report twice, so only the
+    # newest stamp of each distinct snapshot survives.
+    keep, drop = {}, {}
+    fingerprints = _snapshot_fingerprints(combined)
+    for date in sorted(fingerprints, reverse=True):
+        seen = keep.get(fingerprints[date])
+        if seen:
+            drop[date] = seen
+        else:
+            keep[fingerprints[date]] = date
+    for date, newest in sorted(drop.items()):
+        log(f"history: {date} holds the same snapshot as {newest} - filed once, as {newest}")
+    if drop:
+        combined = combined[~combined["date"].isin(drop)]
+    combined = combined.drop(columns=["_id", "_num"])
     combined = combined.sort_values(["date", "kpi", "bo", "sol"]).reset_index(drop=True)
     vals = pd.to_numeric(combined["value"], errors="coerce").fillna(0)
     if (vals % 1 == 0).all():

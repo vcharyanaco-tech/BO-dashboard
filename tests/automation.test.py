@@ -46,13 +46,20 @@ def sandbox(tmp):
     cbs.EXPORT_DIR = export
     cbs.HISTORY_FILE = Path(tmp) / "history.csv"
     cbs.DATA_DIR = Path(tmp) / "data"
-    wb = pd.DataFrame([HEADER] + ROWS)
-    wb.to_excel(export / "accounts_opened_merged.xlsx", index=False, header=False)
+    write_book(export)
     return export
 
 
+def write_book(export, bump=False):
+    """The synthetic report, optionally with one figure moved (a real next day)."""
+    rows = [list(r) for r in ROWS]
+    if bump:
+        rows[0][3] += 1  # 'Balu B.O' J6645 MIS 10 -> 11
+    pd.DataFrame([HEADER] + rows).to_excel(export / "accounts_opened_merged.xlsx", index=False, header=False)
+
+
 with tempfile.TemporaryDirectory() as tmp:
-    sandbox(tmp)
+    export = sandbox(tmp)
 
     data = cbs._read_merged("accounts_opened")
     check("merged file keyed per office, not per name", len([k for k, v in data.items() if v["kind"] == "bo"]) == 3,
@@ -77,11 +84,22 @@ with tempfile.TemporaryDirectory() as tmp:
     hist2 = pd.read_csv(cbs.HISTORY_FILE, dtype=str)
     check("re-running one date replaces its rows", len(hist2) == 4, f"{len(hist2)} rows")
 
-    # a second day adds its own rows for the same two offices
+    # a second day with different figures adds its own rows for the same two offices
+    write_book(export, bump=True)
     cbs.append_history("2026-11-04")
     hist3 = pd.read_csv(cbs.HISTORY_FILE, dtype=str)
     check("each day keeps both twins", len(hist3) == 8 and
           len(hist3[hist3["bo"] == "Balu B.O"]) == 4, f"{len(hist3)} rows")
+
+    # same report filed under a new date: one snapshot, one day
+    cbs.append_history("2026-11-05")
+    hist4 = pd.read_csv(cbs.HISTORY_FILE, dtype=str)
+    days = sorted(hist4["date"].unique())
+    check("an identical snapshot is not filed as an extra day",
+          days == ["2026-11-03", "2026-11-05"] and len(hist4) == 8, f"days {days}, {len(hist4)} rows")
+    check("the duplicate keeps the newer stamp",
+          hist4[hist4["date"] == "2026-11-05"].shape[0] == 4 and "2026-11-04" not in days,
+          f"{days}")
 
     # row_identity: code wins, name only as a fallback, office rows namespaced
     check("row_identity prefers the code", cbs.row_identity("bo", "Balu B.O", "j6645") == "J6645")
