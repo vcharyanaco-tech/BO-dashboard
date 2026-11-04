@@ -107,5 +107,56 @@ with tempfile.TemporaryDirectory() as tmp:
           cbs.row_identity("bo", "Balu bo", "") == cbs.norm_bo_name("Balu B.O"))
     check("office rows never collide with BO rows", cbs.row_identity("so", "Balu B.O", "J6645").startswith("so:"))
 
+# select_radio: Submit's postback is often still in flight when the radio is dispatched,
+# and an evaluate that lands mid-navigation used to end the whole sub division - the 03/11
+# run lost 27 of 30 sub divisions that way while the debug page showed the report rendered.
+DESTROYED = "Page.evaluate: Execution context was destroyed, most likely because of a navigation"
+
+
+class NavPage:
+    """A page that fails the first `fails` evaluations, then takes the click."""
+
+    def __init__(self, fails):
+        self.fails, self.clicks = fails, 0
+
+    def evaluate(self, js, sel):
+        if self.fails:
+            self.fails -= 1
+            raise RuntimeError(DESTROYED)
+        self.clicks += 1
+
+    def wait_for_load_state(self, state, timeout=None):
+        return None
+
+
+class DeadPage(NavPage):
+    """A page that is never not navigating."""
+
+    def __init__(self):
+        super().__init__(0)
+
+    def evaluate(self, js, sel):
+        raise RuntimeError(DESTROYED)
+
+
+real_sleep = cbs.time.sleep
+cbs.time.sleep = lambda s: None  # keep the settle loop instant in the test
+try:
+    page = NavPage(2)
+    cbs.select_radio(page, "#accounts_opened")
+    check("a navigation mid-select_radio is retried, not fatal", page.clicks == 1, f"clicks {page.clicks}")
+
+    page = NavPage(0)
+    cbs.select_radio(page, "#accounts_opened")
+    check("a clean page is still dispatched once", page.clicks == 1, f"clicks {page.clicks}")
+
+    try:
+        cbs.select_radio(DeadPage(), "#accounts_opened", settle_ms=0)
+        check("a page that never settles still raises", False, "no error raised")
+    except RuntimeError as e:
+        check("a page that never settles still raises", str(e) == DESTROYED, str(e))
+finally:
+    cbs.time.sleep = real_sleep
+
 print("ALL PASS" if failures == 0 else f"FAILED: {failures} check(s)")
 sys.exit(1 if failures else 0)

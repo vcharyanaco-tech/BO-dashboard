@@ -410,21 +410,47 @@ def wait_for_grid(page, timeout=90000, min_rows=1):
     return grid
 
 
-def select_radio(page, radio_sel):
+def select_radio(page, radio_sel, settle_ms=60000):
     """Tick a KPI radio and fire its postback without blocking on the navigation.
 
     page.click() waits for the navigation its click triggers, and the CEPT server can
     leave that request hanging forever (observed on Net Addition), which froze the whole
     sweep. Dispatching from JS keeps every wait bounded.
+
+    Submit's own postback is frequently still in flight when this runs, and JS evaluated
+    against a page that is navigating fails with "Execution context was destroyed" -
+    which used to throw away the whole sub division 2-16 seconds after Submit. The debug
+    capture taken at that exact moment shows the report rendered, with the right circle /
+    division / sub division selected and "Dated: 03-11-2026 - 03-11-2026" and BO rows in
+    #example1: the page was fine, our evaluate simply landed mid-navigation. So let the
+    page settle and dispatch again instead of giving up, and only fail once the settle
+    window is out.
     """
-    page.evaluate(
-        """sel => {
-            const el = document.querySelector(sel);
-            if (!el) throw new Error('radio not found: ' + sel);
-            el.click();
-        }""",
-        radio_sel,
-    )
+    deadline = time.time() + settle_ms / 1000
+    last = None
+    while True:
+        try:
+            page.evaluate(
+                """sel => {
+                    const el = document.querySelector(sel);
+                    if (!el) throw new Error('radio not found: ' + sel);
+                    el.click();
+                }""",
+                radio_sel,
+            )
+            last = None
+            break
+        except Exception as e:
+            last = e
+        if time.time() >= deadline:
+            break
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+        except PWTimeout:
+            pass
+        time.sleep(1.5)
+    if last is not None:
+        raise last
     try:
         page.wait_for_load_state("domcontentloaded", timeout=30000)
     except PWTimeout:

@@ -105,6 +105,19 @@ Us page par filter dropdowns hote hi nahi, isliye pehle `select_option(CIRCLE_SE
 `debug/server_error_N.png|html` save karta hai; tab bhi fail hua to message ke saath
 run fail hota hai, chup-chaap purana data commit nahi hota.
 
+## Postback ke beech ka evaluate (select_radio retry)
+
+Submit ka postback page ko dobara navigate karta hai; us navigation ke beech me
+`page.evaluate()` mara to Playwright `Execution context was destroyed, most likely
+because of a navigation` deta hai. `select_radio()` pehle us error ko retry nahi karta
+tha, isliye 03-11-2026 wale run me 30 me se 27 sub divisions 2-16 second me hi haar gayi
+thin — jabki usi waqt ka `debug/retry_*.html` report ka render hua page dikhata hai
+(circle/division/sub division selected, `Dated: 03-11-2026 - 03-11-2026`, `#example1` me
+BO rows). Ab `select_radio()` page settle hone tak dobara dispatch karta hai
+(`settle_ms`, default 60s, beech me `domcontentloaded` wait) aur sirf window khatam hone
+par error deta hai. Locked in `tests/automation.test.py` ("a navigation mid-select_radio
+is retried, not fatal", "a page that never settles still raises").
+
 ## Ek office = ek row (identity keys)
 
 History aur dashboard files me har office apne **code** se pehchana jata hai, naam se
