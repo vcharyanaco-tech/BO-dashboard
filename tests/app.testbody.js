@@ -188,6 +188,24 @@
   T('division filter drops other divisions BOs', els['tbl'].innerHTML.includes('Adhoyi B.O') && !els['tbl'].innerHTML.includes('Achhanpur B.O'));
   const ambCount = MASTER_LIST.filter(o => o.division === 'Ambala Division').length;
   T('division filter keeps unreported master BOs of that division', els['tblInfo'].textContent.includes(`${ambCount} of ${ambCount} BOs`));
+  // Tier cards (0 / under 10 / under 100 accounts) must follow the same scope as the
+  // BOs card, so expected counts are derived from the master sheet + report rows.
+  const kpiVal = (label) => {
+    const m = els['kpis'].innerHTML.match(new RegExp('<div class="l">' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '</div><div class="v">([^<]*)</div>'));
+    return m ? m[1].replace(/,/g, '') : null;
+  };
+  const tierCheck = (ids) => {
+    const tot = new Map();
+    ROWS.filter(r => r.kind !== 'so' && ids.has(r.id)).forEach(r => tot.set(r.id, (tot.get(r.id) || 0) + (Number(r['Accounts Opened']) || 0)));
+    const list = [...ids];
+    return kpiVal('BOs') === String(list.length)
+      && kpiVal('0 Accounts') === String(list.filter(id => !tot.get(id)).length)
+      && kpiVal('Under 10 Accounts') === String(list.filter(id => (tot.get(id) || 0) < 10).length)
+      && kpiVal('Under 100 Accounts') === String(list.filter(id => (tot.get(id) || 0) < 100).length);
+  };
+  const ambIds = new Set(MASTER_LIST.filter(o => o.division === 'Ambala Division').map(o => normCode(o.code) || normName(o.name)));
+  T('tier cards count the selected division only', tierCheck(ambIds) && ambIds.size > 1 && kpiVal('0 Accounts') !== '0');
+  T('BOs card names the selected division', els['kpis'].innerHTML.includes('<div class="n">Division: Ambala Division</div>'));
   els['subDivision'].value = 'Karnal East Sub Division'; els['subDivision']._h.change();
   await new Promise(r => setTimeout(r, 250));
   T('division + sub division combine with AND', els['tblInfo'].textContent.includes('0 of 0 BOs'));
@@ -195,9 +213,13 @@
   await new Promise(r => setTimeout(r, 250));
   const cityCount = MASTER_LIST.filter(o => o.division === 'Ambala Division' && o.subDivision === 'Ambala City Sub- Division').length;
   T('sub division filter narrows within the division', els['tbl'].innerHTML.includes('Adhoyi B.O') && !els['tbl'].innerHTML.includes('Achhanpur B.O') && els['tblInfo'].textContent.includes(`${cityCount} of ${cityCount} BOs`));
+  const cityIds = new Set(MASTER_LIST.filter(o => o.division === 'Ambala Division' && o.subDivision === 'Ambala City Sub- Division').map(o => normCode(o.code) || normName(o.name)));
+  T('tier cards count the selected sub division', tierCheck(cityIds) && cityIds.size < ambIds.size && els['kpis'].innerHTML.includes('<div class="n">Sub Division: Ambala City Sub- Division</div>'));
   els['division'].value = ''; els['subDivision'].value = '';
   els['division']._h.change();
   T('clearing the division restores the full office list', els['tblInfo'].textContent.includes(`${MASTER_LIST.length} of ${MASTER_LIST.length} BOs`));
+  const allIds = new Set(MASTER_LIST.map(o => normCode(o.code) || normName(o.name)));
+  T('tier cards count all BOs when no division is selected', tierCheck(allIds) && els['kpis'].innerHTML.includes('<div class="n">All divisions (overall)</div>'));
   els['groupBy'].value = 'div'; render();
   const divTbl = els['tbl'].innerHTML;
   const nDiv = new Set(MASTER_LIST.map(o => o.division).filter(Boolean)).size;

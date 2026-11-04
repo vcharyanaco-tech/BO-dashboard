@@ -495,14 +495,34 @@ function render(){
   boRows.forEach(r=>{daySum[r.date]??={};act.forEach(m=>daySum[r.date][m]=(daySum[r.date][m]||0)+(Number(r[m])||0));});
   const lastD=days[days.length-1], prevD=days.length>1?days[days.length-2]:null;
   const deltaOf=m=>prevD?((daySum[lastD]?.[m]||0)-(daySum[prevD]?.[m]||0)):null;
-  const kpis=[['BOs',boView.size],
+  // Tier cards are scope-aware: boView already honours the division / sub-division /
+  // BO / SO filters, so 0, <10 and <100 counts follow the BOs card's scope.
+  const accM=act.find(m=>/account/i.test(m))||act[0]||null;
+  const accIsAccounts=!!accM&&/account/i.test(accM);
+  const totOf=new Map();
+  boRows.forEach(r=>{totOf.set(r.id,(totOf.get(r.id)||0)+(accM?(Number(r[accM])||0):0));});
+  const inScope=[...boView.values()].map(m=>totOf.get(m.id)||0);
+  const tierMax=n=>inScope.filter(v=>v<n).length;
+  const byNote=accM&&!accIsAccounts?` • by ${esc(accM)}`:'';
+  const boTxt=$('bo').value.trim(),soTxt=$('so').value.trim();
+  const scopeSub=($('subDivision').value?`Sub Division: ${esc($('subDivision').value)}`
+    :$('division').value?`Division: ${esc($('division').value)}`:'All divisions (overall)')
+    +(boTxt?` • BO "${esc(boTxt)}"`:'')+(soTxt?` • SO "${esc(soTxt)}"`:'');
+  const kpis=[['BOs',boView.size,scopeSub],
               ['Divisions',new Set([...boView.values()].map(m=>m.dv).filter(Boolean)).size],
               ['Sub Divisions',new Set([...boView.values()].map(m=>m.sd).filter(Boolean)).size],
               ['SOs',new Set(rows.map(r=>r.so).filter(Boolean)).size],
+              ['0 Accounts',inScope.filter(v=>v===0).length,
+               `of ${fmt(boView.size)} BOs in scope • no accounts${byNote}`],
+              ['Under 10 Accounts',tierMax(10),
+               `of ${fmt(boView.size)} BOs in scope • includes 0${byNote}`],
+              ['Under 100 Accounts',tierMax(100),
+               `of ${fmt(boView.size)} BOs in scope • includes 0 and under 10${byNote}`],
               ...act.map(m=>[m,boRows.reduce((s,r)=>s+(Number(r[m])||0),0)])];
-  $('kpis').innerHTML=kpis.map(([l,v])=>{
+  $('kpis').innerHTML=kpis.map(([l,v,s0])=>{
     const d=act.includes(l)?deltaOf(l):null;
-    const sub=d===null?'':`<div class="d ${d>=0?'good':'bad'}">${d>=0?'▲':'▼'} ${fmt(Math.abs(d))} vs ${esc(fmtDate(prevD))}</div>`;
+    const sub=s0?`<div class="n">${s0}</div>`
+      :d===null?'':`<div class="d ${d>=0?'good':'bad'}">${d>=0?'▲':'▼'} ${fmt(Math.abs(d))} vs ${esc(fmtDate(prevD))}</div>`;
     return `<div class="kpi"><div class="l">${esc(l)}</div><div class="v">${fmt(v)}</div>${sub}</div>`;
   }).join('');
   // Aggregate into groups: BO-wise = one row per office (id = BO code), the others
