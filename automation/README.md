@@ -65,7 +65,7 @@ naam hain, 82 naam 184 offices me share ho rahe hain, isliye naam se fuzzy match
 - `data/dashboard_data.xlsx` — dashboard ka BO-wise file (report window ki end date ke saath)
 - `debug/*.png` + `debug/*.html` — failure par page snapshot (CI me artifact ke roop me upload hota hai)
 
-CI (`cept-mis.yml`) run ke baad `automation/sanity_check.py` naye merged files ko git HEAD wali copy se compare karta hai — BO rows 50%+ kam ya khali file milne par commit nahi hota. Deploy ke baad `smoke-test.yml` live page ko check karta hai.
+CI (`cept-mis.yml`) run ke baad `automation/sanity_check.py` naye merged files ko git HEAD wali copy se compare karta hai — BO rows 50%+ kam ya khali file milne par commit nahi hota. Row count se ek cheez pakdi nahi jati: file byte-identical to HEAD ho (wahi report dobara aa gayi) to woh WARN karta hai, kyunki us date ka "snapshot" asal me pichle date ki nakal hota hai. Deploy ke baad `smoke-test.yml` live page ko check karta hai.
 
 ## Date window
 

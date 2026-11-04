@@ -5,6 +5,10 @@ count with the copy committed at HEAD. Exit 1 if a new file is empty or has lost
 more than half of its BO rows - that signals a partial/failed scrape, and the old
 (good) file should be kept instead of being overwritten.
 
+Row counts cannot catch a *copy*: if the worktree file is byte-identical to HEAD,
+the run served/fetched the same report again and the new date would be a duplicate
+snapshot, so that is printed as a warning.
+
 Run after automation/cept_mis_cbs.py and before the commit step:
     python -u automation/sanity_check.py
 """
@@ -67,13 +71,19 @@ def bo_row_count(path):
     return n
 
 
-def head_bo_row_count(rel_path):
-    """BO row count of the file as committed at HEAD (None if never committed)."""
+def head_blob(rel_path):
+    """Bytes of the file as committed at HEAD (None if never committed)."""
     try:
-        blob = subprocess.run(
+        return subprocess.run(
             ["git", "show", f"HEAD:{rel_path}"], capture_output=True, check=True
         ).stdout
     except Exception:
+        return None
+
+
+def head_bo_row_count(rel_path):
+    blob = head_blob(rel_path)
+    if blob is None:
         return None
     tmp = None
     try:
@@ -100,6 +110,13 @@ def main():
         old_n = head_bo_row_count(rel)
         old_txt = old_n if old_n is not None else "n/a (new file)"
         print(f"sanity: {rel}: worktree={new_n} BO rows, HEAD={old_txt}")
+        blob = head_blob(rel)
+        if blob is not None and blob == f.read_bytes():
+            # Row counts alone cannot see this: the site served the same report
+            # again (or the scrape downloaded nothing), and the day would be filed
+            # as a fresh snapshot that is really a copy of the previous one.
+            print(f"WARN sanity: {rel} is byte-identical to HEAD - this run fetched "
+                  f"the same report again, so the new date is a duplicate snapshot")
         if new_n == 0:
             failures.append(f"{rel}: 0 BO rows in worktree")
         elif old_n and new_n < old_n * (1 - MAX_DROP_FRACTION):
