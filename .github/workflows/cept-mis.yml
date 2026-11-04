@@ -52,12 +52,17 @@ jobs:
         # timeout: one page can wedge (04-11 lost 3 hours on Gurgaon Division with
         # no log line at all) and the only thing that ends such a run is the job
         # cap, which wastes the runner minutes and hides the failure behind
-        # "cancelled". 40 minutes is ~2x the fastest completed sweep, and a
-        # timeout here fails the step, so the debug artifact step still runs.
+        # "cancelled". 40 minutes was ~2x the fastest completed sweep, but it is
+        # also shorter than a wedge plus a sweep: 04-11 14:52 ran 6/6 sub divisions
+        # in the first 90 seconds, then lost 39 minutes to one silent page and hit
+        # the cap with nothing merged - the merge happens at the end, so a killed
+        # run commits no data at all. 100 minutes = one wedge (~40 min) plus a full
+        # sweep (~20 min) with room to spare, still under the 180-minute job cap,
+        # and a timeout here fails the step so the debug artifact step still runs.
         env:
           REPORT_START_DATE: ${{ github.event.inputs.report_start_date }}
           REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}
-        run: timeout --kill-after=60s 2400s python -u automation/cept_mis_cbs.py
+        run: timeout --kill-after=60s 6000s python -u automation/cept_mis_cbs.py
       - name: Sanity-check merged exports before committing
         run: python -u automation/sanity_check.py
       - name: Upload debug artifacts on failure
