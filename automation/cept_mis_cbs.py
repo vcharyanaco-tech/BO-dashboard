@@ -286,9 +286,36 @@ def select_fuzzy(page, sel, wanted, label):
     return match
 
 
-def open_page(page):
-    page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=90000)
-    safe_wait(page)
+SERVER_ERROR_RE = re.compile(r"server error in|timeout expired|pooled connections", re.I)
+
+
+def page_is_error(page):
+    """True when MIS answered with its ASP.NET 'Server Error' page (a dropped DB
+    connection under load) instead of the report - the run has to reload."""
+    try:
+        text = str(page.title()) + " " + str(page.eval_on_selector("body", "el => el.innerText || ''"))
+    except Exception:
+        return True
+    return bool(SERVER_ERROR_RE.search(text))
+
+
+def open_page(page, attempts=4):
+    """Load the report page, retrying the site's intermittent server errors.
+
+    Without this the whole run dies on the first dropped connection: the filter
+    dropdowns simply never appear on the error page, so select_option() waits out
+    its 60s timeout and the fetch for the day is lost.
+    """
+    for i in range(1, attempts + 1):
+        page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=90000)
+        safe_wait(page)
+        if not page_is_error(page):
+            return
+        log(f"report page served a server error (attempt {i}/{attempts}) - reloading")
+        save_debug(page, f"server_error_{i}")
+        if i < attempts:
+            time.sleep(20 * i)
+    raise RuntimeError(f"CEPT MIS kept returning its 'Server Error' page after {attempts} loads")
 
 
 def setup_filters(page, window, div=None, sub=None):

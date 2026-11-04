@@ -94,6 +94,16 @@ Division: 308 ACO rows at division level = sum of its four sub-divisions (81 + 7
 with ~4x fewer page loads, which matters because the server slows down and can answer
 HTTP 500 under sustained load.
 
+## Server errors
+
+Mis kabhi kabhar report page ki jagah ASP.NET ka "Server Error in '/' Application —
+Timeout expired … pooled connections" page bhej deta hai (DB connection pool exhausted).
+Us page par filter dropdowns hote hi nahi, isliye pehle `select_option(CIRCLE_SEL)`
+60s wait karke poora run maar deta tha. `open_page()` ab error page pehchan kar
+(`page_is_error()`) max 4 baar reload karta hai (20s/40s/60s backoff) aur har baar
+`debug/server_error_N.png|html` save karta hai; tab bhi fail hua to message ke saath
+run fail hota hai, chup-chaap purana data commit nahi hota.
+
 ## Dashboard columns
 
 `data/dashboard_data.xlsx` carries `Date | BO | SO | SOL ID | Accounts Opened`.
