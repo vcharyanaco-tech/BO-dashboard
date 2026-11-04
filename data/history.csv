@@ -6232,7 +6232,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Jamalgarh BO,Punhana SO,N8588,bo,Accounts Opened,20
 2026-11-02,Jamalpur B.O,Gharunda S.O,L8191,bo,Accounts Opened,16
 2026-11-02,Jamalpur BO,Pataudi SO,L8302,bo,Accounts Opened,25
-2026-11-02,Jamalpur SO Bhiwani,Jamalpur SO Bhiwani,12703501,bo,Accounts Opened,38
+2026-11-02,Jamalpur SO Bhiwani,Jamalpur SO Bhiwani,12703501,so,Accounts Opened,38
 2026-11-02,Jamalpur Sheikhan BO,Tohana Mandi SO,D9413,bo,Accounts Opened,13
 2026-11-02,Jamawari BO,Hansi SO,C8616,bo,Accounts Opened,25
 2026-11-02,Jamba B.O,Nigdhu S.O,M0919,bo,Accounts Opened,12
@@ -6284,7 +6284,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Jhamuwas BO,Tauru SO,C4362,bo,Accounts Opened,23
 2026-11-02,Jhanjkalan B.O,Jind H.O,F9947,bo,Accounts Opened,6
 2026-11-02,Jhanjra Sheoran BO,Loharu SO,L4385,bo,Accounts Opened,25
-2026-11-02,Jhanjrola Khera,Jhanjrola Khera,AV707,so,Accounts Opened,7
+2026-11-02,Jhanjrola Khera,,AV707,bo,Accounts Opened,7
 2026-11-02,Jhansa S.O,Jhansa S.O,13613001,so,Accounts Opened,73
 2026-11-02,Jhanswa Kalan BO,Sahlawas SO,J7829,bo,Accounts Opened,36
 2026-11-02,Jharli BO,Matanhail SO,J7408,bo,Accounts Opened,20
@@ -6981,7 +6981,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Nagpur S.O.,Nagpur S.O.,12506101,so,Accounts Opened,17
 2026-11-02,Naguran S.O,Naguran S.O,12612501,so,Accounts Opened,43
 2026-11-02,Nahar Pur B.O,Thermal Colony Yamuna Nagar S.O,L7571,bo,Accounts Opened,14
-2026-11-02,Nahar Pur Rupa,Nahar Pur Rupa,AV739,so,Accounts Opened,4
+2026-11-02,Nahar Pur Rupa,,AV739,bo,Accounts Opened,4
 2026-11-02,Nahar SO,Nahar SO,12330301,so,Accounts Opened,167
 2026-11-02,Naheda BO,Punhana SO,N8591,bo,Accounts Opened,35
 2026-11-02,Nahoni B.O,Saha S.O,L4367,bo,Accounts Opened,15
@@ -7052,7 +7052,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Nawan BO,Satnali SO,H0366,bo,Accounts Opened,23
 2026-11-02,Naya Bans BO,Sampla SO,L5379,bo,Accounts Opened,9
 2026-11-02,Nayat BO,Gohana SO,L4476,bo,Accounts Opened,16
-2026-11-02,Neemariwali PO,Neemariwali PO,12731101,bo,Accounts Opened,3
+2026-11-02,Neemariwali PO,Neemariwali PO,12731101,so,Accounts Opened,3
 2026-11-02,Neemka BO,Ballabgarh SO,E6965,bo,Accounts Opened,76
 2026-11-02,Neemli BO,Charkhi  Dadri Hsgii SO,G3119,bo,Accounts Opened,22
 2026-11-02,Neerpur BO,Narnaul HO,G3096,bo,Accounts Opened,1
