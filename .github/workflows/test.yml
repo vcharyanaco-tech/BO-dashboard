@@ -37,6 +37,8 @@ jobs:
       - name: Python syntax check
         run: python -m py_compile automation/*.py backfill_dashboard.py debug_merged_files.py
       - name: Install automation dependencies
-        run: pip install --quiet pandas openpyxl
+        # cept_mis_cbs.py imports playwright at module level; the tests never launch
+        # a browser, so the package alone is enough (no `playwright install`).
+        run: pip install --quiet -r automation/requirements.txt
       - name: Pipeline tests (offline, no browser)
         run: python tests/automation.test.py
