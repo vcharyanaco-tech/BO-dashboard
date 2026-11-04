@@ -24,20 +24,22 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
   - **Click-to-sort** har column par (BO/SO/metric/Total)
   - **Total column** per row + totals footer
   - **Quick view**: Top 10 / Bottom 10 by total
-  - **Group by toggle**: BO-wise ya SO-wise aggregation
+  - **Group by**: BO-wise / SO-wise / Division-wise / Sub-division-wise aggregation
 - Cumulative daily trend chart (history file ki wajah se multi-day trend sach me dikhta hai; latest export us date ko replace karta hai taaki re-run double-count na kare)
 - Flexible date filter:
   - **Upto date**: start date se kisi bhi selected date tak
   - **Date range**: kisi bhi from–to range ka data (From field sirf range mode me dikhta hai)
   - **Single date**: sirf ek din ka data
-- BO-wise filter (All BOs ya koi ek BO) with master-list pre-set and fuzzy name matching
-- **Poora BO master list**: BO-wise table me `bo_master.js` ke saare BOs hamesha dikhte hain. Jin BOs ne selected date window me koi account nahi khola unki row **0** ke saath aati hai (report se gayab hone se row drop nahi hoti). Excel export ka BO-wise sheet bhi isi list ko mirror karta hai.
+- **Office identity = SOL ID / BOCODE** (`bo_master.js` ka `code`). Naam se milane wala fuzzy matching hata diya gaya hai: master sheet me 2,196 offices hain lekin (canonical form me) sirf 2,093 alag naam — 82 naam 184 offices ke beech share ho rahe hain (`Aharwan BO` ek Faridabad, ek Hissar; `Alika BO` teen), isliye naam akela identity nahi ho sakta. Report ka code master code se match hua to wahi office; code se na milne par sirf unique name dekha jata hai (ambiguous name = koi match nahi).
+- **Poora BO master list**: BO-wise table me `bo_master.js` ke saare 2,196 offices hamesha dikhte hain (report ke offices ∪ master sheet). Jin offices ne selected date window me koi account nahi khola unki row **0** ke saath aati hai (report se gayab hone se row drop nahi hoti). Excel export ka BO-wise sheet bhi isi list ko mirror karta hai.
 - **Reporting period `2026-11-01` se**: is date se pehle ke snapshots (jaise 31-10-2026) KPI cards, trend, BO table aur Excel/PDF export me include nahi hote. Purani history audit ke liye `history.csv` me rah sakti hai, lekin dashboard sirf 01-11-2026 onwards dikhata hai.
-- **SO filter** — Sub Office wise filter (B.O rows apne parent S.O ke saath aate hain)
+- **BO filter / SO filter** — type-to-search (master sheet ke saare BO aur SO names options ke saath)
+- **Division aur Sub Division filter** — `bo_master.js` ke `division`/`subDivision` columns se, jo uploaded `BO_Master_data_of_Haryana_Circle.xlsx` (sheet `Consolidate`) se bane: 9 divisions, 33 sub-divisions (ek Hissar office ka sub-division sheet me khali hai, woh `(no sub division)` bucket me aata hai). Division select karne par sub-division list us division tak narrow ho jata hai, aur filter AND hota hai. Division-wise / Sub-division-wise group-by me master sheet ki har division/sub-division ki row milti hai (jisme is window me kuch nahi khula uska figure 0), KPI cards par Divisions/Sub Divisions counts dikhte hain, aur Excel export me `Division-wise` + `SubDivision-wise` sheets banti hain.
+- **Office rows ka division**: SO/H.O summary rows ke apne koi division nahi hote, isliye woh master sheet ke SO column (aur zarurat par BO rows) se inherit karte hain — jis SO ke BOs ek se zyada sub-division me faile hue hain, uska figure sirf division level par dikhta hai (`(no sub division)` bucket me).
 - **Accounts Opened** per BO (product columns ka sum) + totals row footer me
-- **Office summary rows kept separate**: CEPT report ki S.O/H.O/G.P.O summary rows (blank `SO Name` cell, ya `S.O`-ending name — master-list BO kabhi nahi) `kind='so'` rows ban kar rakhi jati hain. BO-wise table, KPI cards aur trend chart inhe kabhi include nahi karte (double-counting nahi). **SO-wise view me har SO ke liye do alag sortable columns**: `<metric> (ΣBO)` = us SO ke BO rows ka sum, aur `<metric> (SO)` = office ki apni summary row ka reported figure (`—` agar report me woh row nahi). `(no SO)` bucket = woh BO rows jinki SO Name blank hai (jaise `Brahman Majra B.O`)
+- **Office summary rows kept separate**: CEPT report ki S.O/H.O/G.P.O summary rows (blank `SO Name` cell, ya name me `S.O`/`H.O`/`P.O`/`G.P.O` marker, ya 8-digit all-numeric code — master-list BO kabhi nahi) `kind='so'` rows ban kar rakhi jati hain. `history.csv` ki `kind` column se zyada master sheet ki maan hoti hai: code master BO ka hai to row `bo` hi rahegi. BO-wise table, KPI cards aur trend chart inhe kabhi include nahi karte (double-counting nahi). **SO-wise view me har SO ke liye do alag sortable columns**: `<metric> (ΣBO)` = us SO ke BO rows ka sum, aur `<metric> (SO)` = office ki apni summary row ka reported figure (`—` agar report me woh row nahi). `(no SO)` bucket = woh BO rows jinki SO Name blank hai (jaise `Brahman Majra B.O`)
 - **KPI cards par day-over-day delta** (▲/▼ vs previous day) — history file ki wajah se
-- **Export Excel**: filtered raw data + BO-wise pivot, dono sheets me
+- **Export Excel**: 4 sheets — `Filtered Data` (raw rows + Division/Sub Division), `BO-wise` (har master office, `BO ID` code ke saath), `Division-wise` aur `SubDivision-wise` roll-ups (total ke order me)
 - **Export PDF**: browser print dialog se PDF save (print header me active filters + data-as-of date ke saath)
 - **Security**: CSP meta (script-src: self + jsdelivr only — isliye koi inline `on*` handler nahi chalega) + SRI hashes on dono CDN scripts; saara JS `app.js` me hai aur saare event listeners wahin `addEventListener` se wire hote hain (inline script/handlers nahi)
 
@@ -49,6 +51,15 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 | `data/exports/manifest.json` | `write_manifest()` | `[{"file": "data/exports/...", "label": "Accounts Opened", "date": "2026-11-01"}]` — dashboard isi list ko auto-load karta hai (naya KPI add karne ke liye frontend change nahi chahiye). `date` report ki apni date hai kyunki merged file me `Dated:` title row nahi rehta |
 | `data/history.csv` | `append_history()` | long format: `date,bo,so,sol,kind,kpi,value` — `kind` = `bo` ya `so` (office summary row). Har report date ki rows us date ki purani rows ko replace karti hain (idempotent) |
 | `data/dashboard_data.xlsx` | `generate_dashboard_data()` | one row per BO (Date/BO/SO/SOL ID + KPI columns) |
+
+## BO master file (`bo_master.js`)
+
+`const BO_MASTER = [{name, code, so, subDivision, division}, ...]` — 2,196 Haryana Circle offices,
+generated from `BO_Master_data_of_Haryana_Circle.xlsx` (sheet `Consolidate`): `Office_Name`,
+`SOL_ID_BO_ID` (upper-cased; `0`/blank codes stored as empty), `AO_Name` → SO, `Sub_Division`,
+`Division`. File ek valid JSON array hai, isliye `cept_mis_cbs.py` aur dashboard dono isi ko padhte
+hain. Dashboard ke liye yahi file identity (code), SO/Division/Sub Division hierarchy aur "0 wale BO"
+ki list deti hai — sheet me naya office add karne par is file ko regenerate karke commit karna hota hai.
 
 ## Local run
 

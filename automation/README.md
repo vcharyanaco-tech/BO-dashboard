@@ -47,12 +47,21 @@ Data rows seedhe `<tr>` hote hain — table me **`<tbody>` nahi hai**. `<tfoot>`
 export me bhi likhta hai; `merge_kpi_files` aur `generate_dashboard_data` usse hata dete
 hain, warna dashboard use ek BO samajh leta hai.
 
+### BO master list (`bo_master.js`)
+
+`python3 automation/gen_bo_master.py <BO_Master_data_of_Haryana_Circle.xlsx>` repo root me
+`bo_master.js` banata hai — `Consolidate` sheet ke 2,196 offices as
+`[{name, code, so, subDivision, division}, ...]` (valid JSON array, isliye yehi file
+`cept_mis_cbs.py` bhi padhta hai). `code` = `SOL_ID_BO_ID` hi identity hai: 2,093 hi distinct
+naam hain, 82 naam 184 offices me share ho rahe hain, isliye naam se fuzzy match nahi hota.
+`is_master_office()` / `is_so_row()` isi file se codes aur naam check karte hain.
+
 ### Output
 
 - `data/exports/{kpi}_{division}_{subdivision}.xlsx` — per sub-division intermediate (run ke ant me delete)
-- `data/exports/{kpi}_merged.xlsx` — har KPI ke saare rows, ek header row + sirf data rows. **S.O summary rows** (`Adhoya S.O`, `Achina SO`) `is_so_row()` se drop hoti hain (bo_master.js guard ke saath), taaki woh BO nahi banen
+- `data/exports/{kpi}_merged.xlsx` — har KPI ke saare rows, ek header row + sirf data rows. Office summary rows (`Adhoya S.O`, `Jamalpur SO Bhiwani`, `Ambala G.P.O.` — `is_so_row()`: master BO code/naam nahi, aur name me S.O/H.O/P.O/G.P.O marker ya 8-digit all-numeric code) `kind='so'` ke saath likhi jati hain, taaki dashboard me woh BO totals me na ghusen
 - `data/exports/manifest.json` — dashboard ko batata hai kaun-kaun se merged files auto-load karne hain, har entry me report `date` bhi (merged file me `Dated:` title row nahi rehta). Naya KPI `METRICS` me add karne par dashboard me koi change nahi chahiye
-- `data/history.csv` — daily snapshots, long format `date,bo,so,sol,kind,kpi,value` where `kind` = `bo` | `so` (office summary row: blank SO Name cell or S.O-style name, never a bo_master BO). Same date ka re-run us date ki rows replace karta hai (idempotent). Isi se dashboard ka cumulative trend chart multi-day hota hai aur KPI cards ka day-over-day delta kaam karta hai. `kind='so'` rows SO-wise view me ΣBO se alag dikhte hain. ~150 KB/day grow karta hai — bahut purana data prune karne ke liye `append_history()` me ek retention window add ki ja sakti hai
+- `data/history.csv` — daily snapshots, long format `date,bo,so,sol,kind,kpi,value` where `kind` = `bo` | `so` (office summary row: blank SO Name cell, office-style name ya all-digit code, and never a master BO code/naam). Dashboard `kind` se zyada `sol` code ki maan karta hai — code master BO ka hua to row BO hi rahegi. Same date ka re-run us date ki rows replace karta hai (idempotent). Isi se dashboard ka cumulative trend chart multi-day hota hai aur KPI cards ka day-over-day delta kaam karta hai. `kind='so'` rows SO-wise view me ΣBO se alag dikhte hain. ~150 KB/day grow karta hai — bahut purana data prune karne ke liye `append_history()` me ek retention window add ki ja sakti hai
 - `data/dashboard_data.xlsx` — dashboard ka BO-wise file (report window ki end date ke saath)
 - `debug/*.png` + `debug/*.html` — failure par page snapshot (CI me artifact ke roop me upload hota hai)
 

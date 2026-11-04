@@ -43,7 +43,7 @@ th.sortable:hover{color:var(--accent)}
 </head>
 <body>
 <header>
-  <div><h1>BO Performance Dashboard</h1><div class="sub">CEPT MIS auto-fed • BO &amp; SO-wise cumulative performance • Data as of <b id="dataAsOf">—</b></div></div>
+  <div><h1>BO Performance Dashboard</h1><div class="sub">CEPT MIS auto-fed • BO, SO, Division &amp; Sub-division-wise cumulative performance • Data as of <b id="dataAsOf">—</b></div></div>
   <div class="no-print" style="display:flex;gap:8px">
     <button class="secondary" id="btnExcel">Export Excel</button>
     <button id="btnPdf">Export PDF</button>
@@ -64,9 +64,13 @@ th.sortable:hover{color:var(--accent)}
       <div><label>To date</label><input type="date" id="to"></div>
       <div><label>BO (type to search)</label><input list="boList" id="bo" placeholder="All BOs — type to search" ><datalist id="boList"></datalist></div>
       <div><label>SO (type to search)</label><input list="soList" id="so" placeholder="All SOs — type to search" ><datalist id="soList"></datalist></div>
+      <div><label>Division</label><select id="division"><option value="">All divisions</option></select></div>
+      <div><label>Sub Division</label><select id="subDivision"><option value="">All sub divisions</option></select></div>
       <div><label>Group by</label><select id="groupBy">
         <option value="bo">BO-wise</option>
         <option value="so">SO-wise</option>
+        <option value="div">Division-wise</option>
+        <option value="sub">Sub-division-wise</option>
       </select></div>
       <div><label>Quick view</label><select id="quick">
         <option value="all">All</option>

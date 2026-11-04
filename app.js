@@ -11,55 +11,127 @@ const iso=d=>d.toISOString().slice(0,10);
 // All dates shown in the UI/exports use DD-MM-YYYY. ISO dates stay internal for
 // sorting, filtering, history.csv and manifest.json.
 const fmtDate=v=>{const s=String(v||'').slice(0,10);const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:s;};
-const MASTER_LIST=(typeof BO_MASTER!=='undefined')?BO_MASTER:[];
+// BO identity is the office CODE (SOL ID / BOCODE), not the name: bo_master.js is
+// generated from the circle master data sheet and holds {name, code, so,
+// subDivision, division}. 2196 offices have only 2093 distinct names, so the same
+// name can belong to two different BOs and names alone cannot identify an office.
+// There is no fuzzy name matching: a report row either resolves to a master office
+// (by code, then by name, then by name+SO) or it stays an unknown office under its
+// own reported name.
+const MASTER_LIST=(typeof BO_MASTER!=='undefined'&&Array.isArray(BO_MASTER))?BO_MASTER:[];
 // Dashboard reporting period: earlier history snapshots (e.g. 31-10-2026) stay in
 // history.csv for audit, but must never appear in KPIs, trend, table or exports.
 const DATA_START='2026-11-01';
-function normalizeBO(name){
-  return String(name||'').trim().replace(/\s+/g,' ')
-    .replace(/\s*B\.?O\.?$/i,' BO').replace(/\s+/g,' ').trim().toLowerCase();
+// Group-by views: 'bo' is the office list, the others roll offices up by the
+// master sheet's SO / Division / Sub Division columns.
+const GROUP_META={bo:{name:'BO',unit:'BOs',title:'BO-wise'},so:{name:'SO',unit:'SOs',title:'SO-wise'},
+  div:{name:'Division',unit:'Divisions',title:'Division-wise'},sub:{name:'Sub Division',unit:'Sub Divisions',title:'Sub-division-wise'}};
+const normName=n=>String(n||'').trim().replace(/\s+/g,' ').replace(/\s*B\.?O\.?$/i,' BO').replace(/\s+/g,' ').toLowerCase();
+const soKey=s=>String(s||'').trim().toLowerCase().replace(/\./g,'').replace(/\s+/g,' ');
+const normCode=c=>String(c||'').trim().toUpperCase().replace(/\s+/g,'');
+const MASTER_BY_CODE=new Map(), MASTER_BY_NAME=new Map(), MASTER_BY_NAME_SO=new Map();
+MASTER_LIST.forEach(o=>{
+  const code=normCode(o.code);
+  if(code)MASTER_BY_CODE.set(code,o);
+  const k=normName(o.name);
+  if(!k)return;
+  // A name used by more than one office cannot identify one on its own.
+  if(MASTER_BY_NAME.has(k))MASTER_BY_NAME.set(k,null);else MASTER_BY_NAME.set(k,o);
+  const ks=k+'|'+soKey(o.so);
+  if(!MASTER_BY_NAME_SO.has(ks))MASTER_BY_NAME_SO.set(ks,o);
+});
+function findOffice(name,so,id){
+  const code=normCode(id);
+  if(code&&MASTER_BY_CODE.has(code))return MASTER_BY_CODE.get(code);
+  const k=normName(name);
+  if(!k)return null;
+  const byName=MASTER_BY_NAME.get(k);
+  if(byName)return byName;
+  return MASTER_BY_NAME_SO.get(k+'|'+soKey(so))||null;
 }
-const MASTER_MAP={};
-MASTER_LIST.forEach(b=>MASTER_MAP[normalizeBO(b)]=b);
-// Pre-built cleaned-key index so fuzzy matching is O(1) per name instead of a
-// full scan over the master list for every row.
-const CLEAN_MAP={};
-for(const [mk,mv] of Object.entries(MASTER_MAP)){
-  const k=mk.replace(/[^a-z0-9]/g,'');
-  if(!(k in CLEAN_MAP))CLEAN_MAP[k]=mv;
-}
-function matchBO(name){
-  const key=normalizeBO(name);
-  if(MASTER_MAP[key])return MASTER_MAP[key];
-  const k=key.replace(/[^a-z0-9]/g,'');
-  if(CLEAN_MAP[k])return CLEAN_MAP[k];
+// Display name: master spelling when the office is known, else the reported name;
+// a master office whose sheet row has no name falls back to its code.
+function officeLabel(o,name){
+  if(o)return String(o.name||'').trim()||normCode(o.code)||String(name||'').trim();
   return String(name||'').trim();
 }
-// The CEPT grid interleaves S.O summary rows ("Adhoya S.O", "Achina SO") among the
-// BO rows. They are not BOs: drop them unless the name is a known master BO.
-const SO_ROW_RE=/\bs\.?\s?o\.?\s*$/i;
-function isSORow(name){
-  const n=String(name||'').trim();
-  return SO_ROW_RE.test(n)&&!MASTER_MAP[normalizeBO(n)];
+// Grouping key for a row: resolved office code, else the reported code, else the
+// reported name (uploads without a code column).
+function rowId(o,name,id){return normCode(o&&o.code)||normCode(id)||normName(name)||String(name||'').trim();}
+// The CEPT grid interleaves office summary rows among the BO rows ("Adhoya S.O",
+// "Jamalpur SO Bhiwani", "Neemariwali PO", "Ambala G.P.O."). They are not BOs: only a
+// row that resolves to a master office is one. Two signals identify an office row -
+// an S.O/H.O/P.O/G.P.O marker in its name, or an all-digit code (master BO codes are
+// always 5 alphanumeric characters, SO/HO codes are 8 digits).
+const SO_ROW_RE=/\b(s\.?\s?o\.?|h\.?\s?o\.?|p\.?\s?o\.?|g\.?\s?p\.?\s?o\.?|head\s*office|sub\s*office)\b/i;
+const OFFICE_CODE_RE=/^\d{6,}$/;
+function isSORow(name,so,id){
+  if(findOffice(name,so,id))return false;
+  const s=String(name||'').trim();
+  return SO_ROW_RE.test(s)||OFFICE_CODE_RE.test(normCode(id));
 }
-// In the CEPT export, office summary rows (S.O / H.O / G.P.O like 'Ambala G.P.O.')
-// have a BLANK 'SO Name' cell - their figures are SO-level, not BO-level, so they are
-// kept as kind='so' rows and shown separately. (Manual uploads may legitimately lack
-// an SO column, so there only the name pattern is used.) A name present in the BO
-// master list is always a real BO and is never reclassified.
-function isOfficeRow(name,soVal){
-  const n=String(name||'').trim();
-  if(MASTER_MAP[normalizeBO(n)])return false;
-  return SO_ROW_RE.test(n)||String(soVal||'').trim()==='';
+// In the CEPT export, office summary rows also have a BLANK 'SO Name' cell - their
+// figures are SO-level, not BO-level, so they are kept as kind='so' rows and shown
+// separately. (Manual uploads may legitimately lack an SO column, so there only the
+// name/code pattern is used.)
+function isOfficeRow(name,soVal,id){
+  if(findOffice(name,soVal,id))return false;
+  return isSORow(name,soVal,id)||String(soVal||'').trim()==='';
 }
-function soKey(s){return String(s||'').trim().toLowerCase().replace(/\.+$/,'').replace(/\s+/g,' ');}
+// One place that turns a reported (name, SO, code) triple into an office: identity,
+// display name and its division/sub-division. SO summary rows live in their own
+// identity space so an office named like a BO cannot merge with it.
+function officeInfo(name,so,sol){
+  const off=findOffice(name,so,sol);
+  const soRow=isSORow(name,so,sol);
+  return {off,kind:soRow?'so':'bo',
+    id:soRow?'so:'+soKey(name):rowId(off,name,sol),
+    label:soRow?String(name||'').trim():officeLabel(off,name),
+    dv:off?off.division||'':'',sd:off?off.subDivision||'':''};
+}
 function setBOOptions(list){
-  const all=[...new Set([...MASTER_LIST,...list].filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const all=[...new Set([...MASTER_LIST.map(o=>o.name),...list].filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   $('boList').innerHTML=all.map(b=>`<option value="${esc(b)}">`).join('');
 }
 function setSOOptions(list){
-  const all=[...new Set(list.filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const all=[...new Set([...list.filter(Boolean),...MASTER_LIST.map(o=>o.so).filter(Boolean)])].sort((a,b)=>a.localeCompare(b));
   $('soList').innerHTML=all.map(s=>`<option value="${esc(s)}">`).join('');
+}
+// Division / sub-division options come from the master sheet, so a division with no
+// accounts opened today can still be selected. Sub-division list follows the division.
+function setOfficeOptions(){
+  const dv=[...new Set(MASTER_LIST.map(o=>o.division).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const d=$('division').value;
+  $('division').innerHTML=`<option value="">All divisions</option>`+dv.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(d&&dv.includes(d))$('division').value=d;
+  const sd=[...new Set(MASTER_LIST.filter(o=>!$('division').value||o.division===$('division').value)
+    .map(o=>o.subDivision).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const s=$('subDivision').value;
+  $('subDivision').innerHTML=`<option value="">All sub divisions</option>`+sd.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(s&&sd.includes(s))$('subDivision').value=s;else $('subDivision').value='';
+}
+// Division / sub-division of an S.O, used to place office summary rows in the
+// hierarchy. First from the master sheet's own SO column (an SO is pinned to a
+// sub-division only when all its BOs agree), then from the BO rows reporting that
+// SO name, so an office above a BO network the sheet does not list still resolves.
+function soOfficeMap(){
+  const m=new Map(), agg=new Map();
+  MASTER_LIST.forEach(o=>{
+    const k=soKey(o.so);if(!k)return;
+    const a=agg.get(k)??(agg.set(k,{dv:new Set(),sd:new Set()}),agg.get(k));
+    if(o.division)a.dv.add(o.division);
+    if(o.subDivision)a.sd.add(o.subDivision);
+  });
+  agg.forEach((a,k)=>{
+    const dv=a.dv.size===1?[...a.dv][0]:'',sd=a.sd.size===1?[...a.sd][0]:'';
+    if(dv||sd)m.set(k,{dv,sd});
+  });
+  ROWS.forEach(r=>{
+    if(r.kind==='so'||!r.so)return;
+    const k=soKey(r.so);
+    if(k&&!m.has(k)&&(r.dv||r.sd))m.set(k,{dv:r.dv||'',sd:r.sd||''});
+  });
+  return m;
 }
 function activeMetrics(){return METRICS;}
 function isNumCell(v){return typeof v==='number'?Number.isFinite(v):(typeof v==='string'&&v.trim()!==''&&!isNaN(Number(v)));}
@@ -93,6 +165,7 @@ function finishIngest(){
   $('dataAsOf').textContent=DATES.length?fmtDate(DATES[DATES.length-1]):'—';
   setBOOptions([...new Set(ROWS.filter(r=>r.kind!=='so').map(r=>r.bo))]);
   setSOOptions(ROWS.map(r=>r.so));
+  setOfficeOptions();
   $('msg').textContent='';updateMode();render();
 }
 function ingestMatrix(matrix){
@@ -117,8 +190,11 @@ function ingestMatrix(matrix){
     if(!name||/^total\b/i.test(name)||isHeaderLike(name))return null;
     const d=dateIdx>=0?parseDate(r[dateIdx]):fallbackDate;
     if(!d)return null;
-    const soVal=soIdx>=0?String(r[soIdx]??'').trim():'';const soRow=isSORow(name);
-    const o={date:iso(d),bo:soRow?name:matchBO(name),so:soRow?name:soVal,sol:solIdIdx>=0?String(r[solIdIdx]??'').trim():'',kind:soRow?'so':'bo'};
+    const soVal=soIdx>=0?String(r[soIdx]??'').trim():'';
+    const solRaw=solIdIdx>=0?String(r[solIdIdx]??'').trim():'';
+    const inf=officeInfo(name,soVal,solRaw);
+    const o={date:iso(d),id:inf.id,bo:inf.label,so:inf.kind==='so'?name:soVal,sol:solRaw,
+      kind:inf.kind,dv:inf.dv,sd:inf.sd};
     metricIdxs.forEach(i=>o[headers[i]]=Number(r[i])||0);
     return o;
   }).filter(Boolean);
@@ -179,14 +255,21 @@ async function loadHistory(){
     const d=String(r[iDate]||'').trim(),bo=String(r[iBo]||'').trim(),kpi=String(r[iKpi]||'').trim();
     if(!d||!bo||!kpi)return;
     const v=Number(String(r[iVal]||'').replace(/,/g,''))||0;
-    const kind=(iKind>=0&&String(r[iKind]||'').trim().toLowerCase()==='so')?'so':'bo';
-    const key=d+'|'+bo+'|'+kind;
+    const soVal=iSo>=0?String(r[iSo]||'').trim():'';
+    const solRaw=iSol>=0?String(r[iSol]||'').trim():'';
+    const inf=officeInfo(bo,soVal,solRaw);
+    // The master sheet decides: a row whose code (or unique name) is a master BO is a
+    // BO even when the snapshot filed it as an office summary row. Rows the sheet does
+    // not know keep whatever kind the snapshot recorded.
+    const isSo=inf.kind==='so'||((iKind>=0&&String(r[iKind]||'').trim().toLowerCase()==='so')&&!inf.off);
+    const id=isSo?'so:'+soKey(bo):inf.id;
+    const key=d+'|'+id;
     let row=byKey.get(key);
-    if(!row){row={date:d,bo:kind==='so'?bo:matchBO(bo),so:'',sol:'',kind};byKey.set(key,row);}
+    if(!row){row={date:d,id,bo:isSo?bo:inf.label,so:isSo?bo:soVal,sol:solRaw,kind:isSo?'so':'bo',dv:inf.dv,sd:inf.sd};byKey.set(key,row);}
     row[kpi]=v;
-    if(kind==='so'){row.bo=bo;row.so=bo;}
-    if(iSo>=0&&!row.so)row.so=String(r[iSo]||'').trim();
-    if(iSol>=0&&!row.sol)row.sol=String(r[iSol]||'').trim();
+    if(!row.so&&isSo)row.so=bo;
+    if(!row.so&&soVal)row.so=soVal;
+    if(!row.sol&&solRaw)row.sol=solRaw;
     metrics.add(kpi);
   });
   if(!byKey.size)throw new Error('history me koi row nahi mili');
@@ -217,53 +300,55 @@ function parseKpiWorkbook(matrix,label){
     )
     .map(({i})=>i);
   if(!valueIdxs.length)throw new Error(label+': koi numeric column nahi mila. Headers: '+headers.join(', '));
-  const totals={},so={},sol={},soTotals={};
+  const bos=new Map(), offices=new Map();
   rows.forEach(r=>{
     const name=String(r[boIdx]??'').trim();
     // The exported sheet carries a 'Total:' footer row and office summary rows
     // (S.O/H.O/G.P.O - recognisable by a blank SO Name cell); repeated headers are not rows.
     if(!name||/^total\b/i.test(name)||isHeaderLike(name))return;
     const soVal=soIdx>=0?String(r[soIdx]??'').trim():'';
+    const solRaw=solIdIdx>=0?String(r[solIdIdx]??'').trim():'';
     const v=valueIdxs.reduce((s,i)=>s+(Number(r[i])||0),0);
-    if(isOfficeRow(name,soVal)){
+    if(isOfficeRow(name,soVal,solRaw)){
       // SO-level figure from the office's own summary row - kept SEPARATE from BO sums.
-      const k=soKey(name);
-      const e=soTotals[k]??(soTotals[k]={name,total:0,sol:''});
-      e.total+=v;
-      if(solIdIdx>=0&&!e.sol)e.sol=String(r[solIdIdx]??'').trim();
+      const k='so:'+soKey(name);
+      const e=offices.get(k)??(offices.set(k,{id:k,name,so:name,sol:'',value:0}),offices.get(k));
+      e.value+=v;
+      if(solIdIdx>=0&&!e.sol)e.sol=solRaw;
       return;
     }
-    const bo=matchBO(name);
-    if(!bo)return;
-    totals[bo]=(totals[bo]||0)+v;
-    if(soIdx>=0&&!so[bo])so[bo]=soVal;
-    if(solIdIdx>=0&&!sol[bo])sol[bo]=String(r[solIdIdx]??'').trim();
+    const inf=officeInfo(name,soVal,solRaw);
+    const e=bos.get(inf.id)??(bos.set(inf.id,{id:inf.id,name:inf.label,so:soVal,sol:solRaw,dv:inf.dv,sd:inf.sd,value:0}),bos.get(inf.id));
+    e.value+=v;
+    if(!e.so&&soVal)e.so=soVal;
+    if(!e.sol&&solRaw)e.sol=solRaw;
   });
-  return {label,date:extractReportDate(matrix,hIdx),totals,soTotals,so,sol};
+  return {label,date:extractReportDate(matrix,hIdx),bos:[...bos.values()],offices:[...offices.values()]};
 }
 function overlayKpiParts(parts){
-  // Latest exports replace any history rows of the same date, keyed by date|BO,
+  // Latest exports replace any history rows of the same date, keyed by date+office,
   // so a re-run for one date never double-counts in the trend chart.
   const key=(d,b)=>d+'|'+b;
-  const byKey=new Map(ROWS.map(r=>[key(r.date,r.bo),r]));
+  const byKey=new Map(ROWS.map(r=>[key(r.date,r.id),r]));
   parts.forEach(p=>{
     const d=iso(p.date||new Date());
-    Object.entries(p.totals).forEach(([bo,v])=>{
-      const k=key(d,bo);
+    (p.bos||[]).forEach(e=>{
+      const k=key(d,e.id);
       let row=byKey.get(k);
-      if(!row){row={date:d,bo,so:'',sol:'',kind:'bo'};byKey.set(k,row);}
-      row[p.label]=Number(v)||0;
-      if(!row.so&&p.so&&p.so[bo])row.so=p.so[bo];
-      if(!row.sol&&p.sol&&p.sol[bo])row.sol=p.sol[bo];
+      if(!row){row={date:d,id:e.id,bo:e.name,so:e.so||'',sol:e.sol||'',kind:'bo',dv:e.dv||'',sd:e.sd||''};byKey.set(k,row);}
+      row.bo=row.bo||e.name;row[p.label]=Number(e.value)||0;
+      if(!row.so&&e.so)row.so=e.so;
+      if(!row.sol&&e.sol)row.sol=e.sol;
+      if(!row.dv&&e.dv)row.dv=e.dv;
+      if(!row.sd&&e.sd)row.sd=e.sd;
     });
     // SO-level summary rows from the export: kept as kind='so' so the SO-wise view
     // can show the SO's own reported figure separately from the sum of its BOs.
-    Object.entries(p.soTotals||{}).forEach(([k,e])=>{
-      const name=e.name||k;
-      const kk=key(d,name);
-      let row=byKey.get(kk);
-      if(!row){row={date:d,bo:name,so:name,sol:e.sol||'',kind:'so'};byKey.set(kk,row);}
-      row[p.label]=Number(e.total)||0;
+    (p.offices||[]).forEach(e=>{
+      const k=key(d,e.id);
+      let row=byKey.get(k);
+      if(!row){row={date:d,id:e.id,bo:e.name,so:e.so||e.name,sol:e.sol||'',kind:'so',dv:'',sd:''};byKey.set(k,row);}
+      row[p.label]=Number(e.value)||0;
     });
   });
   ROWS=[...byKey.values()];
@@ -305,73 +390,105 @@ async function autoLoad(){
   if(parts.length)overlayKpiParts(parts);
   finishIngest();
   const soCount=new Set(ROWS.map(r=>r.so).filter(Boolean)).size;
-  const reportedBOs=new Set(ROWS.filter(r=>r.kind!=='so').map(r=>r.bo));
-  const missingMaster=MASTER_LIST.filter(b=>!reportedBOs.has(b)).length;
+  const reportedIds=new Set(ROWS.filter(r=>r.kind!=='so').map(r=>r.id));
+  const missingMaster=MASTER_LIST.filter(o=>!reportedIds.has(normCode(o.code)||normName(o.name))).length;
   const bits=[];
   if(hist)bits.push(`history ${DATES.length} day(s)`);
   if(parts.length)bits.push(`${parts.length}/${sources.length} KPI export(s) @ ${fmtDate(DATES[DATES.length-1])}`);
   if(missing.length)bits.push(`missing: ${missing.join(', ')}`);
-  bits.push(`${ROWS.length} rows, ${reportedBOs.size} BOs reported, ${missingMaster} master BOs at 0, ${soCount} SOs`);
+  bits.push(`${ROWS.length} rows, ${reportedIds.size} BOs reported, ${missingMaster} master BOs at 0, ${soCount} SOs`);
   $('autoStatus').textContent='Auto-loaded '+bits.join(' • ')+'.';
 }
 function filtered(){
   const mode=$('mode').value,from=$('from').value,to=$('to').value;
   const bo=$('bo').value.trim().toLowerCase(),so=$('so').value.trim().toLowerCase();
+  const dv=$('division').value,sd=$('subDivision').value;
   let a=from,b=to;
   if(mode==='single'){a=b=to}
   if(mode==='upto'){a=DATES[0]}
-  return ROWS.filter(r=>(!a||r.date>=a)&&(!b||r.date<=b)&&
-    (!bo||r.bo.toLowerCase().includes(bo))&&
-    (!so||String(r.so||'').toLowerCase().includes(so)));
+  const offMap=(dv||sd)?soOfficeMap():null;
+  return ROWS.filter(r=>{
+    if(a&&r.date<a)return false;
+    if(b&&r.date>b)return false;
+    if(bo&&!r.bo.toLowerCase().includes(bo))return false;
+    if(so&&!String(r.so||'').toLowerCase().includes(so))return false;
+    if(dv||sd){
+      const o=r.kind==='so'?(offMap.get(soKey(r.so||r.bo))||{dv:'',sd:''}):r;
+      if(dv&&o.dv!==dv)return false;
+      if(sd&&o.sd!==sd)return false;
+    }
+    return true;
+  });
 }
 function sortBy(key){
   if(sortState.key===key)sortState.dir*=-1;
   else sortState={key,dir:1};
   render();
 }
-// BO metadata (SO/SOL) from every loaded row, not just the selected date range,
-// so a master BO that had no accounts opened in the window still shows its SO.
-function boMetaMap(){
+// Office metadata (SO / code / division) from every loaded row, not just the
+// selected date range, keyed by office id (= master BO code) so a BO that opened
+// no accounts in the window still shows its own SO, division and sub-division.
+function officeMetaMap(){
   const meta=new Map();
   ROWS.forEach(r=>{
     if(r.kind==='so')return;
-    let m=meta.get(r.bo);
-    if(!m){m={so:'',sol:''};meta.set(r.bo,m);}
+    let m=meta.get(r.id);
+    if(!m){m={name:r.bo,so:'',sol:'',dv:'',sd:''};meta.set(r.id,m);}
+    if(!m.name&&r.bo)m.name=r.bo;
     if(!m.so&&r.so)m.so=r.so;
     if(!m.sol&&r.sol)m.sol=r.sol;
+    if(!m.dv&&r.dv)m.dv=r.dv;
+    if(!m.sd&&r.sd)m.sd=r.sd;
   });
   return meta;
 }
-// BO-wise view = BOs present in the report UNION every BO from bo_master.js.
-// A master BO with no accounts opened in the selected window is kept with zeros
-// instead of disappearing from the table.
-function visibleBOMap(boRows){
-  const meta=boMetaMap(), view=new Map();
+// BO-wise view = offices present in the report UNION every office from
+// bo_master.js (2,196 in the Haryana Circle sheet). An office with no accounts
+// opened in the selected window stays in the table with zeros instead of
+// disappearing. Ids are codes, so two offices that share a name stay separate rows.
+function visibleOfficeMap(boRows){
+  const meta=officeMetaMap(), view=new Map();
   boRows.forEach(r=>{
-    let m=view.get(r.bo);
-    if(!m){m={name:r.bo,so:r.so||'',sol:r.sol||''};view.set(r.bo,m);}
-    else{if(!m.so&&r.so)m.so=r.so;if(!m.sol&&r.sol)m.sol=r.sol;}
+    let m=view.get(r.id);
+    if(!m){m={id:r.id,name:r.bo,so:r.so||'',sol:r.sol||'',dv:r.dv||'',sd:r.sd||''};view.set(r.id,m);}
+    else{
+      if(!m.name&&r.bo)m.name=r.bo;
+      if(!m.so&&r.so)m.so=r.so;
+      if(!m.sol&&r.sol)m.sol=r.sol;
+      if(!m.dv&&r.dv)m.dv=r.dv;
+      if(!m.sd&&r.sd)m.sd=r.sd;
+    }
   });
-  const boF=$('bo').value.trim().toLowerCase(), soF=$('so').value.trim().toLowerCase();
-  MASTER_LIST.forEach(name=>{
-    if(view.has(name))return;
-    if(boF&&!name.toLowerCase().includes(boF))return;
-    const known=meta.get(name)||{so:'',sol:''};
-    // With an SO filter, only include master BOs whose SO is known to match.
-    if(soF&&!String(known.so||'').toLowerCase().includes(soF))return;
-    view.set(name,{name,so:known.so||'',sol:known.sol||''});
+  const boF=$('bo').value.trim().toLowerCase(),soF=$('so').value.trim().toLowerCase();
+  const dvF=$('division').value,sdF=$('subDivision').value;
+  MASTER_LIST.forEach(o=>{
+    const id=normCode(o.code)||normName(o.name);
+    if(!id||view.has(id))return;
+    const name=String(o.name||'').trim();
+    if(boF&&!(name.toLowerCase().includes(boF)||id.toLowerCase().includes(boF)))return;
+    // With an SO filter, only add master offices whose own SO matches.
+    if(soF&&!String(o.so||'').toLowerCase().includes(soF))return;
+    if(dvF&&String(o.division||'')!==dvF)return;
+    if(sdF&&String(o.subDivision||'')!==sdF)return;
+    const known=meta.get(id)||{name:'',so:'',sol:'',dv:'',sd:''};
+    view.set(id,{id,name:officeLabel(o,name)||known.name,so:o.so||known.so,sol:o.code||known.sol,
+      dv:o.division||known.dv,sd:o.subDivision||known.sd});
   });
   return view;
 }
 function render(){
   if(!ROWS.length)return;
   const rows=filtered(), act=activeMetrics();
-  const gby=$('groupBy').value;
-  // SO summary rows (kind='so') are SO-level figures: exclude them from KPI cards,
-  // the trend chart and the BO-wise table so nothing is double-counted.
+  const gby=$('groupBy').value||'bo';
+  const gm=GROUP_META[gby]||GROUP_META.bo;
+  // SO summary rows (kind='so') are office-level figures: they never join the BO
+  // totals, only the (SO) columns of the SO / division / sub-division views.
   const boRows=rows.filter(r=>r.kind!=='so');
-  const boView=visibleBOMap(boRows);
   const soRows=rows.filter(r=>r.kind==='so');
+  const boView=visibleOfficeMap(boRows);
+  const wide=gby!=='bo';
+  const offMap=soOfficeMap();
+  const inh=r=>r.kind==='so'?(offMap.get(soKey(r.so||r.bo))||{dv:'',sd:''}):r;
   const days=[...new Set(boRows.map(r=>r.date))].sort();
   // Per-day sums drive the day-over-day delta (▲/▼ vs previous day) on metric KPI cards.
   const daySum={};
@@ -379,6 +496,8 @@ function render(){
   const lastD=days[days.length-1], prevD=days.length>1?days[days.length-2]:null;
   const deltaOf=m=>prevD?((daySum[lastD]?.[m]||0)-(daySum[prevD]?.[m]||0)):null;
   const kpis=[['BOs',boView.size],
+              ['Divisions',new Set([...boView.values()].map(m=>m.dv).filter(Boolean)).size],
+              ['Sub Divisions',new Set([...boView.values()].map(m=>m.sd).filter(Boolean)).size],
               ['SOs',new Set(rows.map(r=>r.so).filter(Boolean)).size],
               ...act.map(m=>[m,boRows.reduce((s,r)=>s+(Number(r[m])||0),0)])];
   $('kpis').innerHTML=kpis.map(([l,v])=>{
@@ -386,93 +505,114 @@ function render(){
     const sub=d===null?'':`<div class="d ${d>=0?'good':'bad'}">${d>=0?'▲':'▼'} ${fmt(Math.abs(d))} vs ${esc(fmtDate(prevD))}</div>`;
     return `<div class="kpi"><div class="l">${esc(l)}</div><div class="v">${fmt(v)}</div>${sub}</div>`;
   }).join('');
-  // Aggregate into groups. BO-wise = BO rows only. SO-wise = BO rows summed per SO,
-  // with the SO's own reported (summary-row) figures kept separately in soVals.
-  let list;
-  if(gby==='so'){
-    const groups=new Map();
-    boRows.forEach(r=>{
-      const k=soKey(r.so)||'(no so)';
-      let g=groups.get(k);
-      if(!g){g={name:(r.so||'').trim()||'(no SO)',bos:new Set(),vals:{},total:0,soVals:null};groups.set(k,g);}
-      g.bos.add(r.bo);
-      act.forEach(m=>{const v=Number(r[m])||0;g.vals[m]=(g.vals[m]||0)+v;g.total+=v;});
-    });
-    soRows.forEach(r=>{
-      const k=soKey(r.so||r.bo);
-      let g=groups.get(k);
-      if(!g){g={name:(r.bo||'').trim(),bos:new Set(),vals:{},total:0,soVals:{}};groups.set(k,g);}
-      if(g.name==='(no SO)')g.name=(r.bo||'').trim();
+  // Aggregate into groups: BO-wise = one row per office (id = BO code), the others
+  // = one row per SO / Division / Sub Division with the office rows summed up.
+  const keyOf=r=>gby==='bo'?r.id
+    :gby==='so'?(soKey(r.so)||'(no so)')
+    :gby==='div'?(inh(r).dv||'(no division)')
+    :(inh(r).sd||'(no sub division)');
+  const nameOf=r=>{
+    if(gby==='bo')return r.bo||r.id;
+    // BO rows are named by their SO cell; office summary rows by their own name.
+    if(gby==='so')return String((r.kind==='so'?r.bo:r.so)||'').trim()||'(no SO)';
+    if(gby==='div')return inh(r).dv||'(no division)';
+    return inh(r).sd||'(no sub division)';
+  };
+  const groups=new Map();
+  const getG=(k,name)=>{
+    let g=groups.get(k);
+    if(!g){g={key:k,name:name||k,bos:new Set(),so:'',dv:'',sd:'',vals:{},total:0,soVals:null};groups.set(k,g);}
+    else if(name&&(!g.name||g.name===k))g.name=name;
+    return g;
+  };
+  // Seed the BO-wise view with every visible office (report UNION master sheet) so
+  // offices that opened no accounts in this window still appear, with zeros.
+  if(gby==='bo')boView.forEach(m=>{
+    const g=getG(m.id,m.name);
+    g.so=m.so||'';g.dv=m.dv||'';g.sd=m.sd||'';g.bos.add(m.id);
+  });
+  // Division / sub-division views seed every visible office's group as well, so a
+  // division that opened nothing in the window still appears (and can be compared).
+  if(gby==='div'||gby==='sub')boView.forEach(m=>{
+    const k=gby==='div'?(m.dv||'(no division)'):(m.sd||'(no sub division)');
+    if(k!=='(no division)'&&k!=='(no sub division)')getG(k,k);
+  });
+  (wide?rows:boRows).forEach(r=>{
+    const g=getG(keyOf(r),nameOf(r));
+    if(r.kind==='so'){
       g.soVals=g.soVals||{};
-      act.forEach(m=>g.soVals[m]=Number(r[m])||0);
-    });
-    list=[...groups.values()].map(g=>({name:g.name,so:'',bos:g.bos.size,vals:g.vals,total:g.total,soVals:g.soVals}));
-  }else{
-    const groups=new Map();
-    // Seed every visible BO (master list + report) so BOs with no accounts
-    // opened in this window stay in the table with 0 values.
-    boView.forEach(m=>groups.set(m.name,{name:m.name,so:m.so||'',bos:new Set([m.name]),vals:{},total:0,soVals:null}));
-    boRows.forEach(r=>{
-      let g=groups.get(r.bo);
-      if(!g){g={name:r.bo,so:'',bos:new Set(),vals:{},total:0,soVals:null};groups.set(r.bo,g);}
-      if(!g.so&&r.so)g.so=r.so;
-      g.bos.add(r.bo);
-      act.forEach(m=>{const v=Number(r[m])||0;g.vals[m]=(g.vals[m]||0)+v;g.total+=v;});
-    });
-    list=[...groups.values()].map(g=>({name:g.name,so:g.so,bos:g.bos.size,vals:g.vals,total:g.total,soVals:null}));
-  }
+      act.forEach(m=>g.soVals[m]=(g.soVals[m]||0)+(Number(r[m])||0));
+      if(!g.name||g.name==='(no SO)')g.name=String(r.bo||'').trim()||g.name;
+      return;
+    }
+    g.bos.add(r.id);
+    if(!g.so&&r.so)g.so=r.so;
+    if(!g.dv&&r.dv)g.dv=r.dv;
+    if(!g.sd&&r.sd)g.sd=r.sd;
+    act.forEach(m=>{const v=Number(r[m])||0;g.vals[m]=(g.vals[m]||0)+v;g.total+=v;});
+  });
+  let list=[...groups.values()].map(g=>({name:g.name,so:g.so,dv:g.dv,sd:g.sd,bos:g.bos.size,
+    vals:g.vals,total:g.total,soVals:g.soVals}));
   const q=$('quick').value;
   let sk=sortState.key, sd=sortState.dir;
   if(q==='top'){sk='total';sd=-1;}
   else if(q==='bottom'){sk='total';sd=1;}
+  if(sk==='bos'&&gby==='bo')sk='name';
   const soValOf=(g,base)=>!g.soVals?0:(base==='total'?Object.values(g.soVals).reduce((x,y)=>x+Number(y||0),0):(g.soVals[base]||0));
   list.sort((a,b)=>{
     let va,vb;
-    if(sk==='name'){va=a.name;vb=b.name;}
-    else if(sk==='so'){va=a.so;vb=b.so;}
-    else if(sk==='bos'){va=a.bos;vb=b.bos;}
+    if(sk==='bos'){va=a.bos;vb=b.bos;}
     else if(sk==='total'){va=a.total;vb=b.total;}
     else if(sk.indexOf('so:')===0){const base=sk.slice(3);va=soValOf(a,base);vb=soValOf(b,base);}
-    else{va=a.vals[sk]||0;vb=b.vals[sk]||0;}
+    else if(act.includes(sk)){va=a.vals[sk]||0;vb=b.vals[sk]||0;}
+    else{va=String(a[sk]??a.name??'');vb=String(b[sk]??b.name??'');}
     return (typeof va==='string')?sd*va.localeCompare(vb):sd*(va-vb);
   });
   const totalGroups=list.length;
   if(q==='top'||q==='bottom')list=list.slice(0,10);
   const arrow=key=>(sk===key)?(sd>0?' ▲':' ▼'):'';
   const th=(key,label)=>`<th class="sortable" data-k="${esc(key)}">${esc(label)}${arrow(key)}</th>`;
-  // SO-wise view keeps the two figures separate: "<metric> (ΣBO)" = sum of the SO's BO
-  // rows, "<metric> (SO)" = the office's own summary-row figure ('—' when the report
-  // has no such row). '(no SO)' buckets BO rows whose SO Name is blank in the report.
-  const head=gby==='so'
-    ?'<thead><tr>'+th('name','SO')+th('bos','BOs')+
-     act.map(m=>th(m,m+' (ΣBO)')+th('so:'+m,m+' (SO)')).join('')+
-     th('total','Total (ΣBO)')+th('so:total','Total (SO)')+'</tr></thead>'
-    :'<thead><tr>'+th('name','BO')+th('so','SO')+act.map(m=>th(m,m)).join('')+th('total','Total')+'</tr></thead>';
-  const body=gby==='so'
-    ?list.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.bos}</td>`+
-      act.map(m=>`<td><b>${fmt(g.vals[m]||0)}</b></td><td>${g.soVals?fmt(g.soVals[m]||0):'—'}</td>`).join('')+
-      `<td><b>${fmt(g.total)}</b></td><td>${g.soVals?fmt(soValOf(g,'total')):'—'}</td></tr>`).join('')
-    :list.map(g=>`<tr><td>${esc(g.name)}</td><td>${esc(g.so||'')}</td>`+
-      act.map(m=>`<td><b>${fmt(g.vals[m]||0)}</b></td>`).join('')+
-      `<td><b>${fmt(g.total)}</b></td></tr>`).join('');
+  // Wide views keep the two figures separate: "<metric> (ΣBO)" = sum of the offices
+  // under the group, "<metric> (SO)" = the office's own reported summary figure
+  // ('—' when the report has no such row).
+  const cols=gby==='bo'
+    ?[['name','BO'],['so','SO'],['dv','Division'],['sd','Sub Division']]
+    :[['name',gm.name],['bos','BOs']];
+  const mHead=wide
+    ?act.map(m=>th(m,m+' (ΣBO)')+th('so:'+m,m+' (SO)')).join('')+th('total','Total (ΣBO)')+th('so:total','Total (SO)')
+    :act.map(m=>th(m,m)).join('')+th('total','Total');
+  const head='<thead><tr>'+cols.map(([k,l])=>th(k,l)).join('')+mHead+'</tr></thead>';
+  const body=list.map(g=>'<tr>'+cols.map(([k])=>k==='bos'?`<td>${g.bos}</td>`:`<td>${esc(g[k]??'')}</td>`).join('')+
+    (wide
+      ?act.map(m=>`<td><b>${fmt(g.vals[m]||0)}</b></td><td>${g.soVals?fmt(g.soVals[m]||0):'—'}</td>`).join('')+
+       `<td><b>${fmt(g.total)}</b></td><td>${g.soVals?fmt(soValOf(g,'total')):'—'}</td>`
+      :act.map(m=>`<td><b>${fmt(g.vals[m]||0)}</b></td>`).join('')+`<td><b>${fmt(g.total)}</b></td>`)+
+    '</tr>').join('');
   const boMetricTotal=m=>boRows.reduce((s,r)=>s+(Number(r[m])||0),0);
   const soMetricTotal=m=>soRows.reduce((s,r)=>s+(Number(r[m])||0),0);
-  const foot=gby==='so'
-    ?'<tfoot><tr><td><b>Total</b></td><td><b>'+totalGroups+'</b></td>'+
-     act.map(m=>`<td><b>${fmt(boMetricTotal(m))}</b></td><td><b>${fmt(soMetricTotal(m))}</b></td>`).join('')+
-     `<td><b>${fmt(boRows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0))}</b></td>`+
-     `<td><b>${fmt(soRows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0))}</b></td></tr></tfoot>`
-    :'<tfoot><tr><td><b>Total</b></td><td><b>'+totalGroups+'</b></td>'+
-     act.map(m=>`<td><b>${fmt(boMetricTotal(m))}</b></td>`).join('')+
-     `<td><b>${fmt(boRows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0))}</b></td></tr></tfoot>`;
+  // Sum of every metric of a row, then over rows (the footer's 'Total' column).
+  const rowTotal=r=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0);
+  const boGrandTotal=boRows.reduce((s,r)=>s+rowTotal(r),0);
+  const soGrandTotal=soRows.reduce((s,r)=>s+rowTotal(r),0);
+  const foot='<tfoot><tr><td><b>Total</b></td>'+cols.slice(1).map(()=>'<td></td>').join('')+
+    (wide
+      ?act.map(m=>`<td><b>${fmt(boMetricTotal(m))}</b></td><td><b>${fmt(soMetricTotal(m))}</b></td>`).join('')+
+       `<td><b>${fmt(boGrandTotal)}</b></td>`+
+       `<td><b>${fmt(soGrandTotal)}</b></td>`
+      :act.map(m=>`<td><b>${fmt(boMetricTotal(m))}</b></td>`).join('')+
+       `<td><b>${fmt(boGrandTotal)}</b></td>`)+
+    '</tr></tfoot>';
   $('tbl').innerHTML=head+'<tbody>'+body+'</tbody>'+foot;
-  $('tblTitle').textContent=(gby==='so'?'SO-wise':'BO-wise')+' cumulative performance';
-  const skLabel=sk==='name'?(gby==='so'?'SO':'BO'):sk;
-  $('tblInfo').textContent=`Showing ${list.length} of ${totalGroups} ${gby==='so'?'SOs':'BOs'}`+
+  $('tblTitle').textContent=gm.title+' cumulative performance';
+  const skLabel=cols.some(([k,l])=>k===sk)?cols.find(([k,l])=>k===sk)[1]
+    :(sk.indexOf('so:')===0?sk.slice(3)+' (SO)':sk);
+  $('tblInfo').textContent=`Showing ${list.length} of ${totalGroups} ${gm.unit}`+
     (q!=='all'?` (${q} 10)`:'')+` • ${boRows.length} BO rows${soRows.length?` + ${soRows.length} SO rows`:''} • sorted by ${skLabel} ${sd>0?'▲':'▼'}`;
   $('printHead').innerHTML=`<h1 style="font-size:16px">BO Performance Dashboard</h1>`+
     `<div style="font-size:12px">Mode: ${esc($('mode').value)} • From: ${esc($('from').value?fmtDate($('from').value):'—')} • To: ${esc($('to').value?fmtDate($('to').value):'—')}`+
-    ` • BO filter: ${esc($('bo').value||'All')} • SO filter: ${esc($('so').value||'All')} • Group by: ${esc(gby)} • Data as of ${esc($('dataAsOf').textContent)}</div>`;
+    ` • BO filter: ${esc($('bo').value||'All')} • SO filter: ${esc($('so').value||'All')}`+
+    ` • Division: ${esc($('division').value||'All')} • Sub Division: ${esc($('subDivision').value||'All')}`+
+    ` • Group by: ${esc(gm.title)} • Data as of ${esc($('dataAsOf').textContent)}</div>`;
   let run={};const series={};act.forEach(m=>series[m]=[]);
   days.forEach(d=>{
     boRows.filter(r=>r.date===d).forEach(r=>act.forEach(m=>run[m]=(run[m]||0)+(Number(r[m])||0)));
@@ -489,34 +629,73 @@ function exportExcel(){
   if(!ROWS.length)return alert('Pehle data load karein.');
   const act=activeMetrics();
   const all=filtered();
-  const rows=all.filter(r=>r.kind!=='so'); // BO-wise pivot from BO rows only
+  const rows=all.filter(r=>r.kind!=='so'); // office-level pivot from BO rows only
+  const offMap=soOfficeMap();
+  // SO summary rows carry no division of their own; inherit it from their BO rows.
+  const dvOf=r=>r.kind==='so'?((offMap.get(soKey(r.so||r.bo))||{}).dv||''):r.dv||'';
+  const sdOf=r=>r.kind==='so'?((offMap.get(soKey(r.so||r.bo))||{}).sd||''):r.sd||'';
   const out=all.map(r=>{
-    const o={Date:fmtDate(r.date),Kind:r.kind||'bo',BO:r.bo,SO:r.so||'','SOL ID':r.sol||''};
+    const o={Date:fmtDate(r.date),Kind:r.kind||'bo',BO:r.bo,SO:r.so||'','SOL ID / BOCODE':r.sol||'',
+      Division:dvOf(r),'Sub Division':sdOf(r)};
     act.forEach(m=>o[m]=Number(r[m])||0);
     return o;
   });
-  // BO-wise pivot sheet mirroring the on-screen table: every master BO appears,
-  // with zeros when it opened no accounts in the filtered window.
-  const byBO={};
-  visibleBOMap(rows).forEach(m=>{byBO[m.name]={BO:m.name,SO:m.so||'',_t:0};});
+  // BO-wise pivot sheet mirroring the on-screen table: every office from the master
+  // sheet appears (keyed by BO code), with zeros when it opened no accounts.
+  const byId=new Map();
+  visibleOfficeMap(rows).forEach(m=>{
+    byId.set(m.id,{BO:m.name,'BO ID':m.id,SO:m.so||'',Division:m.dv||'','Sub Division':m.sd||'',_t:0});
+  });
   rows.forEach(r=>{
-    const o=byBO[r.bo]??(byBO[r.bo]={BO:r.bo,SO:r.so||'',_t:0});
+    const o=byId.get(r.id)??byId.set(r.id,{BO:r.bo,'BO ID':r.id,SO:r.so||'',Division:r.dv||'',
+      'Sub Division':r.sd||'',_t:0}).get(r.id);
+    if(!o.BO&&r.bo)o.BO=r.bo;
     if(!o.SO&&r.so)o.SO=r.so;
+    if(!o.Division&&r.dv)o.Division=r.dv;
+    if(!o['Sub Division']&&r.sd)o['Sub Division']=r.sd;
     act.forEach(m=>{const v=Number(r[m])||0;o[m]=(o[m]||0)+v;o._t+=v;});
   });
-  const piv=Object.values(byBO).sort((a,b)=>a.BO.localeCompare(b.BO)).map(o=>{
-    const p={BO:o.BO,SO:o.SO};
-    act.forEach(m=>p[m]=o[m]||0);
-    p.Total=o._t;
-    return p;
-  });
-  const tot={BO:'Total',SO:''};
-  act.forEach(m=>tot[m]=rows.reduce((s,r)=>s+(Number(r[m])||0),0));
-  tot.Total=rows.reduce((s,r)=>act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0);
+  const nameOf=o=>String(o.BO||o['BO ID']||'').trim();
+  const piv=[...byId.values()].sort((a,b)=>nameOf(a).localeCompare(nameOf(b))||String(a['BO ID']).localeCompare(String(b['BO ID'])))
+    .map(o=>{
+      const p={BO:nameOf(o),'BO ID':o['BO ID'],SO:o.SO,Division:o.Division,'Sub Division':o['Sub Division']};
+      act.forEach(m=>p[m]=o[m]||0);
+      p.Total=o._t;
+      return p;
+    });
+  const grand=m=>rows.reduce((s,r)=>s+(Number(r[m])||0),0);
+  const grandTotal=rows.reduce((s,r)=>s+act.reduce((ss,m)=>ss+(Number(r[m])||0),0),0);
+  const tot={BO:'Total','BO ID':'','SO':'',Division:'','Sub Division':''};
+  act.forEach(m=>tot[m]=grand(m));
+  tot.Total=grandTotal;
   piv.push(tot);
+  // Roll-ups: one sheet per grouping level, offices summed within each group.
+  const rollUp=keyOf=>{
+    const g=new Map();
+    rows.forEach(r=>{
+      const k=keyOf(r)||'(unassigned)';
+      let o=g.get(k);
+      if(!o){o={name:k,bos:new Set(),_t:0};g.set(k,o);}
+      o.bos.add(r.id);
+      act.forEach(m=>{const v=Number(r[m])||0;o[m]=(o[m]||0)+v;o._t+=v;});
+    });
+    const list=[...g.values()].sort((a,b)=>b._t-a._t).map(o=>{
+      const p={Group:o.name,BOs:o.bos.size};
+      act.forEach(m=>p[m]=o[m]||0);
+      p.Total=o._t;
+      return p;
+    });
+    const t={Group:'Total',BOs:new Set(rows.map(r=>r.id)).size};
+    act.forEach(m=>t[m]=grand(m));
+    t.Total=grandTotal;
+    list.push(t);
+    return list;
+  };
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Filtered Data');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(piv),'BO-wise');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rollUp(r=>dvOf(r))),'Division-wise');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rollUp(r=>sdOf(r))),'SubDivision-wise');
   XLSX.writeFile(wb,`BO_dashboard_${fmtDate($('to').value)||'export'}.xlsx`);
 }
 const drop=$('drop');drop.onclick=()=>$('file').click();
@@ -534,6 +713,10 @@ $('to').addEventListener('input',onFilterInput);
 $('to').addEventListener('change',onFilterInput);
 $('bo').addEventListener('input',onFilterInput);
 $('so').addEventListener('input',onFilterInput);
+// Division drives the sub-division list, so changing it re-fills the second filter
+// (setOfficeOptions keeps a still-valid selection) before re-rendering.
+$('division').addEventListener('change',()=>{setOfficeOptions();render();});
+$('subDivision').addEventListener('change',onFilterInput);
 $('groupBy').addEventListener('change',render);
 $('quick').addEventListener('change',render);
 $('btnExcel').addEventListener('click',exportExcel);

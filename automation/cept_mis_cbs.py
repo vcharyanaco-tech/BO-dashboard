@@ -609,29 +609,63 @@ def merge_kpi_files(metric_key):
 
 SO_COL_RE = re.compile(r"^so\s*name$|^sub\s*office|^so$", re.I)
 SOL_COL_RE = re.compile(r"sol\s*id|bocode|bo\s*code", re.I)
-SO_NAME_RE = re.compile(r"\bs\.?\s?o\.?\s*$", re.I)
+# Same office-name and office-code patterns as app.js, so the snapshot and the
+# dashboard classify the interleaved office summary rows identically.
+SO_NAME_RE = re.compile(
+    r"\b(s\.?\s?o\.?|h\.?\s?o\.?|p\.?\s?o\.?|g\.?\s?p\.?\s?o\.?|head\s*office|sub\s*office)\b", re.I)
+OFFICE_CODE_RE = re.compile(r"^\d{6,}$")  # SO/HO codes are 8 digits; BO codes are 5 alphanumeric
+BO_SUFFIX_RE = re.compile(r"\s*B\.?O\.?$", re.I)
+
+
+def norm_bo_name(name):
+    """Report/master BO name in its canonical comparison form (mirrors app.js normName)."""
+    s = " ".join(str(name or "").split())
+    return BO_SUFFIX_RE.sub(" BO", s).strip().lower()
 
 
 def load_bo_master():
-    """BO names from bo_master.js (lowercased) - so a real BO is never dropped as an S.O row."""
+    """Office identity from bo_master.js: codes (SOL_ID_BO_ID) and names.
+
+    The code is the key - the master sheet has 2,196 offices but only 2,094 distinct
+    names, so 82 names belong to two offices each and a name alone cannot identify one.
+    """
     try:
         txt = (ROOT / "bo_master.js").read_text(encoding="utf-8")
         m = re.search(r"BO_MASTER\s*=\s*(\[.*\])\s*;?\s*$", txt, re.S)
         if not m:
-            return set()
-        return {str(b).strip().lower() for b in json.loads(m.group(1))}
+            return set(), set()
+        codes, names = set(), set()
+        for o in json.loads(m.group(1)):
+            code = str(o.get("code") or "").strip().upper()
+            if code:
+                codes.add(code)
+            name = norm_bo_name(o.get("name"))
+            if name:
+                names.add(name)
+        return codes, names
     except Exception as e:
         log(f"bo_master: could not load master list ({e}) - S.O filter falls back to name pattern only")
-        return set()
+        return set(), set()
 
 
-BO_MASTER_LOWER = load_bo_master()
+BO_MASTER_CODES, BO_MASTER_NAMES = load_bo_master()
 
 
-def is_so_row(bo):
-    """True for S.O summary rows interleaved in the CEPT grid ('Adhoya S.O', 'Achina SO')."""
-    b = str(bo or "").strip()
-    return bool(SO_NAME_RE.search(b)) and b.lower() not in BO_MASTER_LOWER
+def is_master_office(bo, sol=""):
+    """True when the row is a BO listed in the master sheet - code first, then name."""
+    code = str(sol or "").strip().upper()
+    if code and code in BO_MASTER_CODES:
+        return True
+    return norm_bo_name(bo) in BO_MASTER_NAMES
+
+
+def is_so_row(bo, sol=""):
+    """True for the office summary rows interleaved in the CEPT grid ('Adhoya S.O',
+    'Jamalpur SO Bhiwani', 'Ambala G.P.O.'): never a master BO, and either an
+    office-style name or an all-digit office code."""
+    if is_master_office(bo, sol):
+        return False
+    return bool(SO_NAME_RE.search(str(bo or "").strip())) or bool(OFFICE_CODE_RE.match(str(sol or "").strip().upper()))
 
 
 def _read_merged(metric_key):
@@ -695,10 +729,10 @@ def _read_merged(metric_key):
                     pass
         so_cell = cells[so_pos] if (so_pos is not None and so_pos < len(cells)) else ""
         sol_cell = cells[sol_pos] if (sol_pos is not None and sol_pos < len(cells)) else ""
-        # Office summary rows (S.O/H.O/G.P.O: blank SO Name cell or S.O-style name,
-        # and not a known BO from bo_master.js) carry SO-LEVEL figures - keep them
+        # Office summary rows (S.O/H.O/G.P.O: blank SO Name cell or an office-style
+        # name/code, and not a known master BO) carry SO-LEVEL figures - keep them
         # separate as kind='so' so the dashboard never mixes them into BO sums.
-        office = is_so_row(bo) or (so_cell == "" and bo.lower() not in BO_MASTER_LOWER)
+        office = is_so_row(bo, sol_cell) or (so_cell == "" and not is_master_office(bo, sol_cell))
         kind = "so" if office else "bo"
         entry = out.setdefault(bo, {"sol": "", "so": "", "value": 0.0, "kind": kind})
         entry["value"] += value
