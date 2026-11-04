@@ -49,16 +49,13 @@ jobs:
         # so a scheduled/pushed run behaves exactly as before. A dispatch can
         # re-fetch one specific day (start = end) to repair history.
         #
-        # timeout: one page can wedge (04-11 lost 3 hours on Gurgaon Division with
-        # no log line at all) and the only thing that ends such a run is the job
-        # cap, which wastes the runner minutes and hides the failure behind
-        # "cancelled". 40 minutes was ~2x the fastest completed sweep, but it is
-        # also shorter than a wedge plus a sweep: 04-11 14:52 ran 6/6 sub divisions
-        # in the first 90 seconds, then lost 39 minutes to one silent page and hit
-        # the cap with nothing merged - the merge happens at the end, so a killed
-        # run commits no data at all. 100 minutes = one wedge (~40 min) plus a full
-        # sweep (~20 min) with room to spare, still under the 180-minute job cap,
-        # and a timeout here fails the step so the debug artifact step still runs.
+        # timeout: a last-resort backstop. The script now runs one bounded child per
+        # division (DIVISION_BUDGET_S), so a wedged MIS page costs one division instead
+        # of the whole run - 04-11 lost 39 minutes and then a full 100-minute run to a
+        # single silent page (Bhiwani/Mohindergarh), and because the merge happens at the
+        # end, a killed run committed no data at all. Worst case for the supervisor is
+        # 300s (division labels) + 9 x 600s = 95 minutes, so 100 minutes still bounds the
+        # job, fails the step, and lets the debug artifact step run.
         env:
           REPORT_START_DATE: ${{ github.event.inputs.report_start_date }}
           REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}

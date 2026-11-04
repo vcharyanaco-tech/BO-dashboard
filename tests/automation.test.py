@@ -8,6 +8,8 @@ per-BO numbers: offices that share a name (the master sheet has 82 such names)
 must stay separate rows, and a run that downloaded nothing must not file the
 previous run's figures under a new date.
 """
+import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -106,6 +108,99 @@ with tempfile.TemporaryDirectory() as tmp:
     check("row_identity falls back to the canonical name",
           cbs.row_identity("bo", "Balu bo", "") == cbs.norm_bo_name("Balu B.O"))
     check("office rows never collide with BO rows", cbs.row_identity("so", "Balu B.O", "J6645").startswith("so:"))
+
+# supervisor: one child process per division, each with a hard time budget, so a
+# wedged MIS page costs one division instead of the whole day
+divs = cbs.master_divisions()
+check("master_divisions reads the division list offline (no browser)",
+      len(divs) == 9 and "Ambala Division" in divs and "Sonipat Division" in divs, f"{divs}")
+
+PAGE_DIVS = ["Ambala Division", "Bhiwani Division", "Faridabad Division", "Gurgaon Division",
+             "Hissar Division", "Karnal Division", "Kurukshetra Division", "Rohtak Division",
+             "Sonepat Division"]  # MIS spells it "Sonepat", the master sheet "Sonipat"
+
+
+class FakeChild:
+    """Children stand-in: the lister records labels, Bhiwani hangs, Rohtak exits badly."""
+
+    def __init__(self):
+        self.seen, self.listed = [], 0
+
+    def run(self, cmd, env, budget):
+        if env.get("CEPT_LIST") == "1":
+            self.listed += 1
+            cbs.DIVISIONS_FILE.write_text(json.dumps({"date": "2026-11-03",
+                                                      "divisions": PAGE_DIVS}), encoding="utf-8")
+            return 0, 20.0
+        div = env["REPORT_DIVISIONS"]
+        self.seen.append((div, env.get("CEPT_CHILD"), env.get("SKIP_MERGE")))
+        if div == "Bhiwani Division":
+            cbs.record_window("2026-11-03")  # a child dies mid-sweep, after resolving
+            return None, float(budget)       # killed at the budget
+        if div == "Rohtak Division":
+            return 1, 12.0
+        cbs.record_window("2026-11-03")
+        return 0, 30.0
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    child = FakeChild()
+    built = []
+    real = (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+            cbs.WINDOW_FILE, cbs.DIVISIONS_FILE)
+    cbs.run_bounded = child.run
+    cbs.build_outputs = lambda iso: built.append(iso)
+    cbs.part_files = lambda: []
+    cbs.EXPORT_DIR = Path(tmp)
+    cbs.WINDOW_FILE = Path(tmp) / "window.json"
+    cbs.DIVISIONS_FILE = Path(tmp) / "divisions.json"
+    try:
+        check("supervisor asks the page for its own division labels",
+              cbs.supervise_divisions() and child.listed == 1, f"listed {child.listed}")
+        check("supervisor sweeps every division", len(child.seen) == 9, f"{len(child.seen)} children")
+        check("the division names come from MIS, not the master sheet",
+              "Sonepat Division" in [d for d, _, _ in child.seen], f"{child.seen[:2]}")
+        check("every division runs as a download-only child",
+              all(mode == ("1", "1") for _, mode in [(d, (c, m)) for d, c, m in child.seen]),
+              f"{child.seen[:2]}")
+        check("a killed division still lets the day be built", built == ["2026-11-03"], f"{built}")
+    finally:
+        (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+         cbs.WINDOW_FILE, cbs.DIVISIONS_FILE) = real
+
+
+class DeadListChild(FakeChild):
+    """The page visit that reads the division labels never gets anywhere."""
+
+    def run(self, cmd, env, budget):
+        if env.get("CEPT_LIST") == "1":
+            return 1, 5.0
+        return super().run(cmd, env, budget)
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    child = DeadListChild()
+    real = (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+            cbs.WINDOW_FILE, cbs.DIVISIONS_FILE)
+    cbs.run_bounded = child.run
+    cbs.build_outputs = lambda iso: None
+    cbs.part_files = lambda: []
+    cbs.EXPORT_DIR = Path(tmp)
+    cbs.WINDOW_FILE = Path(tmp) / "window.json"
+    cbs.DIVISIONS_FILE = Path(tmp) / "never-written.json"
+    try:
+        check("a failed division-list visit falls back to the master sheet",
+              cbs.supervise_divisions() and "Sonipat Division" in [d for d, _, _ in child.seen],
+              f"{[d for d, _, _ in child.seen]}")
+    finally:
+        (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+         cbs.WINDOW_FILE, cbs.DIVISIONS_FILE) = real
+
+rc, secs = cbs.run_bounded([sys.executable, "-c", "import time; time.sleep(60)"], dict(os.environ), 2)
+check("run_bounded kills a child that overspends its budget", rc is None and secs < 15,
+      f"rc {rc}, {secs:.1f}s")
+rc, secs = cbs.run_bounded([sys.executable, "-c", "raise SystemExit(3)"], dict(os.environ), 30)
+check("run_bounded hands back the child's exit code", rc == 3, f"rc {rc}")
 
 # select_radio: Submit's postback is often still in flight when the radio is dispatched,
 # and an evaluate that lands mid-navigation used to end the whole sub division - the 03/11

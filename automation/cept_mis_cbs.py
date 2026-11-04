@@ -40,6 +40,8 @@ import sys
 import time
 import glob
 import json
+import signal
+import subprocess
 import traceback
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -55,6 +57,17 @@ DEBUG_DIR = ROOT / "debug"
 DATA_DIR.mkdir(exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 DEBUG_DIR.mkdir(exist_ok=True)
+
+# A division child records the report date it resolved here (debug/ is gitignored), so
+# the supervisor can build history/dashboard/manifest after the children are done.
+WINDOW_FILE = DEBUG_DIR / "window.json"
+DIVISIONS_FILE = DEBUG_DIR / "divisions.json"
+# Hard budget for one division's sweep. A MIS page can stop answering forever; the
+# budget turns that into one lost division instead of one lost day. Nine divisions at
+# 10 minutes still fits inside the run's own 100-minute cap.
+DIVISION_BUDGET_S = int(os.getenv("DIVISION_BUDGET_S", "600"))
+# Budget for the one page visit that reads MIS's own division labels.
+DIVISION_LIST_BUDGET_S = int(os.getenv("DIVISION_LIST_BUDGET_S", "300"))
 
 REPORT_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
 CIRCLE = os.getenv("REPORT_CIRCLE", "Haryana Circle")
@@ -975,8 +988,12 @@ def write_manifest(report_date_iso=None):
     return out
 
 
-def main():
-    merged_files = []
+def sweep_and_build():
+    """Open the report page, sweep every division/sub division, then build the outputs.
+
+    This is the whole job in one process. `SKIP_MERGE=1` stops it after the downloads -
+    that is how a division child leaves the merge/history work to the supervisor.
+    """
     report_iso = None
     launch_args = ["--no-sandbox", "--disable-dev-shm-usage"] if os.getenv("CI") else []
     with sync_playwright() as p:
@@ -1055,9 +1072,16 @@ def main():
             browser.close()
 
     if os.getenv("SKIP_MERGE", "") == "1":
+        record_window(report_iso)
         log("SKIP_MERGE=1: merge + dashboard build left to the caller")
         return
 
+    build_outputs(report_iso)
+
+
+def build_outputs(report_iso):
+    """Merge the downloaded per-sub-division files and write the three output files."""
+    merged_files = []
     for _, metric_key, _ in METRICS:
         out = merge_kpi_files(metric_key)
         if out:
@@ -1080,6 +1104,181 @@ def main():
     log(f"Dashboard data: {dashboard_file}")
     log(f"History: {history_file}")
     log(f"Manifest: {manifest_file}")
+
+
+def record_window(report_iso):
+    """Say which report date this run resolved, for whoever merges afterwards."""
+    if not report_iso:
+        return
+    try:
+        WINDOW_FILE.write_text(json.dumps({"date": report_iso}), encoding="utf-8")
+    except Exception as e:
+        log(f"window: could not record {report_iso}: {e}")
+
+
+def read_window():
+    try:
+        return json.loads(WINDOW_FILE.read_text(encoding="utf-8")).get("date")
+    except Exception:
+        return None
+
+
+def master_divisions():
+    """Division names straight out of bo_master.js.
+
+    No browser involved, so the supervisor can plan the sweep without ever touching the
+    page that hangs.
+    """
+    try:
+        raw = (ROOT / "bo_master.js").read_text(encoding="utf-8").split("=", 1)[1]
+        offices = json.loads(raw.strip().rstrip(";"))
+    except Exception as e:
+        log(f"supervisor: bo_master.js unreadable ({e})")
+        return []
+    seen, out = set(), []
+    for o in offices:
+        d = str(o.get("division") or "").strip()
+        if d and d.lower() not in seen:
+            seen.add(d.lower())
+            out.append(d)
+    return out
+
+
+def part_files():
+    """Per-sub-division downloads on disk; the merged file is not one of them."""
+    found = []
+    for _, key, _ in METRICS:
+        found += [f for f in glob.glob(str(EXPORT_DIR / f"{key}_*.xlsx"))
+                  if not f.endswith(f"{key}_merged.xlsx")]
+    return sorted(found)
+
+
+def run_bounded(cmd, env, budget_s):
+    """Run cmd in its own process group; kill the whole tree if it outlives the budget."""
+    proc = subprocess.Popen(cmd, env=env, cwd=str(ROOT), start_new_session=True)
+    started = time.time()
+    try:
+        return proc.wait(timeout=budget_s), time.time() - started
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except Exception:
+            proc.kill()
+        proc.wait()
+        return None, time.time() - started
+
+
+def describe_divisions():
+    """One bounded page visit that records MIS's own division labels and report date.
+
+    The labels have to match what `select_option()` is given, and MIS does not always
+    spell them the way the master sheet does (page "Sonepat Division", master
+    "Sonipat Division"), so the supervisor asks the page rather than guessing.
+    """
+    out = {"date": None, "divisions": []}
+    launch_args = ["--no-sandbox", "--disable-dev-shm-usage"] if os.getenv("CI") else []
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, args=launch_args)
+        page = browser.new_page(accept_downloads=True)
+        page.set_default_timeout(25000)
+        page.set_default_navigation_timeout(45000)
+        try:
+            open_page(page)
+            updated, label = read_updated_label(page)
+            start, end = resolve_window(updated)
+            setup_filters(page, (start.strftime(DATE_FMT), end.strftime(DATE_FMT)))
+            out = {"date": end.isoformat(), "divisions": options_of(page, DIV_SEL)}
+            log(f"divisions: page says {out['divisions']} for {out['date']}")
+        except Exception as e:
+            save_debug(page, "division_list_failed")
+            log(f"divisions: could not read the page's list ({e})")
+        finally:
+            browser.close()
+    try:
+        DIVISIONS_FILE.write_text(json.dumps(out), encoding="utf-8")
+    except Exception as e:
+        log(f"divisions: could not write {DIVISIONS_FILE}: {e}")
+    return out
+
+
+def read_divisions():
+    try:
+        data = json.loads(DIVISIONS_FILE.read_text(encoding="utf-8"))
+        return list(data.get("divisions") or []), data.get("date")
+    except Exception:
+        return [], None
+
+
+def supervise_divisions():
+    """One child process per division, each with a hard time budget.
+
+    A wedged MIS page stops the sweep dead: `page.evaluate()` has no timeout, so a
+    blocked call never returns - 04-11 lost 39 minutes and then a full 100-minute run
+    on Bhiwani/Mohindergarh, and because the merge happens at the end of the script,
+    a killed run commits no data at all. Splitting the sweep by division bounds one
+    hang to one division: the others still download, and whatever survived gets merged.
+    """
+    script = str(Path(__file__).resolve())
+    for stale in (DIVISIONS_FILE, WINDOW_FILE):  # only this run may report either
+        try:
+            stale.unlink()
+        except Exception:
+            pass
+    env = os.environ.copy()
+    env.update({"CEPT_CHILD": "1", "CEPT_LIST": "1"})
+    run_bounded([sys.executable, "-u", script], env, DIVISION_LIST_BUDGET_S)
+    page_divisions, page_date = read_divisions()
+    divisions = page_divisions or master_divisions()
+    only = [d.strip().lower() for d in os.getenv("REPORT_DIVISIONS", "").split(",") if d.strip()]
+    if only:  # an operator asked for specific divisions - honour it, one child each
+        divisions = [d for d in divisions if any(o in d.lower() for o in only)]
+        log(f"supervisor: REPORT_DIVISIONS -> {divisions}")
+    if not divisions:
+        return False
+    if not page_divisions:
+        log(f"supervisor: falling back to bo_master.js labels {divisions} - MIS may spell "
+            f"a division differently and that division will be skipped")
+    log(f"supervisor: {len(divisions)} divisions, {DIVISION_BUDGET_S}s budget each "
+        f"(override with DIVISION_BUDGET_S)")
+    killed, failed = [], []
+    for div in divisions:
+        env = os.environ.copy()
+        env.update({"CEPT_CHILD": "1", "SKIP_MERGE": "1", "REPORT_DIVISIONS": div})
+        rc, secs = run_bounded([sys.executable, "-u", script], env, DIVISION_BUDGET_S)
+        if rc is None:
+            killed.append(div)
+            log(f"supervisor: {div} hung past {DIVISION_BUDGET_S}s - killed, keeping "
+                f"whatever it downloaded first")
+        elif rc != 0:
+            failed.append(div)
+            log(f"supervisor: {div} exited {rc} after {secs:.0f}s")
+        else:
+            log(f"supervisor: {div} done in {secs:.0f}s")
+    clean = len(divisions) - len(killed) - len(failed)
+    log(f"supervisor: {clean}/{len(divisions)} clean, {len(killed)} killed, "
+        f"{len(failed)} failed, {len(part_files())} part file(s) on disk")
+    if killed or failed:
+        log(f"supervisor: no data from {', '.join(killed + failed)} this run")
+    report_iso = read_window() or page_date
+    if not report_iso:
+        sys.exit("supervisor: no division child recorded a report date - nothing was "
+                 "downloaded, so history/dashboard/manifest stay as they are.")
+    build_outputs(report_iso)
+    return True
+
+
+def main():
+    """Divisions run as separate children by default; CEPT_INLINE=1 keeps the old
+    single-process sweep, CEPT_LIST=1 only records the page's division labels, and a
+    division child runs the sweep without building."""
+    if os.getenv("CEPT_LIST") == "1":
+        return describe_divisions()
+    if os.getenv("CEPT_CHILD") == "1" or os.getenv("CEPT_INLINE") == "1":
+        return sweep_and_build()
+    if supervise_divisions():
+        return
+    log("supervisor: no division list - sweeping in this process instead")
+    return sweep_and_build()
 
 
 if __name__ == "__main__":

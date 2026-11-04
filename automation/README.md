@@ -95,6 +95,32 @@ against 431 and ~250 master offices), i.e. it silently drops most offices. The o
 "same rows" note here was wrong. Sub-division level is what `cept-mis.yml` runs, and a
 completed sweep takes ~20-25 minutes.
 
+## Ek division = ek process (supervisor)
+
+`main()` ab default supervisor hai: pehle ek bounded page visit (`CEPT_LIST=1`) se MIS ke
+apne division labels padhe jaate hain (`debug/divisions.json`), phir **har division ke liye
+alag child process** chalta hai (`CEPT_CHILD=1 SKIP_MERGE=1 REPORT_DIVISIONS=<division>`)
+jise `DIVISION_BUDGET_S` (default 600s) ka hard budget milta hai. Budget paar kiya to
+process group SIGKILL se mara jata hai, bache hue downloads disk par reh jaate hain, aur
+supervisor aage ki divisions chala kar jo mila use merge/build karta hai.
+
+Kyun: `page.evaluate()` ka koi timeout nahi hota, isliye ek wedged MIS page poore sweep ko
+rok deta hai — 04-11 ko Bhiwani/Mohindergarh ne 39 minute aur phir poora 100-minute run
+kha liya, aur kyunki merge script ke aakh me hota hai, killed run **kuch commit nahi karta
+tha**. Ab ek wedged division ka matlab ek division ka data gaya, poora din nahi. Doosra
+faayda: sanity check ab ~90% rows wala din pass karta hai (50% se kam loss), to dashboard
+missing division ke saath bhi update hota hai bajaye pure din ke chhoot jaane ke.
+
+- `debug/divisions.json` / `debug/window.json` gitignored hain (sirf run ke andar ka kaam).
+- Page labels zaroori hain: MIS "Sonepat Division" kehta hai, master sheet "Sonipat
+  Division" — isliye supervisor page se hi naam leta hai; page na de to master sheet par
+  fallback hota hai aur log me warning aati hai.
+- `CEPT_INLINE=1` purana single-process sweep wapas laata hai (debug ke liye).
+- `REPORT_DIVISIONS=rohtak,karnal` ab supervisor ki division list ko filter karta hai.
+- Locked in `tests/automation.test.py`: "supervisor asks the page for its own division
+  labels", "supervisor sweeps every division", "a killed division still lets the day be
+  built", "run_bounded kills a child that overspends its budget".
+
 ## Server errors
 
 Mis kabhi kabhar report page ki jagah ASP.NET ka "Server Error in '/' Application —
