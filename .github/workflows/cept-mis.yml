@@ -15,6 +15,15 @@ on:
     - cron: '30 12 * * *'
     - cron: '30 18 * * *'
   workflow_dispatch:
+    inputs:
+      report_start_date:
+        description: 'Report window start (DD-MM-YYYY). Blank = the day before the run'
+        required: false
+        default: ''
+      report_end_date:
+        description: 'Report window end (DD-MM-YYYY). Blank = the day before the run'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -36,6 +45,12 @@ jobs:
       - run: pip install -r automation/requirements.txt
       - run: playwright install --with-deps chromium
       - name: Run CEPT MIS automation
+        # Empty inputs fall through to the script's default window (yesterday),
+        # so a scheduled/pushed run behaves exactly as before. A dispatch can
+        # re-fetch one specific day (start = end) to repair history.
+        env:
+          REPORT_START_DATE: ${{ github.event.inputs.report_start_date }}
+          REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}
         run: python -u automation/cept_mis_cbs.py
       - name: Sanity-check merged exports before committing
         run: python -u automation/sanity_check.py

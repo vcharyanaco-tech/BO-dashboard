@@ -76,6 +76,13 @@ aage kabhi nahi**. Override karne ke liye:
 REPORT_START_DATE=01-10-2026 REPORT_END_DATE=30-10-2026 python automation/cept_mis_cbs.py
 ```
 
+Wahi window CI se bhi maang sakte hain: `cept-mis.yml` ke **Run workflow** me
+`report_start_date` / `report_end_date` (DD-MM-YYYY) inputs hain, jo usi step ke
+`REPORT_START_DATE` / `REPORT_END_DATE` env vars ban jate hain. Dono khali chhoden to
+ behaviour pehle jaisa — scheduled/push runs hamesha kal ki (UTC) single-day window
+lete hain, aur "Data Updated upto" se aage kabhi nahi. Ek din ki ghalti sudharne ke
+liye start = end karke dispatch karein; us date ki history rows replace ho jayengi.
+
 `REPORT_CIRCLE` (default `Haryana Circle`) aur `REPORT_REGION` (default
 `DivReportingCircle`) se cascade bhi override ho sakta hai.
 
