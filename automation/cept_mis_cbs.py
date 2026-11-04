@@ -62,12 +62,18 @@ DEBUG_DIR.mkdir(exist_ok=True)
 # the supervisor can build history/dashboard/manifest after the children are done.
 WINDOW_FILE = DEBUG_DIR / "window.json"
 DIVISIONS_FILE = DEBUG_DIR / "divisions.json"
-# Hard budget for one division's sweep. A MIS page can stop answering forever; the
-# budget turns that into one lost division instead of one lost day. Nine divisions at
-# 10 minutes still fits inside the run's own 100-minute cap.
+# Hard budget for one division's sweep, used only when the page would not tell us its
+# sub-division list and a whole division has to go through one child.
 DIVISION_BUDGET_S = int(os.getenv("DIVISION_BUDGET_S", "600"))
-# Budget for the one page visit that reads MIS's own division labels.
-DIVISION_LIST_BUDGET_S = int(os.getenv("DIVISION_LIST_BUDGET_S", "300"))
+# Budget for the one page visit that reads MIS's own division labels and, for each
+# division, its sub division labels - nine postbacks, so it needs more room than one.
+DIVISION_LIST_BUDGET_S = int(os.getenv("DIVISION_LIST_BUDGET_S", "420"))
+# Budget for one sub-division - the real unit of work. On 04-11 a single sub-division
+# (Bhiwani/Mohindergarh) blocked `page.evaluate()` forever, and because the whole
+# division ran in one process, Mohindergarh's hang took its other 4 sub-divisions down
+# with it: 600s spent, zero rows. One child per sub-division bounds the damage to the
+# one sub-division that is actually broken.
+SUB_BUDGET_S = int(os.getenv("SUB_BUDGET_S", "180"))
 
 REPORT_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
 CIRCLE = os.getenv("REPORT_CIRCLE", "Haryana Circle")
@@ -992,7 +998,8 @@ def sweep_and_build():
     """Open the report page, sweep every division/sub division, then build the outputs.
 
     This is the whole job in one process. `SKIP_MERGE=1` stops it after the downloads -
-    that is how a division child leaves the merge/history work to the supervisor.
+    that is how a child leaves the merge/history work to the supervisor, and
+    `REPORT_SUBDIVISIONS` narrows it to a single sub division.
     """
     report_iso = None
     launch_args = ["--no-sandbox", "--disable-dev-shm-usage"] if os.getenv("CI") else []
@@ -1039,6 +1046,14 @@ def sweep_and_build():
                 else:
                     subs = options_of(page, SUB_SEL)
                     log(f"{div}: {len(subs)} sub divisions")
+                want_sub = [s.strip().lower() for s in os.getenv("REPORT_SUBDIVISIONS", "").split(",")
+                            if s.strip()]
+                if want_sub:  # a sub-division child: exactly one sub, nothing else
+                    subs = [s for s in subs if any(w in s.lower() for w in want_sub)]
+                    log(f"REPORT_SUBDIVISIONS filter -> {subs}")
+                    if not subs:
+                        log(f"{div}: none of {want_sub} matched the page's {options_of(page, SUB_SEL)} "
+                            f"- this sub division is not covered this run")
                 for sub in subs:
                     try:
                         if sub != "All":
@@ -1169,13 +1184,14 @@ def run_bounded(cmd, env, budget_s):
 
 
 def describe_divisions():
-    """One bounded page visit that records MIS's own division labels and report date.
+    """One bounded page visit that records MIS's own division / sub division labels.
 
     The labels have to match what `select_option()` is given, and MIS does not always
     spell them the way the master sheet does (page "Sonepat Division", master
-    "Sonipat Division"), so the supervisor asks the page rather than guessing.
+    "Sonipat Division"), so the supervisor asks the page rather than guessing. The plan
+    it writes is per sub-division, which is the unit the sweep then runs as children.
     """
-    out = {"date": None, "divisions": []}
+    out = {"date": None, "divisions": [], "subs": {}}
     launch_args = ["--no-sandbox", "--disable-dev-shm-usage"] if os.getenv("CI") else []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=launch_args)
@@ -1186,37 +1202,74 @@ def describe_divisions():
             open_page(page)
             updated, label = read_updated_label(page)
             start, end = resolve_window(updated)
-            setup_filters(page, (start.strftime(DATE_FMT), end.strftime(DATE_FMT)))
-            out = {"date": end.isoformat(), "divisions": options_of(page, DIV_SEL)}
+            window = (start.strftime(DATE_FMT), end.strftime(DATE_FMT))
+            setup_filters(page, window)
+            out["date"] = end.isoformat()
+            out["divisions"] = options_of(page, DIV_SEL)
+            record_plan(out)
             log(f"divisions: page says {out['divisions']} for {out['date']}")
+            for div in out["divisions"]:
+                try:
+                    page.select_option(DIV_SEL, label=div, timeout=60000)
+                    wait_for_subdivision(page, timeout=60000)
+                    out["subs"][div] = options_of(page, SUB_SEL)
+                except Exception as e:
+                    log(f"divisions: {div} gave no sub division list ({e})")
+                record_plan(out)  # a kill mid-visit must not lose the divisions already read
         except Exception as e:
             save_debug(page, "division_list_failed")
             log(f"divisions: could not read the page's list ({e})")
         finally:
             browser.close()
+    record_plan(out)
+    total = sum(len(v) for v in out["subs"].values())
+    log(f"divisions: planned {total} sub division(s) across {len(out['subs'])} division(s)")
+    return out
+
+
+def record_plan(out):
     try:
         DIVISIONS_FILE.write_text(json.dumps(out), encoding="utf-8")
     except Exception as e:
         log(f"divisions: could not write {DIVISIONS_FILE}: {e}")
-    return out
 
 
 def read_divisions():
     try:
         data = json.loads(DIVISIONS_FILE.read_text(encoding="utf-8"))
-        return list(data.get("divisions") or []), data.get("date")
+        return list(data.get("divisions") or []), data.get("date"), dict(data.get("subs") or {})
     except Exception:
-        return [], None
+        return [], None, {}
+
+
+def part_file(metric_key, div, sub):
+    """The download a child is supposed to leave behind for one division / sub division."""
+    return EXPORT_DIR / f"{metric_key}_{norm(div)[:40]}_{norm(sub)[:40]}.xlsx"
+
+
+def got_data(div, sub):
+    """True when some KPI child actually filed a non-empty workbook for this pair."""
+    return any(f.exists() and f.stat().st_size > 0 for f in
+               (part_file(key, div, sub) for _, key, _ in METRICS))
+
+
+def division_has_data(div):
+    """True when any download on disk belongs to this division (its name carries the
+    normalised division label), so a partial division is not reported as absent."""
+    stem = norm(div)[:40]
+    return any(stem in Path(f).name for f in part_files())
 
 
 def supervise_divisions():
-    """One child process per division, each with a hard time budget.
+    """One child process per sub division, each with a hard time budget.
 
     A wedged MIS page stops the sweep dead: `page.evaluate()` has no timeout, so a
-    blocked call never returns - 04-11 lost 39 minutes and then a full 100-minute run
-    on Bhiwani/Mohindergarh, and because the merge happens at the end of the script,
-    a killed run commits no data at all. Splitting the sweep by division bounds one
-    hang to one division: the others still download, and whatever survived gets merged.
+    blocked call never returns. Splitting the sweep by division (04-11, commit 1029207)
+    already kept the other divisions alive, but one hang still cost a whole division -
+    Bhiwani/Mohindergarh ate its 600s and took four healthy sub divisions down with it,
+    and Gurgaon/Narnaul did the same after two good downloads. The sub division is the
+    real unit of work, so that is what gets a process and a budget: a hang now costs the
+    one sub division that is broken, and everything else still gets merged.
     """
     script = str(Path(__file__).resolve())
     for stale in (DIVISIONS_FILE, WINDOW_FILE):  # only this run may report either
@@ -1227,10 +1280,10 @@ def supervise_divisions():
     env = os.environ.copy()
     env.update({"CEPT_CHILD": "1", "CEPT_LIST": "1"})
     run_bounded([sys.executable, "-u", script], env, DIVISION_LIST_BUDGET_S)
-    page_divisions, page_date = read_divisions()
+    page_divisions, page_date, page_subs = read_divisions()
     divisions = page_divisions or master_divisions()
     only = [d.strip().lower() for d in os.getenv("REPORT_DIVISIONS", "").split(",") if d.strip()]
-    if only:  # an operator asked for specific divisions - honour it, one child each
+    if only:  # an operator asked for specific divisions - honour it
         divisions = [d for d in divisions if any(o in d.lower() for o in only)]
         log(f"supervisor: REPORT_DIVISIONS -> {divisions}")
     if not divisions:
@@ -1238,39 +1291,61 @@ def supervise_divisions():
     if not page_divisions:
         log(f"supervisor: falling back to bo_master.js labels {divisions} - MIS may spell "
             f"a division differently and that division will be skipped")
-    log(f"supervisor: {len(divisions)} divisions, {DIVISION_BUDGET_S}s budget each "
-        f"(override with DIVISION_BUDGET_S)")
-    killed, failed = [], []
+    plan, whole = [], []
     for div in divisions:
+        subs = page_subs.get(div) or []
+        if subs:
+            plan += [(div, s) for s in subs]
+        else:
+            whole.append(div)  # no sub list for it - let one child sweep the division
+            plan.append((div, None))
+    plan_names = [f"{div} / {sub}" if sub else div for div, sub in plan]
+    worst = SUB_BUDGET_S * (len(plan) - len(whole)) + DIVISION_BUDGET_S * len(whole)
+    log(f"supervisor: {len(plan)} child(ren) - {len(plan) - len(whole)} sub divisions at "
+        f"{SUB_BUDGET_S}s, {len(whole)} whole divisions at {DIVISION_BUDGET_S}s "
+        f"(worst case {worst // 60} min)")
+    if whole:
+        log(f"supervisor: no sub division list for {', '.join(whole)} - running those as one child")
+    killed, failed = [], []
+    for name, (div, sub) in zip(plan_names, plan):
         env = os.environ.copy()
         env.update({"CEPT_CHILD": "1", "SKIP_MERGE": "1", "REPORT_DIVISIONS": div})
-        rc, secs = run_bounded([sys.executable, "-u", script], env, DIVISION_BUDGET_S)
+        # a division-sized child gets an empty filter, so it still sweeps every sub
+        env["REPORT_SUBDIVISIONS"] = sub or ""
+        budget = SUB_BUDGET_S if sub else DIVISION_BUDGET_S
+        rc, secs = run_bounded([sys.executable, "-u", script], env, budget)
         if rc is None:
-            killed.append(div)
-            log(f"supervisor: {div} hung past {DIVISION_BUDGET_S}s - killed, keeping "
-                f"whatever it downloaded first")
+            killed.append(name)
+            log(f"supervisor: {name} hung past {budget}s - killed, keeping whatever it filed")
         elif rc != 0:
-            failed.append(div)
-            log(f"supervisor: {div} exited {rc} after {secs:.0f}s")
+            failed.append(name)
+            log(f"supervisor: {name} exited {rc} after {secs:.0f}s")
         else:
-            log(f"supervisor: {div} done in {secs:.0f}s")
-    clean = len(divisions) - len(killed) - len(failed)
-    log(f"supervisor: {clean}/{len(divisions)} clean, {len(killed)} killed, "
-        f"{len(failed)} failed, {len(part_files())} part file(s) on disk")
-    if killed or failed:
-        log(f"supervisor: no data from {', '.join(killed + failed)} this run")
+            log(f"supervisor: {name} done in {secs:.0f}s")
+    bad = set(killed) | set(failed)
+    empty = [name for name, (div, sub) in zip(plan_names, plan)
+             if sub and name not in bad and not got_data(div, sub)]
+    log(f"supervisor: {len(plan) - len(bad) - len(empty)}/{len(plan)} children filed data, "
+        f"{len(killed)} killed, {len(failed)} failed, {len(empty)} answered with nothing, "
+        f"{len(part_files())} part file(s) on disk")
+    for label, names in (("killed", killed), ("failed", failed), ("empty", empty)):
+        if names:
+            log(f"supervisor: {label} -> {', '.join(names)}")
+    missing = [d for d in divisions if not division_has_data(d)]
+    if missing:
+        log(f"supervisor: no rows from {', '.join(missing)} this run")
     report_iso = read_window() or page_date
     if not report_iso:
-        sys.exit("supervisor: no division child recorded a report date - nothing was "
-                 "downloaded, so history/dashboard/manifest stay as they are.")
+        sys.exit("supervisor: no child recorded a report date - nothing was downloaded, so "
+                 "history/dashboard/manifest stay as they are.")
     build_outputs(report_iso)
     return True
 
 
 def main():
-    """Divisions run as separate children by default; CEPT_INLINE=1 keeps the old
-    single-process sweep, CEPT_LIST=1 only records the page's division labels, and a
-    division child runs the sweep without building."""
+    """Sub divisions run as separate bounded children by default; CEPT_INLINE=1 keeps
+    the old single-process sweep, CEPT_LIST=1 only records the page's division / sub
+    division labels, and a child sweeps without building."""
     if os.getenv("CEPT_LIST") == "1":
         return describe_divisions()
     if os.getenv("CEPT_CHILD") == "1" or os.getenv("CEPT_INLINE") == "1":

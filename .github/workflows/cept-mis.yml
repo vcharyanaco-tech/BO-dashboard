@@ -49,17 +49,18 @@ jobs:
         # so a scheduled/pushed run behaves exactly as before. A dispatch can
         # re-fetch one specific day (start = end) to repair history.
         #
-        # timeout: a last-resort backstop. The script now runs one bounded child per
-        # division (DIVISION_BUDGET_S), so a wedged MIS page costs one division instead
-        # of the whole run - 04-11 lost 39 minutes and then a full 100-minute run to a
-        # single silent page (Bhiwani/Mohindergarh), and because the merge happens at the
-        # end, a killed run committed no data at all. Worst case for the supervisor is
-        # 300s (division labels) + 9 x 600s = 95 minutes, so 100 minutes still bounds the
-        # job, fails the step, and lets the debug artifact step run.
+        # timeout: a last-resort backstop. The script runs one bounded child per SUB
+        # DIVISION (SUB_BUDGET_S), so a wedged MIS page costs the one sub division that
+        # is broken instead of the whole run - 04-11 lost 39 minutes and then a full
+        # 100-minute run to a single silent page (Bhiwani/Mohindergarh), and splitting by
+        # division still lost three whole divisions to three hangs (409 of ~2,100 BO rows).
+        # Worst case: 420s (label visit) + 36 sub divisions x 180s = ~115 minutes, plus a
+        # few division-sized fallback children, so 140 minutes bounds the step and still
+        # leaves the sanity + debug-artifact steps room to run inside the 180-minute job.
         env:
           REPORT_START_DATE: ${{ github.event.inputs.report_start_date }}
           REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}
-        run: timeout --kill-after=60s 6000s python -u automation/cept_mis_cbs.py
+        run: timeout --kill-after=60s 8400s python -u automation/cept_mis_cbs.py
       - name: Sanity-check merged exports before committing
         run: python -u automation/sanity_check.py
       - name: Upload debug artifacts on failure

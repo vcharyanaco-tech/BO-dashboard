@@ -95,31 +95,45 @@ against 431 and ~250 master offices), i.e. it silently drops most offices. The o
 "same rows" note here was wrong. Sub-division level is what `cept-mis.yml` runs, and a
 completed sweep takes ~20-25 minutes.
 
-## Ek division = ek process (supervisor)
+## Ek sub division = ek process (supervisor)
 
 `main()` ab default supervisor hai: pehle ek bounded page visit (`CEPT_LIST=1`) se MIS ke
-apne division labels padhe jaate hain (`debug/divisions.json`), phir **har division ke liye
-alag child process** chalta hai (`CEPT_CHILD=1 SKIP_MERGE=1 REPORT_DIVISIONS=<division>`)
-jise `DIVISION_BUDGET_S` (default 600s) ka hard budget milta hai. Budget paar kiya to
-process group SIGKILL se mara jata hai, bache hue downloads disk par reh jaate hain, aur
-supervisor aage ki divisions chala kar jo mila use merge/build karta hai.
+apne division **aur sub division** labels padhe jaate hain (`debug/divisions.json`), phir
+**har sub division ke liye alag child process** chalta hai
+(`CEPT_CHILD=1 SKIP_MERGE=1 REPORT_DIVISIONS=<division> REPORT_SUBDIVISIONS=<sub>`) jise
+`SUB_BUDGET_S` (default 180s) ka hard budget milta hai. Budget paar kiya to process group
+SIGKILL se mara jata hai, bache hue downloads disk par reh jaate hain, aur supervisor
+baaki sub divisions chala kar jo mila use merge/build karta hai. jis division ka sub
+division list page na de (visit fail hui), wo ek poora division child ban kar chalta hai
+(`DIVISION_BUDGET_S`, default 600s) — aur log me ye clearly likha aata hai.
 
 Kyun: `page.evaluate()` ka koi timeout nahi hota, isliye ek wedged MIS page poore sweep ko
 rok deta hai — 04-11 ko Bhiwani/Mohindergarh ne 39 minute aur phir poora 100-minute run
 kha liya, aur kyunki merge script ke aakh me hota hai, killed run **kuch commit nahi karta
-tha**. Ab ek wedged division ka matlab ek division ka data gaya, poora din nahi. Doosra
-faayda: sanity check ab ~90% rows wala din pass karta hai (50% se kam loss), to dashboard
-missing division ke saath bhi update hota hai bajaye pure din ke chhoot jaane ke.
+tha**. Division-level splitting (commit 1029207) se din to bach gaya, par nuksan bada raha:
+ek hi hang ne Bhiwani ke 4 aur sub divisions aur Gurgaon ka Narnaul (2 download ho chuke
+the) sab kha liye — 42 me se 30 minute teen hangs par gaye aur din me sirf 409 of ~2,100
+BO rows aayi, jise sanity ne rok diya. Ab hang ka cost ek sub division hai.
+
+Aakh ke baad log se seedha pata chalta hai kaunsa bacha: `X/Y children filed data, N killed,
+M failed, K answered with nothing`, phir `killed -> ...`, `failed -> ...`, `empty -> ...`
+aur `no rows from <division>` (division tab, jab uska ek bhi sub division file na kare —
+_partial_ division missing nahi bolta).
 
 - `debug/divisions.json` / `debug/window.json` gitignored hain (sirf run ke andar ka kaam).
 - Page labels zaroori hain: MIS "Sonepat Division" kehta hai, master sheet "Sonipat
   Division" — isliye supervisor page se hi naam leta hai; page na de to master sheet par
   fallback hota hai aur log me warning aati hai.
 - `CEPT_INLINE=1` purana single-process sweep wapas laata hai (debug ke liye).
-- `REPORT_DIVISIONS=rohtak,karnal` ab supervisor ki division list ko filter karta hai.
-- Locked in `tests/automation.test.py`: "supervisor asks the page for its own division
-  labels", "supervisor sweeps every division", "a killed division still lets the day be
-  built", "run_bounded kills a child that overspends its budget".
+- `REPORT_DIVISIONS=rohtak,karnal` supervisor ki plan ko filter karta hai;
+  `REPORT_SUBDIVISIONS=<label>` child ko ek hi sub division par band karta hai.
+- Worst case time: 420s (label visit) + ~36 sub divisions × 180s ≈ 115 minute, isliye
+  workflow step `timeout 8400s` (140 minute) ke andar hai aur job 180 minute par.
+- Locked in `tests/automation.test.py`: "one child per sub division, not per division",
+  "the sub division labels come from MIS, not the master sheet", "a killed sub division
+  costs only that sub division", "a sub division that filed nothing is detected",
+  "with no sub division plan, one child sweeps a whole division",
+  "run_bounded kills a child that overspends its budget".
 
 ## Server errors
 

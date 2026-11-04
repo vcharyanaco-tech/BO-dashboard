@@ -109,8 +109,9 @@ with tempfile.TemporaryDirectory() as tmp:
           cbs.row_identity("bo", "Balu bo", "") == cbs.norm_bo_name("Balu B.O"))
     check("office rows never collide with BO rows", cbs.row_identity("so", "Balu B.O", "J6645").startswith("so:"))
 
-# supervisor: one child process per division, each with a hard time budget, so a
-# wedged MIS page costs one division instead of the whole day
+# supervisor: one bounded child process per SUB division, so a wedged MIS page costs
+# the one sub division that is broken instead of a whole division (and with it the
+# healthy sub divisions that shared its process)
 divs = cbs.master_divisions()
 check("master_divisions reads the division list offline (no browser)",
       len(divs) == 9 and "Ambala Division" in divs and "Sonipat Division" in divs, f"{divs}")
@@ -118,10 +119,23 @@ check("master_divisions reads the division list offline (no browser)",
 PAGE_DIVS = ["Ambala Division", "Bhiwani Division", "Faridabad Division", "Gurgaon Division",
              "Hissar Division", "Karnal Division", "Kurukshetra Division", "Rohtak Division",
              "Sonepat Division"]  # MIS spells it "Sonepat", the master sheet "Sonipat"
+PAGE_SUBS = {
+    "Ambala Division": ["Ambala Sub-Division", "Ambala City Sub- Division", "Panchkula Sub Division",
+                        "Yamuna Nagar Sub Division"],
+    "Bhiwani Division": ["Bhiwani Sub Division", "Mohindergarh Sub division", "Narnaul Sub Division"],
+    "Faridabad Division": ["Faridabad West Sub Division", "FARIDABAD EAST SUB DN"],
+    "Gurgaon Division": ["Gurgaon East Sub Division", "Rewari Sub Division"],
+    "Hissar Division": ["Hissar Sub Division", "Sirsa-I Sub division"],
+    "Karnal Division": ["Karnal East Sub Division"],
+    "Kurukshetra Division": ["Kaithal Sub Division"],
+    "Rohtak Division": ["Rohtak Sub Division", "Jhajjar Sub Division", "Bahadurgarh  sub division"],
+    "Sonepat Division": ["Sonipat Sub division", "Jind East Sub Division"],
+}
 
 
 class FakeChild:
-    """Children stand-in: the lister records labels, Bhiwani hangs, Rohtak exits badly."""
+    """The lister records MIS's labels; Mohindergarh hangs, Jhajjar exits badly, and
+    every other sub division files a workbook."""
 
     def __init__(self):
         self.seen, self.listed = [], 0
@@ -129,43 +143,58 @@ class FakeChild:
     def run(self, cmd, env, budget):
         if env.get("CEPT_LIST") == "1":
             self.listed += 1
-            cbs.DIVISIONS_FILE.write_text(json.dumps({"date": "2026-11-03",
-                                                      "divisions": PAGE_DIVS}), encoding="utf-8")
+            cbs.DIVISIONS_FILE.write_text(json.dumps({"date": "2026-11-03", "divisions": PAGE_DIVS,
+                                                      "subs": PAGE_SUBS}), encoding="utf-8")
             return 0, 20.0
-        div = env["REPORT_DIVISIONS"]
-        self.seen.append((div, env.get("CEPT_CHILD"), env.get("SKIP_MERGE")))
-        if div == "Bhiwani Division":
-            cbs.record_window("2026-11-03")  # a child dies mid-sweep, after resolving
+        div, sub = env["REPORT_DIVISIONS"], env.get("REPORT_SUBDIVISIONS")
+        self.seen.append((div, sub, env.get("CEPT_CHILD"), env.get("SKIP_MERGE"), budget))
+        if sub == "Mohindergarh Sub division":
+            cbs.record_window("2026-11-03")  # a child dies mid-sweep, after resolving the date
             return None, float(budget)       # killed at the budget
-        if div == "Rohtak Division":
-            return 1, 12.0
+        if sub == "Jhajjar Sub Division":
+            return 1, 5.0
         cbs.record_window("2026-11-03")
+        if sub:
+            cbs.part_file("accounts_opened", div, sub).write_bytes(b"not really an xlsx")
         return 0, 30.0
 
 
 with tempfile.TemporaryDirectory() as tmp:
     child = FakeChild()
     built = []
-    real = (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+    real = (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
             cbs.WINDOW_FILE, cbs.DIVISIONS_FILE)
     cbs.run_bounded = child.run
     cbs.build_outputs = lambda iso: built.append(iso)
-    cbs.part_files = lambda: []
     cbs.EXPORT_DIR = Path(tmp)
     cbs.WINDOW_FILE = Path(tmp) / "window.json"
     cbs.DIVISIONS_FILE = Path(tmp) / "divisions.json"
+    planned = sum(len(v) for v in PAGE_SUBS.values())
     try:
-        check("supervisor asks the page for its own division labels",
-              cbs.supervise_divisions() and child.listed == 1, f"listed {child.listed}")
-        check("supervisor sweeps every division", len(child.seen) == 9, f"{len(child.seen)} children")
-        check("the division names come from MIS, not the master sheet",
-              "Sonepat Division" in [d for d, _, _ in child.seen], f"{child.seen[:2]}")
-        check("every division runs as a download-only child",
-              all(mode == ("1", "1") for _, mode in [(d, (c, m)) for d, c, m in child.seen]),
-              f"{child.seen[:2]}")
-        check("a killed division still lets the day be built", built == ["2026-11-03"], f"{built}")
+        cbs.supervise_divisions()
+        check("supervisor asks the page for its own division + sub division labels",
+              child.listed == 1, f"listed {child.listed}")
+        check("one child per sub division, not per division",
+              len(child.seen) == planned, f"{len(child.seen)} of {planned}")
+        check("the sub division labels come from MIS, not the master sheet",
+              ("Rohtak Division", "Bahadurgarh  sub division") in [(d, s) for d, s, *_ in child.seen],
+              f"{[(d, s) for d, s, *_ in child.seen if d == 'Rohtak Division']}")
+        check("every sub division runs as a download-only child",
+              all(c == "1" and m == "1" for _, _, c, m, _ in child.seen), f"{child.seen[:2]}")
+        check("each sub division child gets its own budget",
+              all(b == cbs.SUB_BUDGET_S for *_, b in child.seen), f"{child.seen[:1]}")
+        check("a killed sub division costs only that sub division",
+              len(child.seen) == planned and cbs.got_data("Bhiwani Division", "Narnaul Sub Division"),
+              f"{len(child.seen)} children, Narnaul filed={cbs.got_data('Bhiwani Division', 'Narnaul Sub Division')}")
+        check("a sub division that filed nothing is detected",
+              not cbs.got_data("Bhiwani Division", "Mohindergarh Sub division")
+              and not cbs.got_data("Rohtak Division", "Jhajjar Sub Division"), "empty children")
+        check("the day is still built when a sub division dies", built == ["2026-11-03"], f"{built}")
+        check("a division with most of its sub divisions covered is not called missing",
+              cbs.division_has_data("Bhiwani Division")
+              and not cbs.division_has_data("Nowhere Division"), "partial division")
     finally:
-        (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+        (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
          cbs.WINDOW_FILE, cbs.DIVISIONS_FILE) = real
 
 
@@ -180,20 +209,24 @@ class DeadListChild(FakeChild):
 
 with tempfile.TemporaryDirectory() as tmp:
     child = DeadListChild()
-    real = (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+    real = (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
             cbs.WINDOW_FILE, cbs.DIVISIONS_FILE)
     cbs.run_bounded = child.run
     cbs.build_outputs = lambda iso: None
-    cbs.part_files = lambda: []
     cbs.EXPORT_DIR = Path(tmp)
     cbs.WINDOW_FILE = Path(tmp) / "window.json"
     cbs.DIVISIONS_FILE = Path(tmp) / "never-written.json"
     try:
+        cbs.supervise_divisions()
         check("a failed division-list visit falls back to the master sheet",
-              cbs.supervise_divisions() and "Sonipat Division" in [d for d, _, _ in child.seen],
-              f"{[d for d, _, _ in child.seen]}")
+              "Sonipat Division" in [d for d, _, *_ in child.seen],
+              f"{[d for d, _, *_ in child.seen]}")
+        check("with no sub division plan, one child sweeps a whole division",
+              len(child.seen) == 9 and all(not s for _, s, *_ in child.seen)
+              and all(b == cbs.DIVISION_BUDGET_S for *_, b in child.seen),
+              f"{[(d, s, b) for d, s, _, _, b in child.seen][:2]}")
     finally:
-        (cbs.run_bounded, cbs.build_outputs, cbs.part_files, cbs.EXPORT_DIR,
+        (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
          cbs.WINDOW_FILE, cbs.DIVISIONS_FILE) = real
 
 rc, secs = cbs.run_bounded([sys.executable, "-c", "import time; time.sleep(60)"], dict(os.environ), 2)
