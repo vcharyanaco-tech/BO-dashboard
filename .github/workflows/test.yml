@@ -2,7 +2,8 @@ name: Dashboard tests
 
 # Runs the dependency-free Node test suite (tests/dashboard.test.js — checks
 # app.js behavior plus repo files: index.html CSP/SRI, manifest.json,
-# history.csv) and a Python syntax check of the automation scripts.
+# history.csv), a Python syntax check of the automation scripts, and the
+# offline pipeline tests in tests/automation.test.py (no browser, no network).
 
 on:
   push:
@@ -35,3 +36,7 @@ jobs:
           python-version: '3.12'
       - name: Python syntax check
         run: python -m py_compile automation/*.py backfill_dashboard.py debug_merged_files.py
+      - name: Install automation dependencies
+        run: pip install --quiet pandas openpyxl
+      - name: Pipeline tests (offline, no browser)
+        run: python tests/automation.test.py
