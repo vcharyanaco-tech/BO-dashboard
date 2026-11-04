@@ -12,7 +12,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Agongh B.O,Nissing S.O,J6643,bo,Accounts Opened,10
 2026-10-31,Agroha SO,Agroha SO,12504701,so,Accounts Opened,30
 2026-10-31,Ahar B.O,Israna S.O,M0983,bo,Accounts Opened,27
-2026-10-31,Aharwan BO,Palwal SO,E7826,bo,Accounts Opened,33
+2026-10-31,Aharwan BO,Palwal SO,E7826,bo,Accounts Opened,12
+2026-10-31,Aharwan BO,Rattia SO,J6563,bo,Accounts Opened,21
 2026-10-31,Ahirka B.O,Jind H.O,F1503,bo,Accounts Opened,9
 2026-10-31,Ahlisadar BO,Fatehabad SO Fatehabad,A3414,bo,Accounts Opened,29
 2026-10-31,Ahmedpur BO,Sirsa HO,F9956,bo,Accounts Opened,21
@@ -39,7 +40,9 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Alewa S.O,Alewa S.O,12611101,so,Accounts Opened,21
 2026-10-31,Alhar B.O,Radaur S.O,I4674,bo,Accounts Opened,12
 2026-10-31,Ali Meo BO,Hodal SO,J7232,bo,Accounts Opened,51
-2026-10-31,Alika BO,Palwal SO,D1118,bo,Accounts Opened,37
+2026-10-31,Alika BO,Palwal SO,D1118,bo,Accounts Opened,5
+2026-10-31,Alika BO,Baragudha SO,E9885,bo,Accounts Opened,23
+2026-10-31,Alika BO,Nagpur S.O.,J6564,bo,Accounts Opened,9
 2026-10-31,Alipur BO,Tigaon SO,J6124,bo,Accounts Opened,5
 2026-10-31,Alipur Jahangir B.O,Dhin S.O,L4928,bo,Accounts Opened,14
 2026-10-31,Allupur B.O,Madlauda S.O,M0943,bo,Accounts Opened,27
@@ -70,7 +73,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Arjun Nagar SO,Arjun Nagar SO,12200101,so,Accounts Opened,207
 2026-10-31,Arnauli B.O,Chika S.O,J3505,bo,Accounts Opened,15
 2026-10-31,Arniawali BO,Sirsa HO,A9646,bo,Accounts Opened,11
-2026-10-31,Arya Nagar BO,Badhara SO,F8278,bo,Accounts Opened,73
+2026-10-31,Arya Nagar BO,Badhara SO,F8278,bo,Accounts Opened,55
+2026-10-31,Arya Nagar BO,Ha U Hisar SO,L3897,bo,Accounts Opened,18
 2026-10-31,Asa Khera BO,Chautala SO,J7262,bo,Accounts Opened,10
 2026-10-31,Asadpur Nandnaur BO,Murthal SO,B5942,bo,Accounts Opened,12
 2026-10-31,Asalwas BO,Bawal SO,B6198,bo,Accounts Opened,4
@@ -92,7 +96,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Aterna BO,Jakhauli SO,M0979,bo,Accounts Opened,10
 2026-10-31,Atlas Cycle SO,Atlas Cycle SO,13100101,so,Accounts Opened,52
 2026-10-31,Atta S.O,Atta S.O,13212201,so,Accounts Opened,36
-2026-10-31,Aun BO,Jhojhu SO,H3219,bo,Accounts Opened,29
+2026-10-31,Aun BO,Baund SO,D8690,bo,Accounts Opened,26
+2026-10-31,Aun BO,Jhojhu SO,H3219,bo,Accounts Opened,3
 2026-10-31,Aurangabad B.O,Jagdhari Work Shop S.O,C3780,bo,Accounts Opened,16
 2026-10-31,Aurangabad SO Faridabad,Aurangabad SO Faridabad,12110501,so,Accounts Opened,27
 2026-10-31,Ayalki BO,Rattia SO,J6565,bo,Accounts Opened,11
@@ -184,7 +189,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Ballah S.O,Ballah S.O,13204001,so,Accounts Opened,43
 2026-10-31,Ballana B.O,Durga Nagar S.O,M6328,bo,Accounts Opened,26
 2026-10-31,Balsmand BO,Ha U Hisar SO,L3898,bo,Accounts Opened,32
-2026-10-31,Balu B.O,Nissing S.O,J6645,bo,Accounts Opened,54
+2026-10-31,Balu B.O,Nissing S.O,J6645,bo,Accounts Opened,15
+2026-10-31,Balu B.O,Kalayat S.O,L6312,bo,Accounts Opened,39
 2026-10-31,Balwari BO,Khol SO,F6986,bo,Accounts Opened,6
 2026-10-31,Bambhewa B.O,Pillukhera S.O,M1462,bo,Accounts Opened,115
 2026-10-31,Bamla BO,Kharak Kalan SO,J7389,bo,Accounts Opened,7
@@ -233,7 +239,9 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Baroda B.O,Uchana S.O,M7001,bo,Accounts Opened,13
 2026-10-31,Baroda SO,Baroda SO,13130401,so,Accounts Opened,82
 2026-10-31,Baroli B.O,Shamlo Kalan S.O,M0889,bo,Accounts Opened,13
-2026-10-31,Baroli BO,Ballabgarh SO,E6964,bo,Accounts Opened,122
+2026-10-31,Baroli BO,Palwal SO,B4294,bo,Accounts Opened,46
+2026-10-31,Baroli BO,Ballabgarh SO,E6964,bo,Accounts Opened,68
+2026-10-31,Baroli BO,Bahalgarh SO,O0184,bo,Accounts Opened,8
 2026-10-31,Barona BO,Kharkhauda SO,J9551,bo,Accounts Opened,29
 2026-10-31,Barota BO,Gohana SO,L4460,bo,Accounts Opened,7
 2026-10-31,Barout B.O,Ladwa S.O,H1137,bo,Accounts Opened,27
@@ -253,7 +261,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Barwala SO Hisar,Barwala SO Hisar,12512102,so,Accounts Opened,208
 2026-10-31,Barwas BO,Loharu SO,L4376,bo,Accounts Opened,5
 2026-10-31,Barwasni BO,Sonipat HO,C6242,bo,Accounts Opened,5
-2026-10-31,Basai BO,Mohindergarh SO,J2214,bo,Accounts Opened,26
+2026-10-31,Basai BO,Mohindergarh SO,J2214,bo,Accounts Opened,16
+2026-10-31,Basai BO,Railwary Road SO,L9320,bo,Accounts Opened,10
 2026-10-31,Basai Road SO,Basai Road SO,12200102,so,Accounts Opened,106
 2026-10-31,Basana BO,Mokhra SO,H8734,bo,Accounts Opened,7
 2026-10-31,Basantpur BO,Sanghi SO,H9416,bo,Accounts Opened,16
@@ -453,9 +462,11 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Budarpur BO,Nagina SO Gurgaon,E6143,bo,Accounts Opened,56
 2026-10-31,Budda Khera Lather B.O,Julana S.O,J1726,bo,Accounts Opened,15
 2026-10-31,Buddin BO,Mohindergarh SO,J2217,bo,Accounts Opened,8
-2026-10-31,Budha Khera B.O,Pillukhera S.O,M1464,bo,Accounts Opened,13
+2026-10-31,Budha Khera B.O,Kaithal S.O,L5398,bo,Accounts Opened,8
+2026-10-31,Budha Khera B.O,Pillukhera S.O,M1464,bo,Accounts Opened,5
 2026-10-31,Budhangpur B.O,Durga Nagar S.O,M6330,bo,Accounts Opened,26
-2026-10-31,Budhera BO,Loharu SO,L4378,bo,Accounts Opened,48
+2026-10-31,Budhera BO,Loharu SO,L4378,bo,Accounts Opened,23
+2026-10-31,Budhera BO,Garhi Harsaru SO,L8165,bo,Accounts Opened,25
 2026-10-31,Budhpur BO,Rewari SO,E6428,bo,Accounts Opened,19
 2026-10-31,Budhwal BO,Nangal Chaudhry SO,J7244,bo,Accounts Opened,8
 2026-10-31,Bugana BO,Barwala SO Hisar,C5198,bo,Accounts Opened,60
@@ -527,7 +538,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Cheelarh BO,Khalilpur SO,O0173,bo,Accounts Opened,15
 2026-10-31,Chhachrauli S.O,Chhachrauli S.O,13510301,so,Accounts Opened,306
 2026-10-31,Chhadwana BO,Dhakla SO,AM118,bo,Accounts Opened,21
-2026-10-31,Chhainsa BO,Hathin SO,J7315,bo,Accounts Opened,39
+2026-10-31,Chhainsa BO,Ballabgarh SO,D0248,bo,Accounts Opened,9
+2026-10-31,Chhainsa BO,Hathin SO,J7315,bo,Accounts Opened,30
 2026-10-31,Chhajju Nagar BO,Palwal SO,B4295,bo,Accounts Opened,15
 2026-10-31,Chhajpur Kalan B.O,Panipat Khadi Ashram S.O,G4794,bo,Accounts Opened,13
 2026-10-31,Chhappar B.O,Saraswati Nagar S.O,L4394,bo,Accounts Opened,43
@@ -601,7 +613,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Dalanwas BO,Satnali SO,H0361,bo,Accounts Opened,20
 2026-10-31,Dalawas BO,Badhara SO,F8280,bo,Accounts Opened,6
 2026-10-31,Damaloan B.O,Pinjore S.O,I3640,bo,Accounts Opened,25
-2026-10-31,Damdama BO,Bhondsi SO,G8381,bo,Accounts Opened,38
+2026-10-31,Damdama BO,Bhondsi SO,G8381,bo,Accounts Opened,33
+2026-10-31,Damdama BO,Siri Jiwan Nagar SO,J6188,bo,Accounts Opened,5
 2026-10-31,Damla B.O,Jagdhari Work Shop S.O,D2044,bo,Accounts Opened,23
 2026-10-31,Dandama BO,Jui Khurd SO,J3499,bo,Accounts Opened,10
 2026-10-31,Dang BO,Bapora SO,D3474,bo,Accounts Opened,4
@@ -614,7 +627,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Dariyapur BO,Fatehabad SO Fatehabad,C8619,bo,Accounts Opened,21
 2026-10-31,Dariyawala B.O,Jind H.O,B8054,bo,Accounts Opened,6
 2026-10-31,Daroli Ahir BO,Nangal Sirohi SO,D1373,bo,Accounts Opened,9
-2026-10-31,Daroli BO,Dahina SO,L7190,bo,Accounts Opened,18
+2026-10-31,Daroli BO,Mandi Adampur SO,L4407,bo,Accounts Opened,6
+2026-10-31,Daroli BO,Dahina SO,L7190,bo,Accounts Opened,12
 2026-10-31,Darpur B.O,Chhachrauli S.O,J7328,bo,Accounts Opened,3
 2026-10-31,Daryapur BO,Tosham SO,C4192,bo,Accounts Opened,5
 2026-10-31,Datauli BO,Ganaur SO,D3377,bo,Accounts Opened,20
@@ -626,7 +640,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Daya BO,Modle Town Hisar SO,G2203,bo,Accounts Opened,21
 2026-10-31,Dayalgarh B.O,Bilaspur (Yamunanagar) S.O,G9895,bo,Accounts Opened,8
 2026-10-31,Dayalpur BO,Ballabgarh SO,A5005,bo,Accounts Opened,52
-2026-10-31,Deeg B.O,Shahabad(M) S.O,L4440,bo,Accounts Opened,162
+2026-10-31,Deeg B.O,Shahabad(M) S.O,L4440,bo,Accounts Opened,122
+2026-10-31,Deeg B.O,Pundri S.O,L6352,bo,Accounts Opened,40
 2026-10-31,Deeg BO,Ballabgarh SO,A5006,bo,Accounts Opened,50
 2026-10-31,Deepalpur BO,Bahalgarh SO,O0185,bo,Accounts Opened,52
 2026-10-31,Defence Colony S.O,Defence Colony S.O,13301001,so,Accounts Opened,35
@@ -727,7 +742,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Dinarpur B.O,Kesri S.O,J7218,bo,Accounts Opened,32
 2026-10-31,Ding SO,Ding SO,12505801,so,Accounts Opened,18
 2026-10-31,Dinod BO,Bapora SO,E1758,bo,Accounts Opened,10
-2026-10-31,Diwana B.O,Panipat Beas Project S.O,M1026,bo,Accounts Opened,14
+2026-10-31,Diwana B.O,Pehowa S.O,F2973,bo,Accounts Opened,2
+2026-10-31,Diwana B.O,Panipat Beas Project S.O,M1026,bo,Accounts Opened,12
 2026-10-31,Diwana BO,Dharsul Kalan SO,H9307,bo,Accounts Opened,28
 2026-10-31,Dobh BO,Police Training Center Sunaria SO,O0157,bo,Accounts Opened,14
 2026-10-31,Dochana BO,Narnaul HO,G3094,bo,Accounts Opened,8
@@ -754,10 +770,12 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Dulot Ahir BO,Mohindergarh SO,J2221,bo,Accounts Opened,15
 2026-10-31,Dumarkhan Kalan B.O,Narwana S.O,E1531,bo,Accounts Opened,28
 2026-10-31,Dungerwas BO,Dharuhera SO,D3548,bo,Accounts Opened,35
-2026-10-31,Durana B.O,Majri S.O,E1639,bo,Accounts Opened,30
+2026-10-31,Durana B.O,Majri S.O,E1639,bo,Accounts Opened,17
+2026-10-31,Durana B.O,Alewa S.O,M0915,bo,Accounts Opened,13
 2026-10-31,Durga Nagar S.O,Durga Nagar S.O,13400801,so,Accounts Opened,14
 2026-10-31,Durjanpur B.O,Dhanoda Kalan S.O,M0957,bo,Accounts Opened,9
-2026-10-31,Durjanpur BO,Bawani Khera SO,L4328,bo,Accounts Opened,14
+2026-10-31,Durjanpur BO,Bawani Khera SO,L4328,bo,Accounts Opened,8
+2026-10-31,Durjanpur BO,Mandi Adampur SO,L4408,bo,Accounts Opened,6
 2026-10-31,Duserpur B.O,Guhla S.O,M6993,bo,Accounts Opened,11
 2026-10-31,Ebs Hisar BO,Ha U Hisar SO,L3903,bo,Accounts Opened,20
 2026-10-31,Ellenabad SO,Ellenabad SO,12510201,so,Accounts Opened,115
@@ -832,7 +850,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Ganzbazar SO,Ganzbazar SO,13100103,so,Accounts Opened,19
 2026-10-31,Garanpura Kalan BO,Tosham SO,G6216,bo,Accounts Opened,7
 2026-10-31,Garhi B.O,Narwana S.O,F8315,bo,Accounts Opened,15
-2026-10-31,Garhi BO,Hansi SO,B1907,bo,Accounts Opened,41
+2026-10-31,Garhi BO,Hansi SO,B1907,bo,Accounts Opened,5
+2026-10-31,Garhi BO,Sampla SO,L5371,bo,Accounts Opened,36
 2026-10-31,Garhi Ballab BO,Anwal SO,G6638,bo,Accounts Opened,13
 2026-10-31,Garhi Birbal S.O,Garhi Birbal S.O,13205401,so,Accounts Opened,41
 2026-10-31,Garhi Bolni BO,Rewari SO,G3288,bo,Accounts Opened,7
@@ -904,12 +923,14 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Goria BO,Bahu SO,G9342,bo,Accounts Opened,1
 2026-10-31,Goriwala SO,Goriwala SO,12510301,so,Accounts Opened,7
 2026-10-31,Gorota BO,Hodal SO,J7235,bo,Accounts Opened,4
-2026-10-31,Gothra BO,Kund SO,J3522,bo,Accounts Opened,41
+2026-10-31,Gothra BO,Kund SO,J3522,bo,Accounts Opened,17
+2026-10-31,Gothra BO,Dahina SO,L7191,bo,Accounts Opened,24
 2026-10-31,Goyla BO,Tauru SO,AK844,bo,Accounts Opened,3
 2026-10-31,Greater Faridabad PO,Greater Faridabad PO,12101401,so,Accounts Opened,77
 2026-10-31,Gubhana BO,Badli SO Jhajjar,L6158,bo,Accounts Opened,6
 2026-10-31,Gudana Kalan BO,Jhojhu SO,H3223,bo,Accounts Opened,34
-2026-10-31,Gudha B.O,Gharunda S.O,L8189,bo,Accounts Opened,48
+2026-10-31,Gudha B.O,Ladwa S.O,H1140,bo,Accounts Opened,38
+2026-10-31,Gudha B.O,Gharunda S.O,L8189,bo,Accounts Opened,10
 2026-10-31,Gudha BO,Jhajjar SO,D7944,bo,Accounts Opened,20
 2026-10-31,Gudhana BO,Haillymandi SO,AK418,bo,Accounts Opened,25
 2026-10-31,Gudhiana B.O,Saraswati Nagar S.O,L4396,bo,Accounts Opened,36
@@ -979,7 +1000,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Hanziran BO,Chopta Nathu Sari SO,J3474,bo,Accounts Opened,1
 2026-10-31,Hargolal S.O,Hargolal S.O,13300104,so,Accounts Opened,289
 2026-10-31,Harigarh Kingan B.O,Chika S.O,J3514,bo,Accounts Opened,13
-2026-10-31,Haripur B.O,Raipur Rani S.O,L3940,bo,Accounts Opened,15
+2026-10-31,Haripur B.O,Raipur Rani S.O,L3940,bo,Accounts Opened,3
+2026-10-31,Haripur B.O,Shahabad(M) S.O,L4442,bo,Accounts Opened,12
 2026-10-31,Haripura B.O,Kalayat S.O,L6317,bo,Accounts Opened,13
 2026-10-31,Haripura BO,Siri Jiwan Nagar SO,J6191,bo,Accounts Opened,36
 2026-10-31,Harita BO,Modle Town Hisar SO,C8642,bo,Accounts Opened,16
@@ -989,7 +1011,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Harsana Kalan BO,Sonipat HO,A0936,bo,Accounts Opened,8
 2026-10-31,Harsola B.O,Kaithal S.O,L5406,bo,Accounts Opened,62
 2026-10-31,Hartan B.O,Radaur S.O,I4684,bo,Accounts Opened,30
-2026-10-31,Hasanpur BO,Tauru SO,E0978,bo,Accounts Opened,54
+2026-10-31,Hasanpur BO,Jhajjar SO,C9509,bo,Accounts Opened,20
+2026-10-31,Hasanpur BO,Tauru SO,E0978,bo,Accounts Opened,34
 2026-10-31,Hassanga BO,Rattia SO,J6578,bo,Accounts Opened,13
 2026-10-31,Hassangarh BO,Uklana Mandi SO,F8537,bo,Accounts Opened,3
 2026-10-31,Hassangarh SO,Hassangarh SO,12440401,so,Accounts Opened,52
@@ -1074,7 +1097,7 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Jamalgarh BO,Punhana SO,N8588,bo,Accounts Opened,20
 2026-10-31,Jamalpur B.O,Gharunda S.O,L8191,bo,Accounts Opened,16
 2026-10-31,Jamalpur BO,Pataudi SO,L8302,bo,Accounts Opened,25
-2026-10-31,Jamalpur SO Bhiwani,Jamalpur SO Bhiwani,12703501,bo,Accounts Opened,38
+2026-10-31,Jamalpur SO Bhiwani,Jamalpur SO Bhiwani,12703501,so,Accounts Opened,38
 2026-10-31,Jamalpur Sheikhan BO,Tohana Mandi SO,D9413,bo,Accounts Opened,13
 2026-10-31,Jamawari BO,Hansi SO,C8616,bo,Accounts Opened,25
 2026-10-31,Jamba B.O,Nigdhu S.O,M0919,bo,Accounts Opened,12
@@ -1126,7 +1149,7 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Jhamuwas BO,Tauru SO,C4362,bo,Accounts Opened,23
 2026-10-31,Jhanjkalan B.O,Jind H.O,F9947,bo,Accounts Opened,6
 2026-10-31,Jhanjra Sheoran BO,Loharu SO,L4385,bo,Accounts Opened,25
-2026-10-31,Jhanjrola Khera,Jhanjrola Khera,AV707,so,Accounts Opened,7
+2026-10-31,Jhanjrola Khera,,AV707,bo,Accounts Opened,7
 2026-10-31,Jhansa S.O,Jhansa S.O,13613001,so,Accounts Opened,73
 2026-10-31,Jhanswa Kalan BO,Sahlawas SO,J7829,bo,Accounts Opened,36
 2026-10-31,Jharli BO,Matanhail SO,J7408,bo,Accounts Opened,20
@@ -1256,7 +1279,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Kansala SO,Kansala SO,12440601,so,Accounts Opened,29
 2026-10-31,Kanti BO,Mandi Ateli SO,L9948,bo,Accounts Opened,15
 2026-10-31,Kanti Kheri BO,Mandi Ateli SO,L9949,bo,Accounts Opened,1
-2026-10-31,Kanwali BO,Dahina SO,L7192,bo,Accounts Opened,48
+2026-10-31,Kanwali BO,Dahina SO,L7192,bo,Accounts Opened,38
+2026-10-31,Kanwali BO,Rohat SO Sonipat,M0954,bo,Accounts Opened,10
 2026-10-31,Kanwari BO,Nalwa SO,G8428,bo,Accounts Opened,7
 2026-10-31,Kanwi BO,Narnaul HO,F4599,bo,Accounts Opened,2
 2026-10-31,Kanyagurukul Khanpur SO,Kanyagurukul Khanpur SO,13130501,so,Accounts Opened,95
@@ -1286,7 +1310,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Karnal Road Kaithal S.O,Karnal Road Kaithal S.O,13602703,so,Accounts Opened,189
 2026-10-31,Karnal Sadar Bazar S.O,Karnal Sadar Bazar S.O,13200112,so,Accounts Opened,219
 2026-10-31,Karnal Sector 6 S.O,Karnal Sector 6 S.O,13200113,so,Accounts Opened,134
-2026-10-31,Karnawas BO,Kosli SO,J9909,bo,Accounts Opened,27
+2026-10-31,Karnawas BO,Rewari SO,A4457,bo,Accounts Opened,16
+2026-10-31,Karnawas BO,Kosli SO,J9909,bo,Accounts Opened,11
 2026-10-31,Karodha BO,Jhajjar SO,AK737,bo,Accounts Opened,11
 2026-10-31,Karola BO,Haillymandi SO,L6307,bo,Accounts Opened,22
 2026-10-31,Karoli BO,Nahar SO,J8962,bo,Accounts Opened,39
@@ -1347,7 +1372,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Khandrai BO,Gohana SO,L4469,bo,Accounts Opened,88
 2026-10-31,Khandsa BO,Narsinghpur SO,H8524,bo,Accounts Opened,10
 2026-10-31,Khandsa Road SO,Khandsa Road SO,12200106,so,Accounts Opened,31
-2026-10-31,Khanpur B.O,Kesri S.O,J7219,bo,Accounts Opened,36
+2026-10-31,Khanpur B.O,Indri S.O,H9717,bo,Accounts Opened,12
+2026-10-31,Khanpur B.O,Kesri S.O,J7219,bo,Accounts Opened,24
 2026-10-31,Khanpur Brahmana B.O,Jatwar S.O,M0020,bo,Accounts Opened,68
 2026-10-31,Khanpur Ghati BO,Punhana SO,N8589,bo,Accounts Opened,11
 2026-10-31,Khanpur Kalan BO,Kanyagurukul Khanpur SO,E0708,bo,Accounts Opened,20
@@ -1372,8 +1398,11 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Kharkada B.O,Guhla S.O,M6994,bo,Accounts Opened,6
 2026-10-31,Kharkan B.O,Guhla S.O,M6995,bo,Accounts Opened,5
 2026-10-31,Kharkara BO,Barwala SO Hisar,B6759,bo,Accounts Opened,4
-2026-10-31,Kharkari BO,Loharu SO,L4386,bo,Accounts Opened,35
-2026-10-31,Kharkhara BO,Dharuhera SO,A8325,bo,Accounts Opened,36
+2026-10-31,Kharkari BO,Hansi SO,C8617,bo,Accounts Opened,11
+2026-10-31,Kharkari BO,Loharu SO,L4386,bo,Accounts Opened,24
+2026-10-31,Kharkhara BO,Bass SO,A7272,bo,Accounts Opened,15
+2026-10-31,Kharkhara BO,Dharuhera SO,A8325,bo,Accounts Opened,15
+2026-10-31,Kharkhara BO,Madina SO,H8970,bo,Accounts Opened,6
 2026-10-31,Kharkhari Sohan BO,Tosham SO,C4193,bo,Accounts Opened,13
 2026-10-31,Kharkhauda SO,Kharkhauda SO,13140201,so,Accounts Opened,140
 2026-10-31,Kharman BO,Bahadurgarh Mandi SO,L9904,bo,Accounts Opened,40
@@ -1385,7 +1414,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Khatkar B.O,Uchana S.O,M7011,bo,Accounts Opened,22
 2026-10-31,Khatod BO,Mohindergarh SO,J2223,bo,Accounts Opened,18
 2026-10-31,Khedar BO,Barwala SO Hisar,F8637,bo,Accounts Opened,48
-2026-10-31,Khera B.O,Jagadhri S.O,B4561,bo,Accounts Opened,66
+2026-10-31,Khera B.O,Jagadhri S.O,B4561,bo,Accounts Opened,11
+2026-10-31,Khera B.O,Indri S.O,H9718,bo,Accounts Opened,55
 2026-10-31,Khera BO,Siwani SO,J2208,bo,Accounts Opened,6
 2026-10-31,Khera Khurampur BO,Farrukh Nagar SO,L9306,bo,Accounts Opened,7
 2026-10-31,Khera Khurd B.O,Thermal Colony Yamuna Nagar S.O,L7569,bo,Accounts Opened,12
@@ -1498,7 +1528,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Kurali BO,Tigaon SO,J6130,bo,Accounts Opened,52
 2026-10-31,Kurana B.O,Israna S.O,M0988,bo,Accounts Opened,7
 2026-10-31,Kurangawali BO,Baragudha SO,G6839,bo,Accounts Opened,39
-2026-10-31,Kurar B.O,Panipat Khadi Ashram S.O,A5882,bo,Accounts Opened,30
+2026-10-31,Kurar B.O,Panipat Khadi Ashram S.O,A5882,bo,Accounts Opened,23
+2026-10-31,Kurar B.O,Kalayat S.O,L6323,bo,Accounts Opened,7
 2026-10-31,Kurar Brahimpur BO,Engg College Muthal SO,J8903,bo,Accounts Opened,25
 2026-10-31,Kurawata BO,Mohindergarh SO,J2225,bo,Accounts Opened,10
 2026-10-31,Kurlan B.O,Salwan S.O,M0898,bo,Accounts Opened,3
@@ -1506,7 +1537,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Kuruk Jagir B.O,Taraori S.O,M1035,bo,Accounts Opened,10
 2026-10-31,Kurukshetra H.O,Kurukshetra H.O,13611800,so,Accounts Opened,540
 2026-10-31,Kurukshetra University S.O,Kurukshetra University S.O,13611901,so,Accounts Opened,132
-2026-10-31,Kusumbhi BO,Kairu SO,C8494,bo,Accounts Opened,16
+2026-10-31,Kusumbhi BO,Sirsa HO,A1159,bo,Accounts Opened,5
+2026-10-31,Kusumbhi BO,Kairu SO,C8494,bo,Accounts Opened,11
 2026-10-31,Kutail B.O,Madhuban S.O (Karnal),M1002,bo,Accounts Opened,9
 2026-10-31,Kutewadh BO,Sirsa HO,F1511,bo,Accounts Opened,11
 2026-10-31,LADRAWAN BO,Assaudha SO,N9650,bo,Accounts Opened,9
@@ -1608,7 +1640,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Maijod BO,Sisai SO Hisar,H3018,bo,Accounts Opened,51
 2026-10-31,Main Bazar Bahadurgarh  SO,Main Bazar Bahadurgarh  SO,12450705,so,Accounts Opened,110
 2026-10-31,Maina BO,Asthal Bohar SO,J7020,bo,Accounts Opened,14
-2026-10-31,Majra BO,Narnaund SO,J6627,bo,Accounts Opened,30
+2026-10-31,Majra BO,Narnaund SO,J6627,bo,Accounts Opened,9
+2026-10-31,Majra BO,Dubaldhan SO,J7210,bo,Accounts Opened,21
 2026-10-31,Majra Gurdas BO,Rewari SO,B2906,bo,Accounts Opened,20
 2026-10-31,Majra Nand Karan B.O,Pai S.O,L5416,bo,Accounts Opened,16
 2026-10-31,Majra Rodan B.O,Nigdhu S.O,M0921,bo,Accounts Opened,7
@@ -1622,7 +1655,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Malab BO,Nuh SO,J6612,bo,Accounts Opened,65
 2026-10-31,Malai BO,Hathin SO,J7322,bo,Accounts Opened,15
 2026-10-31,Malar B.O,Safidon S.O,F0123,bo,Accounts Opened,2
-2026-10-31,Malikpur B.O,Safidon S.O,F8541,bo,Accounts Opened,9
+2026-10-31,Malikpur B.O,Pehowa S.O,B1173,bo,Accounts Opened,3
+2026-10-31,Malikpur B.O,Safidon S.O,F8541,bo,Accounts Opened,6
 2026-10-31,Malikpur BO,Murthal SO,D2683,bo,Accounts Opened,18
 2026-10-31,Malikpur Khadar B.O,Bhudkalan S.O,L4337,bo,Accounts Opened,24
 2026-10-31,Malkosh BO,Baund SO,G3971,bo,Accounts Opened,26
@@ -1638,7 +1672,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Mandaura BO,Nahri SO,M1781,bo,Accounts Opened,14
 2026-10-31,Mandhana B.O,Morni S.O,L3886,bo,Accounts Opened,9
 2026-10-31,Mandhana BO,Bawani Khera SO,L4330,bo,Accounts Opened,19
-2026-10-31,Mandhar B.O,Radaur S.O,I4688,bo,Accounts Opened,21
+2026-10-31,Mandhar B.O,Jagadhri S.O,B4562,bo,Accounts Opened,10
+2026-10-31,Mandhar B.O,Radaur S.O,I4688,bo,Accounts Opened,11
 2026-10-31,Mandhaur B.O,Baldev Nagar S.O,C5102,bo,Accounts Opened,65
 2026-10-31,Mandheri B.O,Thol S.O,L5290,bo,Accounts Opened,3
 2026-10-31,Mandhi Harya BO,Nihalgard PO,G6836,bo,Accounts Opened,14
@@ -1653,7 +1688,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Mandi Sadra B.O,Siwan S.O,I5452,bo,Accounts Opened,2
 2026-10-31,Mandikhera BO,Nagina SO Gurgaon,F4475,bo,Accounts Opened,20
 2026-10-31,Mandkola BO,Hathin SO,J7323,bo,Accounts Opened,32
-2026-10-31,Mandola BO,Mohindergarh SO,J2227,bo,Accounts Opened,37
+2026-10-31,Mandola BO,Khol SO,D1909,bo,Accounts Opened,20
+2026-10-31,Mandola BO,Mohindergarh SO,J2227,bo,Accounts Opened,17
 2026-10-31,Mandothi SO,Mandothi SO,12450601,so,Accounts Opened,60
 2026-10-31,Mandwal B.O,Rajound S.O,L6339,bo,Accounts Opened,6
 2026-10-31,Mangala BO,Sirsa HO,F9959,bo,Accounts Opened,12
@@ -1698,7 +1734,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Mattar Sham BO,Ha U Hisar SO,L3906,bo,Accounts Opened,20
 2026-10-31,Maujdin BO,Sirsa HO,D4830,bo,Accounts Opened,11
 2026-10-31,Maujgarbh BO,Mandi Dabwali SO,L6272,bo,Accounts Opened,13
-2026-10-31,Mauju Khera BO,Bahaudin SO,J7012,bo,Accounts Opened,13
+2026-10-31,Mauju Khera BO,Ellenabad SO,A2294,bo,Accounts Opened,9
+2026-10-31,Mauju Khera BO,Bahaudin SO,J7012,bo,Accounts Opened,4
 2026-10-31,Mauli B.O,Barwala S.O (Panchkula),I5070,bo,Accounts Opened,12
 2026-10-31,Mauri BO,Chiriya SO,E0620,bo,Accounts Opened,24
 2026-10-31,Mayan BO,Khol SO,A6708,bo,Accounts Opened,33
@@ -1712,7 +1749,9 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Mehlana BO,Sonipat HO,D4612,bo,Accounts Opened,20
 2026-10-31,Mehlanwali B.O,Jagadhri S.O,C3070,bo,Accounts Opened,17
 2026-10-31,Mehmal B.O,Nissing S.O,J6651,bo,Accounts Opened,4
-2026-10-31,Mehmoodpur B.O,Saha S.O,L4366,bo,Accounts Opened,37
+2026-10-31,Mehmoodpur B.O,Sadhaura S.O,D2499,bo,Accounts Opened,13
+2026-10-31,Mehmoodpur B.O,Chika S.O,J3516,bo,Accounts Opened,12
+2026-10-31,Mehmoodpur B.O,Saha S.O,L4366,bo,Accounts Opened,12
 2026-10-31,Mehmoodpur BO,Gohana SO,L4474,bo,Accounts Opened,7
 2026-10-31,Mehmra BO,Rattia SO,J6585,bo,Accounts Opened,4
 2026-10-31,Mehrana BO,Dujana SO,C0296,bo,Accounts Opened,8
@@ -1741,7 +1780,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Mirana BO,Rattia SO,J6586,bo,Accounts Opened,19
 2026-10-31,Mirchpur BO,Narnaund SO,J6629,bo,Accounts Opened,27
 2026-10-31,Mirpur BO,Khalilpur SO,O0178,bo,Accounts Opened,23
-2026-10-31,Mirzapur BO,Ellenabad SO,B9190,bo,Accounts Opened,31
+2026-10-31,Mirzapur BO,Ellenabad SO,B9190,bo,Accounts Opened,11
+2026-10-31,Mirzapur BO,Modle Town Hisar SO,C0356,bo,Accounts Opened,20
 2026-10-31,Misri BO,Sanwar SO Bhiwani,G1000,bo,Accounts Opened,25
 2026-10-31,Mitathal BO,Tigrana SO,E5320,bo,Accounts Opened,31
 2026-10-31,Mithanpura BO,Ellenabad SO,C7470,bo,Accounts Opened,6
@@ -1823,7 +1863,7 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Nagpur S.O.,Nagpur S.O.,12506101,so,Accounts Opened,17
 2026-10-31,Naguran S.O,Naguran S.O,12612501,so,Accounts Opened,43
 2026-10-31,Nahar Pur B.O,Thermal Colony Yamuna Nagar S.O,L7571,bo,Accounts Opened,14
-2026-10-31,Nahar Pur Rupa,Nahar Pur Rupa,AV739,so,Accounts Opened,4
+2026-10-31,Nahar Pur Rupa,,AV739,bo,Accounts Opened,4
 2026-10-31,Nahar SO,Nahar SO,12330301,so,Accounts Opened,167
 2026-10-31,Naheda BO,Punhana SO,N8591,bo,Accounts Opened,35
 2026-10-31,Nahoni B.O,Saha S.O,L4367,bo,Accounts Opened,15
@@ -1861,7 +1901,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Nangal Sirohi SO,Nangal Sirohi SO,12302801,so,Accounts Opened,79
 2026-10-31,Nangal Teju BO,Bawal SO,F8082,bo,Accounts Opened,22
 2026-10-31,Nangalmala BO,Satnali SO,H0365,bo,Accounts Opened,16
-2026-10-31,Nangla BO,Satnali SO,AK417,bo,Accounts Opened,45
+2026-10-31,Nangla BO,Satnali SO,AK417,bo,Accounts Opened,27
+2026-10-31,Nangla BO,Tohana Mandi SO,D1135,bo,Accounts Opened,18
 2026-10-31,Nangli Godha BO,Rewari SO,E6431,bo,Accounts Opened,27
 2026-10-31,Nangthala BO,Agroha SO,A7321,bo,Accounts Opened,2
 2026-10-31,Nanhera B.O,Panipat Khadi Ashram S.O,A5883,bo,Accounts Opened,1
@@ -1894,7 +1935,7 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Nawan BO,Satnali SO,H0366,bo,Accounts Opened,23
 2026-10-31,Naya Bans BO,Sampla SO,L5379,bo,Accounts Opened,9
 2026-10-31,Nayat BO,Gohana SO,L4476,bo,Accounts Opened,16
-2026-10-31,Neemariwali PO,Neemariwali PO,12731101,bo,Accounts Opened,3
+2026-10-31,Neemariwali PO,Neemariwali PO,12731101,so,Accounts Opened,3
 2026-10-31,Neemka BO,Ballabgarh SO,E6965,bo,Accounts Opened,76
 2026-10-31,Neemli BO,Charkhi  Dadri Hsgii SO,G3119,bo,Accounts Opened,22
 2026-10-31,Neerpur BO,Narnaul HO,G3096,bo,Accounts Opened,1
@@ -1973,7 +2014,10 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Palam Vihar SO Gurgaon,Palam Vihar SO Gurgaon,12201701,so,Accounts Opened,227
 2026-10-31,Palari BO,Jhojhu SO,H3226,bo,Accounts Opened,27
 2026-10-31,Palhawas SO,Palhawas SO,12303501,so,Accounts Opened,128
-2026-10-31,Pali BO,Mohindergarh SO,J2229,bo,Accounts Opened,63
+2026-10-31,Pali BO,Ballabgarh SO,F5357,bo,Accounts Opened,2
+2026-10-31,Pali BO,Sisai SO Hisar,H3020,bo,Accounts Opened,9
+2026-10-31,Pali BO,Mohindergarh SO,J2229,bo,Accounts Opened,28
+2026-10-31,Pali BO,Kund SO,J3525,bo,Accounts Opened,24
 2026-10-31,Palra BO,Jhajjar SO,A4292,bo,Accounts Opened,10
 2026-10-31,Palri B.O,Neoltha S.O,M1031,bo,Accounts Opened,24
 2026-10-31,Palri Panihara BO,Mohindergarh SO,J2230,bo,Accounts Opened,22
@@ -2063,7 +2107,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Pingwan BO,Punhana SO,N8593,bo,Accounts Opened,8
 2026-10-31,Pinjore S.O,Pinjore S.O,13410201,so,Accounts Opened,169
 2026-10-31,Pipaltha B.O,Narwana S.O,A7991,bo,Accounts Opened,25
-2026-10-31,Pipli BO,Kalanwali SO,L5335,bo,Accounts Opened,35
+2026-10-31,Pipli BO,Kharkhauda SO,J9558,bo,Accounts Opened,25
+2026-10-31,Pipli BO,Kalanwali SO,L5335,bo,Accounts Opened,10
 2026-10-31,Pipli Majra B.O,Bhudkalan S.O,L4338,bo,Accounts Opened,14
 2026-10-31,Pipli S.O,Pipli S.O,13613101,so,Accounts Opened,99
 2026-10-31,Pipliwala B.O,Sadhaura S.O,A7323,bo,Accounts Opened,103
@@ -2113,7 +2158,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Raisina BO,Bhondsi SO,G8385,bo,Accounts Opened,18
 2026-10-31,Raison B.O,Nigdhu S.O,M0922,bo,Accounts Opened,21
 2026-10-31,Raiwali B.O,Barwala S.O (Panchkula),I5071,bo,Accounts Opened,17
-2026-10-31,Rajgarh BO,Neemariwali PO,B6664,bo,Accounts Opened,48
+2026-10-31,Rajgarh BO,Neemariwali PO,B6664,bo,Accounts Opened,26
+2026-10-31,Rajgarh BO,Dharan SO,E9623,bo,Accounts Opened,22
 2026-10-31,Rajgarh Gurthali B.O,Narwana S.O,C4885,bo,Accounts Opened,3
 2026-10-31,Rajkheri B.O,Panipat Khadi Ashram S.O,D9418,bo,Accounts Opened,8
 2026-10-31,Rajli BO,Barwala SO Hisar,F0225,bo,Accounts Opened,22
@@ -2170,7 +2216,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Rawli BO,Ferozepur Jhirka SO,L6412,bo,Accounts Opened,15
 2026-10-31,Refinery Township Panipat SO,Refinery Township Panipat SO,13214002,so,Accounts Opened,31
 2026-10-31,Rethath BO,Punhana SO,N8594,bo,Accounts Opened,55
-2026-10-31,Rewari Khera BO,Chang SO,J9572,bo,Accounts Opened,20
+2026-10-31,Rewari Khera BO,Charra SO,H0669,bo,Accounts Opened,16
+2026-10-31,Rewari Khera BO,Chang SO,J9572,bo,Accounts Opened,4
 2026-10-31,Rewari SO,Rewari SO,12340105,so,Accounts Opened,489
 2026-10-31,Rewasan BO,Sohna SO,L7557,bo,Accounts Opened,55
 2026-10-31,Rindana BO,Baroda SO,J8901,bo,Accounts Opened,7
@@ -2336,7 +2383,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Shahabad(M) S.O,Shahabad(M) S.O,13613502,so,Accounts Opened,389
 2026-10-31,Shaharwa BO,Modle Town Hisar SO,C0357,bo,Accounts Opened,14
 2026-10-31,Shahchokha BO,Punhana SO,N8595,bo,Accounts Opened,8
-2026-10-31,Shahpur B.O,Israna S.O,M0993,bo,Accounts Opened,45
+2026-10-31,Shahpur B.O,Naguran S.O,M0911,bo,Accounts Opened,21
+2026-10-31,Shahpur B.O,Israna S.O,M0993,bo,Accounts Opened,24
 2026-10-31,Shahpur BO,Ha U Hisar SO,L3910,bo,Accounts Opened,81
 2026-10-31,Shahpur Begu BO,Sirsa HO,F9960,bo,Accounts Opened,7
 2026-10-31,Shahpur Nurd B.O,Sarawan S.O,G6217,bo,Accounts Opened,12
@@ -2374,7 +2422,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Sikrawa BO,Punhana SO,N8597,bo,Accounts Opened,50
 2026-10-31,Sikri B.O,Nilokheri S.O,J2770,bo,Accounts Opened,10
 2026-10-31,Silakheri B.O,Safidon S.O,E1734,bo,Accounts Opened,17
-2026-10-31,Silana BO,Jhajjar SO,D7946,bo,Accounts Opened,6
+2026-10-31,Silana BO,Jhajjar SO,D7946,bo,Accounts Opened,1
+2026-10-31,Silana BO,Farmana SO,M1776,bo,Accounts Opened,5
 2026-10-31,Silani BO,Jhajjar SO,C1194,bo,Accounts Opened,44
 2026-10-31,Silikalan B.O,Radaur S.O,I4690,bo,Accounts Opened,17
 2026-10-31,Simla B.O,Kalayat S.O,L6328,bo,Accounts Opened,12
@@ -2404,7 +2453,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Siswala BO,Birhi Kalan SO,H9254,bo,Accounts Opened,11
 2026-10-31,Sitamai B.O,Nigdhu S.O,M0925,bo,Accounts Opened,8
 2026-10-31,Sitawali BO,Juan SO,L8606,bo,Accounts Opened,50
-2026-10-31,Siwaha B.O,Panipat Beas Project S.O,M1028,bo,Accounts Opened,50
+2026-10-31,Siwaha B.O,Panipat Beas Project S.O,M1028,bo,Accounts Opened,21
+2026-10-31,Siwaha B.O,Pillukhera S.O,M1472,bo,Accounts Opened,29
 2026-10-31,Siwan Gate Kaithal S.O,Siwan Gate Kaithal S.O,13602704,so,Accounts Opened,272
 2026-10-31,Siwan Mal B.O,Safidon S.O,C5082,bo,Accounts Opened,20
 2026-10-31,Siwan S.O,Siwan S.O,13603301,so,Accounts Opened,152
@@ -2446,7 +2496,8 @@ date,bo,so,sol,kind,kpi,value
 2026-10-31,Sulkha BO,Rewari SO,D8065,bo,Accounts Opened,17
 2026-10-31,Sulodha BO,Jhajjar SO,E6295,bo,Accounts Opened,23
 2026-10-31,Sultanpur B.O,Taraori S.O,M1044,bo,Accounts Opened,15
-2026-10-31,Sultanpur BO,Farrukh Nagar SO,L9309,bo,Accounts Opened,25
+2026-10-31,Sultanpur BO,Hansi SO,G2173,bo,Accounts Opened,3
+2026-10-31,Sultanpur BO,Farrukh Nagar SO,L9309,bo,Accounts Opened,22
 2026-10-31,Sultanpuria BO,Rania SO,L6360,bo,Accounts Opened,14
 2026-10-31,Sunari Kalan BO,Police Training Center Sunaria SO,O0161,bo,Accounts Opened,4
 2026-10-31,Sundana BO,Kahnaur SO,J8919,bo,Accounts Opened,16
@@ -2591,7 +2642,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Agongh B.O,Nissing S.O,J6643,bo,Accounts Opened,10
 2026-11-01,Agroha SO,Agroha SO,12504701,so,Accounts Opened,30
 2026-11-01,Ahar B.O,Israna S.O,M0983,bo,Accounts Opened,27
-2026-11-01,Aharwan BO,Palwal SO,E7826,bo,Accounts Opened,33
+2026-11-01,Aharwan BO,Palwal SO,E7826,bo,Accounts Opened,12
+2026-11-01,Aharwan BO,Rattia SO,J6563,bo,Accounts Opened,21
 2026-11-01,Ahirka B.O,Jind H.O,F1503,bo,Accounts Opened,9
 2026-11-01,Ahlisadar BO,Fatehabad SO Fatehabad,A3414,bo,Accounts Opened,29
 2026-11-01,Ahmedpur BO,Sirsa HO,F9956,bo,Accounts Opened,21
@@ -2618,7 +2670,9 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Alewa S.O,Alewa S.O,12611101,so,Accounts Opened,21
 2026-11-01,Alhar B.O,Radaur S.O,I4674,bo,Accounts Opened,12
 2026-11-01,Ali Meo BO,Hodal SO,J7232,bo,Accounts Opened,51
-2026-11-01,Alika BO,Palwal SO,D1118,bo,Accounts Opened,37
+2026-11-01,Alika BO,Palwal SO,D1118,bo,Accounts Opened,5
+2026-11-01,Alika BO,Baragudha SO,E9885,bo,Accounts Opened,23
+2026-11-01,Alika BO,Nagpur S.O.,J6564,bo,Accounts Opened,9
 2026-11-01,Alipur BO,Tigaon SO,J6124,bo,Accounts Opened,5
 2026-11-01,Alipur Jahangir B.O,Dhin S.O,L4928,bo,Accounts Opened,14
 2026-11-01,Allupur B.O,Madlauda S.O,M0943,bo,Accounts Opened,27
@@ -2649,7 +2703,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Arjun Nagar SO,Arjun Nagar SO,12200101,so,Accounts Opened,207
 2026-11-01,Arnauli B.O,Chika S.O,J3505,bo,Accounts Opened,15
 2026-11-01,Arniawali BO,Sirsa HO,A9646,bo,Accounts Opened,11
-2026-11-01,Arya Nagar BO,Badhara SO,F8278,bo,Accounts Opened,73
+2026-11-01,Arya Nagar BO,Badhara SO,F8278,bo,Accounts Opened,55
+2026-11-01,Arya Nagar BO,Ha U Hisar SO,L3897,bo,Accounts Opened,18
 2026-11-01,Asa Khera BO,Chautala SO,J7262,bo,Accounts Opened,10
 2026-11-01,Asadpur Nandnaur BO,Murthal SO,B5942,bo,Accounts Opened,12
 2026-11-01,Asalwas BO,Bawal SO,B6198,bo,Accounts Opened,4
@@ -2671,7 +2726,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Aterna BO,Jakhauli SO,M0979,bo,Accounts Opened,10
 2026-11-01,Atlas Cycle SO,Atlas Cycle SO,13100101,so,Accounts Opened,52
 2026-11-01,Atta S.O,Atta S.O,13212201,so,Accounts Opened,36
-2026-11-01,Aun BO,Jhojhu SO,H3219,bo,Accounts Opened,29
+2026-11-01,Aun BO,Baund SO,D8690,bo,Accounts Opened,26
+2026-11-01,Aun BO,Jhojhu SO,H3219,bo,Accounts Opened,3
 2026-11-01,Aurangabad B.O,Jagdhari Work Shop S.O,C3780,bo,Accounts Opened,16
 2026-11-01,Aurangabad SO Faridabad,Aurangabad SO Faridabad,12110501,so,Accounts Opened,27
 2026-11-01,Ayalki BO,Rattia SO,J6565,bo,Accounts Opened,11
@@ -2763,7 +2819,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Ballah S.O,Ballah S.O,13204001,so,Accounts Opened,43
 2026-11-01,Ballana B.O,Durga Nagar S.O,M6328,bo,Accounts Opened,26
 2026-11-01,Balsmand BO,Ha U Hisar SO,L3898,bo,Accounts Opened,32
-2026-11-01,Balu B.O,Nissing S.O,J6645,bo,Accounts Opened,54
+2026-11-01,Balu B.O,Nissing S.O,J6645,bo,Accounts Opened,15
+2026-11-01,Balu B.O,Kalayat S.O,L6312,bo,Accounts Opened,39
 2026-11-01,Balwari BO,Khol SO,F6986,bo,Accounts Opened,6
 2026-11-01,Bambhewa B.O,Pillukhera S.O,M1462,bo,Accounts Opened,115
 2026-11-01,Bamla BO,Kharak Kalan SO,J7389,bo,Accounts Opened,7
@@ -2812,7 +2869,9 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Baroda B.O,Uchana S.O,M7001,bo,Accounts Opened,13
 2026-11-01,Baroda SO,Baroda SO,13130401,so,Accounts Opened,82
 2026-11-01,Baroli B.O,Shamlo Kalan S.O,M0889,bo,Accounts Opened,13
-2026-11-01,Baroli BO,Ballabgarh SO,E6964,bo,Accounts Opened,122
+2026-11-01,Baroli BO,Palwal SO,B4294,bo,Accounts Opened,46
+2026-11-01,Baroli BO,Ballabgarh SO,E6964,bo,Accounts Opened,68
+2026-11-01,Baroli BO,Bahalgarh SO,O0184,bo,Accounts Opened,8
 2026-11-01,Barona BO,Kharkhauda SO,J9551,bo,Accounts Opened,29
 2026-11-01,Barota BO,Gohana SO,L4460,bo,Accounts Opened,7
 2026-11-01,Barout B.O,Ladwa S.O,H1137,bo,Accounts Opened,27
@@ -2832,7 +2891,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Barwala SO Hisar,Barwala SO Hisar,12512102,so,Accounts Opened,208
 2026-11-01,Barwas BO,Loharu SO,L4376,bo,Accounts Opened,5
 2026-11-01,Barwasni BO,Sonipat HO,C6242,bo,Accounts Opened,5
-2026-11-01,Basai BO,Mohindergarh SO,J2214,bo,Accounts Opened,26
+2026-11-01,Basai BO,Mohindergarh SO,J2214,bo,Accounts Opened,16
+2026-11-01,Basai BO,Railwary Road SO,L9320,bo,Accounts Opened,10
 2026-11-01,Basai Road SO,Basai Road SO,12200102,so,Accounts Opened,106
 2026-11-01,Basana BO,Mokhra SO,H8734,bo,Accounts Opened,7
 2026-11-01,Basantpur BO,Sanghi SO,H9416,bo,Accounts Opened,16
@@ -3032,9 +3092,11 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Budarpur BO,Nagina SO Gurgaon,E6143,bo,Accounts Opened,56
 2026-11-01,Budda Khera Lather B.O,Julana S.O,J1726,bo,Accounts Opened,15
 2026-11-01,Buddin BO,Mohindergarh SO,J2217,bo,Accounts Opened,8
-2026-11-01,Budha Khera B.O,Pillukhera S.O,M1464,bo,Accounts Opened,13
+2026-11-01,Budha Khera B.O,Kaithal S.O,L5398,bo,Accounts Opened,8
+2026-11-01,Budha Khera B.O,Pillukhera S.O,M1464,bo,Accounts Opened,5
 2026-11-01,Budhangpur B.O,Durga Nagar S.O,M6330,bo,Accounts Opened,26
-2026-11-01,Budhera BO,Loharu SO,L4378,bo,Accounts Opened,48
+2026-11-01,Budhera BO,Loharu SO,L4378,bo,Accounts Opened,23
+2026-11-01,Budhera BO,Garhi Harsaru SO,L8165,bo,Accounts Opened,25
 2026-11-01,Budhpur BO,Rewari SO,E6428,bo,Accounts Opened,19
 2026-11-01,Budhwal BO,Nangal Chaudhry SO,J7244,bo,Accounts Opened,8
 2026-11-01,Bugana BO,Barwala SO Hisar,C5198,bo,Accounts Opened,60
@@ -3106,7 +3168,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Cheelarh BO,Khalilpur SO,O0173,bo,Accounts Opened,15
 2026-11-01,Chhachrauli S.O,Chhachrauli S.O,13510301,so,Accounts Opened,306
 2026-11-01,Chhadwana BO,Dhakla SO,AM118,bo,Accounts Opened,21
-2026-11-01,Chhainsa BO,Hathin SO,J7315,bo,Accounts Opened,39
+2026-11-01,Chhainsa BO,Ballabgarh SO,D0248,bo,Accounts Opened,9
+2026-11-01,Chhainsa BO,Hathin SO,J7315,bo,Accounts Opened,30
 2026-11-01,Chhajju Nagar BO,Palwal SO,B4295,bo,Accounts Opened,15
 2026-11-01,Chhajpur Kalan B.O,Panipat Khadi Ashram S.O,G4794,bo,Accounts Opened,13
 2026-11-01,Chhappar B.O,Saraswati Nagar S.O,L4394,bo,Accounts Opened,43
@@ -3180,7 +3243,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Dalanwas BO,Satnali SO,H0361,bo,Accounts Opened,20
 2026-11-01,Dalawas BO,Badhara SO,F8280,bo,Accounts Opened,6
 2026-11-01,Damaloan B.O,Pinjore S.O,I3640,bo,Accounts Opened,25
-2026-11-01,Damdama BO,Bhondsi SO,G8381,bo,Accounts Opened,38
+2026-11-01,Damdama BO,Bhondsi SO,G8381,bo,Accounts Opened,33
+2026-11-01,Damdama BO,Siri Jiwan Nagar SO,J6188,bo,Accounts Opened,5
 2026-11-01,Damla B.O,Jagdhari Work Shop S.O,D2044,bo,Accounts Opened,23
 2026-11-01,Dandama BO,Jui Khurd SO,J3499,bo,Accounts Opened,10
 2026-11-01,Dang BO,Bapora SO,D3474,bo,Accounts Opened,4
@@ -3193,7 +3257,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Dariyapur BO,Fatehabad SO Fatehabad,C8619,bo,Accounts Opened,21
 2026-11-01,Dariyawala B.O,Jind H.O,B8054,bo,Accounts Opened,6
 2026-11-01,Daroli Ahir BO,Nangal Sirohi SO,D1373,bo,Accounts Opened,9
-2026-11-01,Daroli BO,Dahina SO,L7190,bo,Accounts Opened,18
+2026-11-01,Daroli BO,Mandi Adampur SO,L4407,bo,Accounts Opened,6
+2026-11-01,Daroli BO,Dahina SO,L7190,bo,Accounts Opened,12
 2026-11-01,Darpur B.O,Chhachrauli S.O,J7328,bo,Accounts Opened,3
 2026-11-01,Daryapur BO,Tosham SO,C4192,bo,Accounts Opened,5
 2026-11-01,Datauli BO,Ganaur SO,D3377,bo,Accounts Opened,20
@@ -3205,7 +3270,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Daya BO,Modle Town Hisar SO,G2203,bo,Accounts Opened,21
 2026-11-01,Dayalgarh B.O,Bilaspur (Yamunanagar) S.O,G9895,bo,Accounts Opened,8
 2026-11-01,Dayalpur BO,Ballabgarh SO,A5005,bo,Accounts Opened,52
-2026-11-01,Deeg B.O,Shahabad(M) S.O,L4440,bo,Accounts Opened,162
+2026-11-01,Deeg B.O,Shahabad(M) S.O,L4440,bo,Accounts Opened,122
+2026-11-01,Deeg B.O,Pundri S.O,L6352,bo,Accounts Opened,40
 2026-11-01,Deeg BO,Ballabgarh SO,A5006,bo,Accounts Opened,50
 2026-11-01,Deepalpur BO,Bahalgarh SO,O0185,bo,Accounts Opened,52
 2026-11-01,Defence Colony S.O,Defence Colony S.O,13301001,so,Accounts Opened,35
@@ -3306,7 +3372,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Dinarpur B.O,Kesri S.O,J7218,bo,Accounts Opened,32
 2026-11-01,Ding SO,Ding SO,12505801,so,Accounts Opened,18
 2026-11-01,Dinod BO,Bapora SO,E1758,bo,Accounts Opened,10
-2026-11-01,Diwana B.O,Panipat Beas Project S.O,M1026,bo,Accounts Opened,14
+2026-11-01,Diwana B.O,Pehowa S.O,F2973,bo,Accounts Opened,2
+2026-11-01,Diwana B.O,Panipat Beas Project S.O,M1026,bo,Accounts Opened,12
 2026-11-01,Diwana BO,Dharsul Kalan SO,H9307,bo,Accounts Opened,28
 2026-11-01,Dobh BO,Police Training Center Sunaria SO,O0157,bo,Accounts Opened,14
 2026-11-01,Dochana BO,Narnaul HO,G3094,bo,Accounts Opened,8
@@ -3333,10 +3400,12 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Dulot Ahir BO,Mohindergarh SO,J2221,bo,Accounts Opened,15
 2026-11-01,Dumarkhan Kalan B.O,Narwana S.O,E1531,bo,Accounts Opened,28
 2026-11-01,Dungerwas BO,Dharuhera SO,D3548,bo,Accounts Opened,35
-2026-11-01,Durana B.O,Majri S.O,E1639,bo,Accounts Opened,30
+2026-11-01,Durana B.O,Majri S.O,E1639,bo,Accounts Opened,17
+2026-11-01,Durana B.O,Alewa S.O,M0915,bo,Accounts Opened,13
 2026-11-01,Durga Nagar S.O,Durga Nagar S.O,13400801,so,Accounts Opened,14
 2026-11-01,Durjanpur B.O,Dhanoda Kalan S.O,M0957,bo,Accounts Opened,9
-2026-11-01,Durjanpur BO,Bawani Khera SO,L4328,bo,Accounts Opened,14
+2026-11-01,Durjanpur BO,Bawani Khera SO,L4328,bo,Accounts Opened,8
+2026-11-01,Durjanpur BO,Mandi Adampur SO,L4408,bo,Accounts Opened,6
 2026-11-01,Duserpur B.O,Guhla S.O,M6993,bo,Accounts Opened,11
 2026-11-01,Ebs Hisar BO,Ha U Hisar SO,L3903,bo,Accounts Opened,20
 2026-11-01,Ellenabad SO,Ellenabad SO,12510201,so,Accounts Opened,115
@@ -3411,7 +3480,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Ganzbazar SO,Ganzbazar SO,13100103,so,Accounts Opened,19
 2026-11-01,Garanpura Kalan BO,Tosham SO,G6216,bo,Accounts Opened,7
 2026-11-01,Garhi B.O,Narwana S.O,F8315,bo,Accounts Opened,15
-2026-11-01,Garhi BO,Hansi SO,B1907,bo,Accounts Opened,41
+2026-11-01,Garhi BO,Hansi SO,B1907,bo,Accounts Opened,5
+2026-11-01,Garhi BO,Sampla SO,L5371,bo,Accounts Opened,36
 2026-11-01,Garhi Ballab BO,Anwal SO,G6638,bo,Accounts Opened,13
 2026-11-01,Garhi Birbal S.O,Garhi Birbal S.O,13205401,so,Accounts Opened,41
 2026-11-01,Garhi Bolni BO,Rewari SO,G3288,bo,Accounts Opened,7
@@ -3483,12 +3553,14 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Goria BO,Bahu SO,G9342,bo,Accounts Opened,1
 2026-11-01,Goriwala SO,Goriwala SO,12510301,so,Accounts Opened,7
 2026-11-01,Gorota BO,Hodal SO,J7235,bo,Accounts Opened,4
-2026-11-01,Gothra BO,Kund SO,J3522,bo,Accounts Opened,41
+2026-11-01,Gothra BO,Kund SO,J3522,bo,Accounts Opened,17
+2026-11-01,Gothra BO,Dahina SO,L7191,bo,Accounts Opened,24
 2026-11-01,Goyla BO,Tauru SO,AK844,bo,Accounts Opened,3
 2026-11-01,Greater Faridabad PO,Greater Faridabad PO,12101401,so,Accounts Opened,77
 2026-11-01,Gubhana BO,Badli SO Jhajjar,L6158,bo,Accounts Opened,6
 2026-11-01,Gudana Kalan BO,Jhojhu SO,H3223,bo,Accounts Opened,34
-2026-11-01,Gudha B.O,Gharunda S.O,L8189,bo,Accounts Opened,48
+2026-11-01,Gudha B.O,Ladwa S.O,H1140,bo,Accounts Opened,38
+2026-11-01,Gudha B.O,Gharunda S.O,L8189,bo,Accounts Opened,10
 2026-11-01,Gudha BO,Jhajjar SO,D7944,bo,Accounts Opened,20
 2026-11-01,Gudhana BO,Haillymandi SO,AK418,bo,Accounts Opened,25
 2026-11-01,Gudhiana B.O,Saraswati Nagar S.O,L4396,bo,Accounts Opened,36
@@ -3558,7 +3630,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Hanziran BO,Chopta Nathu Sari SO,J3474,bo,Accounts Opened,1
 2026-11-01,Hargolal S.O,Hargolal S.O,13300104,so,Accounts Opened,289
 2026-11-01,Harigarh Kingan B.O,Chika S.O,J3514,bo,Accounts Opened,13
-2026-11-01,Haripur B.O,Raipur Rani S.O,L3940,bo,Accounts Opened,15
+2026-11-01,Haripur B.O,Raipur Rani S.O,L3940,bo,Accounts Opened,3
+2026-11-01,Haripur B.O,Shahabad(M) S.O,L4442,bo,Accounts Opened,12
 2026-11-01,Haripura B.O,Kalayat S.O,L6317,bo,Accounts Opened,13
 2026-11-01,Haripura BO,Siri Jiwan Nagar SO,J6191,bo,Accounts Opened,36
 2026-11-01,Harita BO,Modle Town Hisar SO,C8642,bo,Accounts Opened,16
@@ -3568,7 +3641,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Harsana Kalan BO,Sonipat HO,A0936,bo,Accounts Opened,8
 2026-11-01,Harsola B.O,Kaithal S.O,L5406,bo,Accounts Opened,62
 2026-11-01,Hartan B.O,Radaur S.O,I4684,bo,Accounts Opened,30
-2026-11-01,Hasanpur BO,Tauru SO,E0978,bo,Accounts Opened,54
+2026-11-01,Hasanpur BO,Jhajjar SO,C9509,bo,Accounts Opened,20
+2026-11-01,Hasanpur BO,Tauru SO,E0978,bo,Accounts Opened,34
 2026-11-01,Hassanga BO,Rattia SO,J6578,bo,Accounts Opened,13
 2026-11-01,Hassangarh BO,Uklana Mandi SO,F8537,bo,Accounts Opened,3
 2026-11-01,Hassangarh SO,Hassangarh SO,12440401,so,Accounts Opened,52
@@ -3653,7 +3727,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Jamalgarh BO,Punhana SO,N8588,bo,Accounts Opened,20
 2026-11-01,Jamalpur B.O,Gharunda S.O,L8191,bo,Accounts Opened,16
 2026-11-01,Jamalpur BO,Pataudi SO,L8302,bo,Accounts Opened,25
-2026-11-01,Jamalpur SO Bhiwani,Jamalpur SO Bhiwani,12703501,bo,Accounts Opened,38
+2026-11-01,Jamalpur SO Bhiwani,Jamalpur SO Bhiwani,12703501,so,Accounts Opened,38
 2026-11-01,Jamalpur Sheikhan BO,Tohana Mandi SO,D9413,bo,Accounts Opened,13
 2026-11-01,Jamawari BO,Hansi SO,C8616,bo,Accounts Opened,25
 2026-11-01,Jamba B.O,Nigdhu S.O,M0919,bo,Accounts Opened,12
@@ -3705,7 +3779,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Jhamuwas BO,Tauru SO,C4362,bo,Accounts Opened,23
 2026-11-01,Jhanjkalan B.O,Jind H.O,F9947,bo,Accounts Opened,6
 2026-11-01,Jhanjra Sheoran BO,Loharu SO,L4385,bo,Accounts Opened,25
-2026-11-01,Jhanjrola Khera,Jhanjrola Khera,AV707,so,Accounts Opened,7
+2026-11-01,Jhanjrola Khera,,AV707,bo,Accounts Opened,7
 2026-11-01,Jhansa S.O,Jhansa S.O,13613001,so,Accounts Opened,73
 2026-11-01,Jhanswa Kalan BO,Sahlawas SO,J7829,bo,Accounts Opened,36
 2026-11-01,Jharli BO,Matanhail SO,J7408,bo,Accounts Opened,20
@@ -3835,7 +3909,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Kansala SO,Kansala SO,12440601,so,Accounts Opened,29
 2026-11-01,Kanti BO,Mandi Ateli SO,L9948,bo,Accounts Opened,15
 2026-11-01,Kanti Kheri BO,Mandi Ateli SO,L9949,bo,Accounts Opened,1
-2026-11-01,Kanwali BO,Dahina SO,L7192,bo,Accounts Opened,48
+2026-11-01,Kanwali BO,Dahina SO,L7192,bo,Accounts Opened,38
+2026-11-01,Kanwali BO,Rohat SO Sonipat,M0954,bo,Accounts Opened,10
 2026-11-01,Kanwari BO,Nalwa SO,G8428,bo,Accounts Opened,7
 2026-11-01,Kanwi BO,Narnaul HO,F4599,bo,Accounts Opened,2
 2026-11-01,Kanyagurukul Khanpur SO,Kanyagurukul Khanpur SO,13130501,so,Accounts Opened,95
@@ -3865,7 +3940,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Karnal Road Kaithal S.O,Karnal Road Kaithal S.O,13602703,so,Accounts Opened,189
 2026-11-01,Karnal Sadar Bazar S.O,Karnal Sadar Bazar S.O,13200112,so,Accounts Opened,219
 2026-11-01,Karnal Sector 6 S.O,Karnal Sector 6 S.O,13200113,so,Accounts Opened,134
-2026-11-01,Karnawas BO,Kosli SO,J9909,bo,Accounts Opened,27
+2026-11-01,Karnawas BO,Rewari SO,A4457,bo,Accounts Opened,16
+2026-11-01,Karnawas BO,Kosli SO,J9909,bo,Accounts Opened,11
 2026-11-01,Karodha BO,Jhajjar SO,AK737,bo,Accounts Opened,11
 2026-11-01,Karola BO,Haillymandi SO,L6307,bo,Accounts Opened,22
 2026-11-01,Karoli BO,Nahar SO,J8962,bo,Accounts Opened,39
@@ -3926,7 +4002,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Khandrai BO,Gohana SO,L4469,bo,Accounts Opened,88
 2026-11-01,Khandsa BO,Narsinghpur SO,H8524,bo,Accounts Opened,10
 2026-11-01,Khandsa Road SO,Khandsa Road SO,12200106,so,Accounts Opened,31
-2026-11-01,Khanpur B.O,Kesri S.O,J7219,bo,Accounts Opened,36
+2026-11-01,Khanpur B.O,Indri S.O,H9717,bo,Accounts Opened,12
+2026-11-01,Khanpur B.O,Kesri S.O,J7219,bo,Accounts Opened,24
 2026-11-01,Khanpur Brahmana B.O,Jatwar S.O,M0020,bo,Accounts Opened,68
 2026-11-01,Khanpur Ghati BO,Punhana SO,N8589,bo,Accounts Opened,11
 2026-11-01,Khanpur Kalan BO,Kanyagurukul Khanpur SO,E0708,bo,Accounts Opened,20
@@ -3951,8 +4028,11 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Kharkada B.O,Guhla S.O,M6994,bo,Accounts Opened,6
 2026-11-01,Kharkan B.O,Guhla S.O,M6995,bo,Accounts Opened,5
 2026-11-01,Kharkara BO,Barwala SO Hisar,B6759,bo,Accounts Opened,4
-2026-11-01,Kharkari BO,Loharu SO,L4386,bo,Accounts Opened,35
-2026-11-01,Kharkhara BO,Dharuhera SO,A8325,bo,Accounts Opened,36
+2026-11-01,Kharkari BO,Hansi SO,C8617,bo,Accounts Opened,11
+2026-11-01,Kharkari BO,Loharu SO,L4386,bo,Accounts Opened,24
+2026-11-01,Kharkhara BO,Bass SO,A7272,bo,Accounts Opened,15
+2026-11-01,Kharkhara BO,Dharuhera SO,A8325,bo,Accounts Opened,15
+2026-11-01,Kharkhara BO,Madina SO,H8970,bo,Accounts Opened,6
 2026-11-01,Kharkhari Sohan BO,Tosham SO,C4193,bo,Accounts Opened,13
 2026-11-01,Kharkhauda SO,Kharkhauda SO,13140201,so,Accounts Opened,140
 2026-11-01,Kharman BO,Bahadurgarh Mandi SO,L9904,bo,Accounts Opened,40
@@ -3964,7 +4044,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Khatkar B.O,Uchana S.O,M7011,bo,Accounts Opened,22
 2026-11-01,Khatod BO,Mohindergarh SO,J2223,bo,Accounts Opened,18
 2026-11-01,Khedar BO,Barwala SO Hisar,F8637,bo,Accounts Opened,48
-2026-11-01,Khera B.O,Jagadhri S.O,B4561,bo,Accounts Opened,66
+2026-11-01,Khera B.O,Jagadhri S.O,B4561,bo,Accounts Opened,11
+2026-11-01,Khera B.O,Indri S.O,H9718,bo,Accounts Opened,55
 2026-11-01,Khera BO,Siwani SO,J2208,bo,Accounts Opened,6
 2026-11-01,Khera Khurampur BO,Farrukh Nagar SO,L9306,bo,Accounts Opened,7
 2026-11-01,Khera Khurd B.O,Thermal Colony Yamuna Nagar S.O,L7569,bo,Accounts Opened,12
@@ -4077,7 +4158,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Kurali BO,Tigaon SO,J6130,bo,Accounts Opened,52
 2026-11-01,Kurana B.O,Israna S.O,M0988,bo,Accounts Opened,7
 2026-11-01,Kurangawali BO,Baragudha SO,G6839,bo,Accounts Opened,39
-2026-11-01,Kurar B.O,Panipat Khadi Ashram S.O,A5882,bo,Accounts Opened,30
+2026-11-01,Kurar B.O,Panipat Khadi Ashram S.O,A5882,bo,Accounts Opened,23
+2026-11-01,Kurar B.O,Kalayat S.O,L6323,bo,Accounts Opened,7
 2026-11-01,Kurar Brahimpur BO,Engg College Muthal SO,J8903,bo,Accounts Opened,25
 2026-11-01,Kurawata BO,Mohindergarh SO,J2225,bo,Accounts Opened,10
 2026-11-01,Kurlan B.O,Salwan S.O,M0898,bo,Accounts Opened,3
@@ -4085,7 +4167,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Kuruk Jagir B.O,Taraori S.O,M1035,bo,Accounts Opened,10
 2026-11-01,Kurukshetra H.O,Kurukshetra H.O,13611800,so,Accounts Opened,540
 2026-11-01,Kurukshetra University S.O,Kurukshetra University S.O,13611901,so,Accounts Opened,132
-2026-11-01,Kusumbhi BO,Kairu SO,C8494,bo,Accounts Opened,16
+2026-11-01,Kusumbhi BO,Sirsa HO,A1159,bo,Accounts Opened,5
+2026-11-01,Kusumbhi BO,Kairu SO,C8494,bo,Accounts Opened,11
 2026-11-01,Kutail B.O,Madhuban S.O (Karnal),M1002,bo,Accounts Opened,9
 2026-11-01,Kutewadh BO,Sirsa HO,F1511,bo,Accounts Opened,11
 2026-11-01,LADRAWAN BO,Assaudha SO,N9650,bo,Accounts Opened,9
@@ -4187,7 +4270,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Maijod BO,Sisai SO Hisar,H3018,bo,Accounts Opened,51
 2026-11-01,Main Bazar Bahadurgarh  SO,Main Bazar Bahadurgarh  SO,12450705,so,Accounts Opened,110
 2026-11-01,Maina BO,Asthal Bohar SO,J7020,bo,Accounts Opened,14
-2026-11-01,Majra BO,Narnaund SO,J6627,bo,Accounts Opened,30
+2026-11-01,Majra BO,Narnaund SO,J6627,bo,Accounts Opened,9
+2026-11-01,Majra BO,Dubaldhan SO,J7210,bo,Accounts Opened,21
 2026-11-01,Majra Gurdas BO,Rewari SO,B2906,bo,Accounts Opened,20
 2026-11-01,Majra Nand Karan B.O,Pai S.O,L5416,bo,Accounts Opened,16
 2026-11-01,Majra Rodan B.O,Nigdhu S.O,M0921,bo,Accounts Opened,7
@@ -4201,7 +4285,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Malab BO,Nuh SO,J6612,bo,Accounts Opened,65
 2026-11-01,Malai BO,Hathin SO,J7322,bo,Accounts Opened,15
 2026-11-01,Malar B.O,Safidon S.O,F0123,bo,Accounts Opened,2
-2026-11-01,Malikpur B.O,Safidon S.O,F8541,bo,Accounts Opened,9
+2026-11-01,Malikpur B.O,Pehowa S.O,B1173,bo,Accounts Opened,3
+2026-11-01,Malikpur B.O,Safidon S.O,F8541,bo,Accounts Opened,6
 2026-11-01,Malikpur BO,Murthal SO,D2683,bo,Accounts Opened,18
 2026-11-01,Malikpur Khadar B.O,Bhudkalan S.O,L4337,bo,Accounts Opened,24
 2026-11-01,Malkosh BO,Baund SO,G3971,bo,Accounts Opened,26
@@ -4217,7 +4302,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Mandaura BO,Nahri SO,M1781,bo,Accounts Opened,14
 2026-11-01,Mandhana B.O,Morni S.O,L3886,bo,Accounts Opened,9
 2026-11-01,Mandhana BO,Bawani Khera SO,L4330,bo,Accounts Opened,19
-2026-11-01,Mandhar B.O,Radaur S.O,I4688,bo,Accounts Opened,21
+2026-11-01,Mandhar B.O,Jagadhri S.O,B4562,bo,Accounts Opened,10
+2026-11-01,Mandhar B.O,Radaur S.O,I4688,bo,Accounts Opened,11
 2026-11-01,Mandhaur B.O,Baldev Nagar S.O,C5102,bo,Accounts Opened,65
 2026-11-01,Mandheri B.O,Thol S.O,L5290,bo,Accounts Opened,3
 2026-11-01,Mandhi Harya BO,Nihalgard PO,G6836,bo,Accounts Opened,14
@@ -4232,7 +4318,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Mandi Sadra B.O,Siwan S.O,I5452,bo,Accounts Opened,2
 2026-11-01,Mandikhera BO,Nagina SO Gurgaon,F4475,bo,Accounts Opened,20
 2026-11-01,Mandkola BO,Hathin SO,J7323,bo,Accounts Opened,32
-2026-11-01,Mandola BO,Mohindergarh SO,J2227,bo,Accounts Opened,37
+2026-11-01,Mandola BO,Khol SO,D1909,bo,Accounts Opened,20
+2026-11-01,Mandola BO,Mohindergarh SO,J2227,bo,Accounts Opened,17
 2026-11-01,Mandothi SO,Mandothi SO,12450601,so,Accounts Opened,60
 2026-11-01,Mandwal B.O,Rajound S.O,L6339,bo,Accounts Opened,6
 2026-11-01,Mangala BO,Sirsa HO,F9959,bo,Accounts Opened,12
@@ -4277,7 +4364,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Mattar Sham BO,Ha U Hisar SO,L3906,bo,Accounts Opened,20
 2026-11-01,Maujdin BO,Sirsa HO,D4830,bo,Accounts Opened,11
 2026-11-01,Maujgarbh BO,Mandi Dabwali SO,L6272,bo,Accounts Opened,13
-2026-11-01,Mauju Khera BO,Bahaudin SO,J7012,bo,Accounts Opened,13
+2026-11-01,Mauju Khera BO,Ellenabad SO,A2294,bo,Accounts Opened,9
+2026-11-01,Mauju Khera BO,Bahaudin SO,J7012,bo,Accounts Opened,4
 2026-11-01,Mauli B.O,Barwala S.O (Panchkula),I5070,bo,Accounts Opened,12
 2026-11-01,Mauri BO,Chiriya SO,E0620,bo,Accounts Opened,24
 2026-11-01,Mayan BO,Khol SO,A6708,bo,Accounts Opened,33
@@ -4291,7 +4379,9 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Mehlana BO,Sonipat HO,D4612,bo,Accounts Opened,20
 2026-11-01,Mehlanwali B.O,Jagadhri S.O,C3070,bo,Accounts Opened,17
 2026-11-01,Mehmal B.O,Nissing S.O,J6651,bo,Accounts Opened,4
-2026-11-01,Mehmoodpur B.O,Saha S.O,L4366,bo,Accounts Opened,37
+2026-11-01,Mehmoodpur B.O,Sadhaura S.O,D2499,bo,Accounts Opened,13
+2026-11-01,Mehmoodpur B.O,Chika S.O,J3516,bo,Accounts Opened,12
+2026-11-01,Mehmoodpur B.O,Saha S.O,L4366,bo,Accounts Opened,12
 2026-11-01,Mehmoodpur BO,Gohana SO,L4474,bo,Accounts Opened,7
 2026-11-01,Mehmra BO,Rattia SO,J6585,bo,Accounts Opened,4
 2026-11-01,Mehrana BO,Dujana SO,C0296,bo,Accounts Opened,8
@@ -4320,7 +4410,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Mirana BO,Rattia SO,J6586,bo,Accounts Opened,19
 2026-11-01,Mirchpur BO,Narnaund SO,J6629,bo,Accounts Opened,27
 2026-11-01,Mirpur BO,Khalilpur SO,O0178,bo,Accounts Opened,23
-2026-11-01,Mirzapur BO,Ellenabad SO,B9190,bo,Accounts Opened,31
+2026-11-01,Mirzapur BO,Ellenabad SO,B9190,bo,Accounts Opened,11
+2026-11-01,Mirzapur BO,Modle Town Hisar SO,C0356,bo,Accounts Opened,20
 2026-11-01,Misri BO,Sanwar SO Bhiwani,G1000,bo,Accounts Opened,25
 2026-11-01,Mitathal BO,Tigrana SO,E5320,bo,Accounts Opened,31
 2026-11-01,Mithanpura BO,Ellenabad SO,C7470,bo,Accounts Opened,6
@@ -4402,7 +4493,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Nagpur S.O.,Nagpur S.O.,12506101,so,Accounts Opened,17
 2026-11-01,Naguran S.O,Naguran S.O,12612501,so,Accounts Opened,43
 2026-11-01,Nahar Pur B.O,Thermal Colony Yamuna Nagar S.O,L7571,bo,Accounts Opened,14
-2026-11-01,Nahar Pur Rupa,Nahar Pur Rupa,AV739,so,Accounts Opened,4
+2026-11-01,Nahar Pur Rupa,,AV739,bo,Accounts Opened,4
 2026-11-01,Nahar SO,Nahar SO,12330301,so,Accounts Opened,167
 2026-11-01,Naheda BO,Punhana SO,N8591,bo,Accounts Opened,35
 2026-11-01,Nahoni B.O,Saha S.O,L4367,bo,Accounts Opened,15
@@ -4440,7 +4531,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Nangal Sirohi SO,Nangal Sirohi SO,12302801,so,Accounts Opened,79
 2026-11-01,Nangal Teju BO,Bawal SO,F8082,bo,Accounts Opened,22
 2026-11-01,Nangalmala BO,Satnali SO,H0365,bo,Accounts Opened,16
-2026-11-01,Nangla BO,Satnali SO,AK417,bo,Accounts Opened,45
+2026-11-01,Nangla BO,Satnali SO,AK417,bo,Accounts Opened,27
+2026-11-01,Nangla BO,Tohana Mandi SO,D1135,bo,Accounts Opened,18
 2026-11-01,Nangli Godha BO,Rewari SO,E6431,bo,Accounts Opened,27
 2026-11-01,Nangthala BO,Agroha SO,A7321,bo,Accounts Opened,2
 2026-11-01,Nanhera B.O,Panipat Khadi Ashram S.O,A5883,bo,Accounts Opened,1
@@ -4473,7 +4565,7 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Nawan BO,Satnali SO,H0366,bo,Accounts Opened,23
 2026-11-01,Naya Bans BO,Sampla SO,L5379,bo,Accounts Opened,9
 2026-11-01,Nayat BO,Gohana SO,L4476,bo,Accounts Opened,16
-2026-11-01,Neemariwali PO,Neemariwali PO,12731101,bo,Accounts Opened,3
+2026-11-01,Neemariwali PO,Neemariwali PO,12731101,so,Accounts Opened,3
 2026-11-01,Neemka BO,Ballabgarh SO,E6965,bo,Accounts Opened,76
 2026-11-01,Neemli BO,Charkhi  Dadri Hsgii SO,G3119,bo,Accounts Opened,22
 2026-11-01,Neerpur BO,Narnaul HO,G3096,bo,Accounts Opened,1
@@ -4552,7 +4644,10 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Palam Vihar SO Gurgaon,Palam Vihar SO Gurgaon,12201701,so,Accounts Opened,227
 2026-11-01,Palari BO,Jhojhu SO,H3226,bo,Accounts Opened,27
 2026-11-01,Palhawas SO,Palhawas SO,12303501,so,Accounts Opened,128
-2026-11-01,Pali BO,Mohindergarh SO,J2229,bo,Accounts Opened,63
+2026-11-01,Pali BO,Ballabgarh SO,F5357,bo,Accounts Opened,2
+2026-11-01,Pali BO,Sisai SO Hisar,H3020,bo,Accounts Opened,9
+2026-11-01,Pali BO,Mohindergarh SO,J2229,bo,Accounts Opened,28
+2026-11-01,Pali BO,Kund SO,J3525,bo,Accounts Opened,24
 2026-11-01,Palra BO,Jhajjar SO,A4292,bo,Accounts Opened,10
 2026-11-01,Palri B.O,Neoltha S.O,M1031,bo,Accounts Opened,24
 2026-11-01,Palri Panihara BO,Mohindergarh SO,J2230,bo,Accounts Opened,22
@@ -4642,7 +4737,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Pingwan BO,Punhana SO,N8593,bo,Accounts Opened,8
 2026-11-01,Pinjore S.O,Pinjore S.O,13410201,so,Accounts Opened,169
 2026-11-01,Pipaltha B.O,Narwana S.O,A7991,bo,Accounts Opened,25
-2026-11-01,Pipli BO,Kalanwali SO,L5335,bo,Accounts Opened,35
+2026-11-01,Pipli BO,Kharkhauda SO,J9558,bo,Accounts Opened,25
+2026-11-01,Pipli BO,Kalanwali SO,L5335,bo,Accounts Opened,10
 2026-11-01,Pipli Majra B.O,Bhudkalan S.O,L4338,bo,Accounts Opened,14
 2026-11-01,Pipli S.O,Pipli S.O,13613101,so,Accounts Opened,99
 2026-11-01,Pipliwala B.O,Sadhaura S.O,A7323,bo,Accounts Opened,103
@@ -4692,7 +4788,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Raisina BO,Bhondsi SO,G8385,bo,Accounts Opened,18
 2026-11-01,Raison B.O,Nigdhu S.O,M0922,bo,Accounts Opened,21
 2026-11-01,Raiwali B.O,Barwala S.O (Panchkula),I5071,bo,Accounts Opened,17
-2026-11-01,Rajgarh BO,Neemariwali PO,B6664,bo,Accounts Opened,48
+2026-11-01,Rajgarh BO,Neemariwali PO,B6664,bo,Accounts Opened,26
+2026-11-01,Rajgarh BO,Dharan SO,E9623,bo,Accounts Opened,22
 2026-11-01,Rajgarh Gurthali B.O,Narwana S.O,C4885,bo,Accounts Opened,3
 2026-11-01,Rajkheri B.O,Panipat Khadi Ashram S.O,D9418,bo,Accounts Opened,8
 2026-11-01,Rajli BO,Barwala SO Hisar,F0225,bo,Accounts Opened,22
@@ -4749,7 +4846,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Rawli BO,Ferozepur Jhirka SO,L6412,bo,Accounts Opened,15
 2026-11-01,Refinery Township Panipat SO,Refinery Township Panipat SO,13214002,so,Accounts Opened,31
 2026-11-01,Rethath BO,Punhana SO,N8594,bo,Accounts Opened,55
-2026-11-01,Rewari Khera BO,Chang SO,J9572,bo,Accounts Opened,20
+2026-11-01,Rewari Khera BO,Charra SO,H0669,bo,Accounts Opened,16
+2026-11-01,Rewari Khera BO,Chang SO,J9572,bo,Accounts Opened,4
 2026-11-01,Rewari SO,Rewari SO,12340105,so,Accounts Opened,489
 2026-11-01,Rewasan BO,Sohna SO,L7557,bo,Accounts Opened,55
 2026-11-01,Rindana BO,Baroda SO,J8901,bo,Accounts Opened,7
@@ -4915,7 +5013,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Shahabad(M) S.O,Shahabad(M) S.O,13613502,so,Accounts Opened,389
 2026-11-01,Shaharwa BO,Modle Town Hisar SO,C0357,bo,Accounts Opened,14
 2026-11-01,Shahchokha BO,Punhana SO,N8595,bo,Accounts Opened,8
-2026-11-01,Shahpur B.O,Israna S.O,M0993,bo,Accounts Opened,45
+2026-11-01,Shahpur B.O,Naguran S.O,M0911,bo,Accounts Opened,21
+2026-11-01,Shahpur B.O,Israna S.O,M0993,bo,Accounts Opened,24
 2026-11-01,Shahpur BO,Ha U Hisar SO,L3910,bo,Accounts Opened,81
 2026-11-01,Shahpur Begu BO,Sirsa HO,F9960,bo,Accounts Opened,7
 2026-11-01,Shahpur Nurd B.O,Sarawan S.O,G6217,bo,Accounts Opened,12
@@ -4953,7 +5052,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Sikrawa BO,Punhana SO,N8597,bo,Accounts Opened,50
 2026-11-01,Sikri B.O,Nilokheri S.O,J2770,bo,Accounts Opened,10
 2026-11-01,Silakheri B.O,Safidon S.O,E1734,bo,Accounts Opened,17
-2026-11-01,Silana BO,Jhajjar SO,D7946,bo,Accounts Opened,6
+2026-11-01,Silana BO,Jhajjar SO,D7946,bo,Accounts Opened,1
+2026-11-01,Silana BO,Farmana SO,M1776,bo,Accounts Opened,5
 2026-11-01,Silani BO,Jhajjar SO,C1194,bo,Accounts Opened,44
 2026-11-01,Silikalan B.O,Radaur S.O,I4690,bo,Accounts Opened,17
 2026-11-01,Simla B.O,Kalayat S.O,L6328,bo,Accounts Opened,12
@@ -4983,7 +5083,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Siswala BO,Birhi Kalan SO,H9254,bo,Accounts Opened,11
 2026-11-01,Sitamai B.O,Nigdhu S.O,M0925,bo,Accounts Opened,8
 2026-11-01,Sitawali BO,Juan SO,L8606,bo,Accounts Opened,50
-2026-11-01,Siwaha B.O,Panipat Beas Project S.O,M1028,bo,Accounts Opened,50
+2026-11-01,Siwaha B.O,Panipat Beas Project S.O,M1028,bo,Accounts Opened,21
+2026-11-01,Siwaha B.O,Pillukhera S.O,M1472,bo,Accounts Opened,29
 2026-11-01,Siwan Gate Kaithal S.O,Siwan Gate Kaithal S.O,13602704,so,Accounts Opened,272
 2026-11-01,Siwan Mal B.O,Safidon S.O,C5082,bo,Accounts Opened,20
 2026-11-01,Siwan S.O,Siwan S.O,13603301,so,Accounts Opened,152
@@ -5025,7 +5126,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-01,Sulkha BO,Rewari SO,D8065,bo,Accounts Opened,17
 2026-11-01,Sulodha BO,Jhajjar SO,E6295,bo,Accounts Opened,23
 2026-11-01,Sultanpur B.O,Taraori S.O,M1044,bo,Accounts Opened,15
-2026-11-01,Sultanpur BO,Farrukh Nagar SO,L9309,bo,Accounts Opened,25
+2026-11-01,Sultanpur BO,Hansi SO,G2173,bo,Accounts Opened,3
+2026-11-01,Sultanpur BO,Farrukh Nagar SO,L9309,bo,Accounts Opened,22
 2026-11-01,Sultanpuria BO,Rania SO,L6360,bo,Accounts Opened,14
 2026-11-01,Sunari Kalan BO,Police Training Center Sunaria SO,O0161,bo,Accounts Opened,4
 2026-11-01,Sundana BO,Kahnaur SO,J8919,bo,Accounts Opened,16
@@ -5170,7 +5272,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Agongh B.O,Nissing S.O,J6643,bo,Accounts Opened,10
 2026-11-02,Agroha SO,Agroha SO,12504701,so,Accounts Opened,30
 2026-11-02,Ahar B.O,Israna S.O,M0983,bo,Accounts Opened,27
-2026-11-02,Aharwan BO,Palwal SO,E7826,bo,Accounts Opened,33
+2026-11-02,Aharwan BO,Palwal SO,E7826,bo,Accounts Opened,12
+2026-11-02,Aharwan BO,Rattia SO,J6563,bo,Accounts Opened,21
 2026-11-02,Ahirka B.O,Jind H.O,F1503,bo,Accounts Opened,9
 2026-11-02,Ahlisadar BO,Fatehabad SO Fatehabad,A3414,bo,Accounts Opened,29
 2026-11-02,Ahmedpur BO,Sirsa HO,F9956,bo,Accounts Opened,21
@@ -5197,7 +5300,9 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Alewa S.O,Alewa S.O,12611101,so,Accounts Opened,21
 2026-11-02,Alhar B.O,Radaur S.O,I4674,bo,Accounts Opened,12
 2026-11-02,Ali Meo BO,Hodal SO,J7232,bo,Accounts Opened,51
-2026-11-02,Alika BO,Palwal SO,D1118,bo,Accounts Opened,37
+2026-11-02,Alika BO,Palwal SO,D1118,bo,Accounts Opened,5
+2026-11-02,Alika BO,Baragudha SO,E9885,bo,Accounts Opened,23
+2026-11-02,Alika BO,Nagpur S.O.,J6564,bo,Accounts Opened,9
 2026-11-02,Alipur BO,Tigaon SO,J6124,bo,Accounts Opened,5
 2026-11-02,Alipur Jahangir B.O,Dhin S.O,L4928,bo,Accounts Opened,14
 2026-11-02,Allupur B.O,Madlauda S.O,M0943,bo,Accounts Opened,27
@@ -5228,7 +5333,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Arjun Nagar SO,Arjun Nagar SO,12200101,so,Accounts Opened,207
 2026-11-02,Arnauli B.O,Chika S.O,J3505,bo,Accounts Opened,15
 2026-11-02,Arniawali BO,Sirsa HO,A9646,bo,Accounts Opened,11
-2026-11-02,Arya Nagar BO,Badhara SO,F8278,bo,Accounts Opened,73
+2026-11-02,Arya Nagar BO,Badhara SO,F8278,bo,Accounts Opened,55
+2026-11-02,Arya Nagar BO,Ha U Hisar SO,L3897,bo,Accounts Opened,18
 2026-11-02,Asa Khera BO,Chautala SO,J7262,bo,Accounts Opened,10
 2026-11-02,Asadpur Nandnaur BO,Murthal SO,B5942,bo,Accounts Opened,12
 2026-11-02,Asalwas BO,Bawal SO,B6198,bo,Accounts Opened,4
@@ -5250,7 +5356,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Aterna BO,Jakhauli SO,M0979,bo,Accounts Opened,10
 2026-11-02,Atlas Cycle SO,Atlas Cycle SO,13100101,so,Accounts Opened,52
 2026-11-02,Atta S.O,Atta S.O,13212201,so,Accounts Opened,36
-2026-11-02,Aun BO,Jhojhu SO,H3219,bo,Accounts Opened,29
+2026-11-02,Aun BO,Baund SO,D8690,bo,Accounts Opened,26
+2026-11-02,Aun BO,Jhojhu SO,H3219,bo,Accounts Opened,3
 2026-11-02,Aurangabad B.O,Jagdhari Work Shop S.O,C3780,bo,Accounts Opened,16
 2026-11-02,Aurangabad SO Faridabad,Aurangabad SO Faridabad,12110501,so,Accounts Opened,27
 2026-11-02,Ayalki BO,Rattia SO,J6565,bo,Accounts Opened,11
@@ -5342,7 +5449,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Ballah S.O,Ballah S.O,13204001,so,Accounts Opened,43
 2026-11-02,Ballana B.O,Durga Nagar S.O,M6328,bo,Accounts Opened,26
 2026-11-02,Balsmand BO,Ha U Hisar SO,L3898,bo,Accounts Opened,32
-2026-11-02,Balu B.O,Nissing S.O,J6645,bo,Accounts Opened,54
+2026-11-02,Balu B.O,Nissing S.O,J6645,bo,Accounts Opened,15
+2026-11-02,Balu B.O,Kalayat S.O,L6312,bo,Accounts Opened,39
 2026-11-02,Balwari BO,Khol SO,F6986,bo,Accounts Opened,6
 2026-11-02,Bambhewa B.O,Pillukhera S.O,M1462,bo,Accounts Opened,115
 2026-11-02,Bamla BO,Kharak Kalan SO,J7389,bo,Accounts Opened,7
@@ -5391,7 +5499,9 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Baroda B.O,Uchana S.O,M7001,bo,Accounts Opened,13
 2026-11-02,Baroda SO,Baroda SO,13130401,so,Accounts Opened,82
 2026-11-02,Baroli B.O,Shamlo Kalan S.O,M0889,bo,Accounts Opened,13
-2026-11-02,Baroli BO,Ballabgarh SO,E6964,bo,Accounts Opened,122
+2026-11-02,Baroli BO,Palwal SO,B4294,bo,Accounts Opened,46
+2026-11-02,Baroli BO,Ballabgarh SO,E6964,bo,Accounts Opened,68
+2026-11-02,Baroli BO,Bahalgarh SO,O0184,bo,Accounts Opened,8
 2026-11-02,Barona BO,Kharkhauda SO,J9551,bo,Accounts Opened,29
 2026-11-02,Barota BO,Gohana SO,L4460,bo,Accounts Opened,7
 2026-11-02,Barout B.O,Ladwa S.O,H1137,bo,Accounts Opened,27
@@ -5411,7 +5521,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Barwala SO Hisar,Barwala SO Hisar,12512102,so,Accounts Opened,208
 2026-11-02,Barwas BO,Loharu SO,L4376,bo,Accounts Opened,5
 2026-11-02,Barwasni BO,Sonipat HO,C6242,bo,Accounts Opened,5
-2026-11-02,Basai BO,Mohindergarh SO,J2214,bo,Accounts Opened,26
+2026-11-02,Basai BO,Mohindergarh SO,J2214,bo,Accounts Opened,16
+2026-11-02,Basai BO,Railwary Road SO,L9320,bo,Accounts Opened,10
 2026-11-02,Basai Road SO,Basai Road SO,12200102,so,Accounts Opened,106
 2026-11-02,Basana BO,Mokhra SO,H8734,bo,Accounts Opened,7
 2026-11-02,Basantpur BO,Sanghi SO,H9416,bo,Accounts Opened,16
@@ -5611,9 +5722,11 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Budarpur BO,Nagina SO Gurgaon,E6143,bo,Accounts Opened,56
 2026-11-02,Budda Khera Lather B.O,Julana S.O,J1726,bo,Accounts Opened,15
 2026-11-02,Buddin BO,Mohindergarh SO,J2217,bo,Accounts Opened,8
-2026-11-02,Budha Khera B.O,Pillukhera S.O,M1464,bo,Accounts Opened,13
+2026-11-02,Budha Khera B.O,Kaithal S.O,L5398,bo,Accounts Opened,8
+2026-11-02,Budha Khera B.O,Pillukhera S.O,M1464,bo,Accounts Opened,5
 2026-11-02,Budhangpur B.O,Durga Nagar S.O,M6330,bo,Accounts Opened,26
-2026-11-02,Budhera BO,Loharu SO,L4378,bo,Accounts Opened,48
+2026-11-02,Budhera BO,Loharu SO,L4378,bo,Accounts Opened,23
+2026-11-02,Budhera BO,Garhi Harsaru SO,L8165,bo,Accounts Opened,25
 2026-11-02,Budhpur BO,Rewari SO,E6428,bo,Accounts Opened,19
 2026-11-02,Budhwal BO,Nangal Chaudhry SO,J7244,bo,Accounts Opened,8
 2026-11-02,Bugana BO,Barwala SO Hisar,C5198,bo,Accounts Opened,60
@@ -5685,7 +5798,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Cheelarh BO,Khalilpur SO,O0173,bo,Accounts Opened,15
 2026-11-02,Chhachrauli S.O,Chhachrauli S.O,13510301,so,Accounts Opened,306
 2026-11-02,Chhadwana BO,Dhakla SO,AM118,bo,Accounts Opened,21
-2026-11-02,Chhainsa BO,Hathin SO,J7315,bo,Accounts Opened,39
+2026-11-02,Chhainsa BO,Ballabgarh SO,D0248,bo,Accounts Opened,9
+2026-11-02,Chhainsa BO,Hathin SO,J7315,bo,Accounts Opened,30
 2026-11-02,Chhajju Nagar BO,Palwal SO,B4295,bo,Accounts Opened,15
 2026-11-02,Chhajpur Kalan B.O,Panipat Khadi Ashram S.O,G4794,bo,Accounts Opened,13
 2026-11-02,Chhappar B.O,Saraswati Nagar S.O,L4394,bo,Accounts Opened,43
@@ -5759,7 +5873,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Dalanwas BO,Satnali SO,H0361,bo,Accounts Opened,20
 2026-11-02,Dalawas BO,Badhara SO,F8280,bo,Accounts Opened,6
 2026-11-02,Damaloan B.O,Pinjore S.O,I3640,bo,Accounts Opened,25
-2026-11-02,Damdama BO,Bhondsi SO,G8381,bo,Accounts Opened,38
+2026-11-02,Damdama BO,Bhondsi SO,G8381,bo,Accounts Opened,33
+2026-11-02,Damdama BO,Siri Jiwan Nagar SO,J6188,bo,Accounts Opened,5
 2026-11-02,Damla B.O,Jagdhari Work Shop S.O,D2044,bo,Accounts Opened,23
 2026-11-02,Dandama BO,Jui Khurd SO,J3499,bo,Accounts Opened,10
 2026-11-02,Dang BO,Bapora SO,D3474,bo,Accounts Opened,4
@@ -5772,7 +5887,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Dariyapur BO,Fatehabad SO Fatehabad,C8619,bo,Accounts Opened,21
 2026-11-02,Dariyawala B.O,Jind H.O,B8054,bo,Accounts Opened,6
 2026-11-02,Daroli Ahir BO,Nangal Sirohi SO,D1373,bo,Accounts Opened,9
-2026-11-02,Daroli BO,Dahina SO,L7190,bo,Accounts Opened,18
+2026-11-02,Daroli BO,Mandi Adampur SO,L4407,bo,Accounts Opened,6
+2026-11-02,Daroli BO,Dahina SO,L7190,bo,Accounts Opened,12
 2026-11-02,Darpur B.O,Chhachrauli S.O,J7328,bo,Accounts Opened,3
 2026-11-02,Daryapur BO,Tosham SO,C4192,bo,Accounts Opened,5
 2026-11-02,Datauli BO,Ganaur SO,D3377,bo,Accounts Opened,20
@@ -5784,7 +5900,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Daya BO,Modle Town Hisar SO,G2203,bo,Accounts Opened,21
 2026-11-02,Dayalgarh B.O,Bilaspur (Yamunanagar) S.O,G9895,bo,Accounts Opened,8
 2026-11-02,Dayalpur BO,Ballabgarh SO,A5005,bo,Accounts Opened,52
-2026-11-02,Deeg B.O,Shahabad(M) S.O,L4440,bo,Accounts Opened,162
+2026-11-02,Deeg B.O,Shahabad(M) S.O,L4440,bo,Accounts Opened,122
+2026-11-02,Deeg B.O,Pundri S.O,L6352,bo,Accounts Opened,40
 2026-11-02,Deeg BO,Ballabgarh SO,A5006,bo,Accounts Opened,50
 2026-11-02,Deepalpur BO,Bahalgarh SO,O0185,bo,Accounts Opened,52
 2026-11-02,Defence Colony S.O,Defence Colony S.O,13301001,so,Accounts Opened,35
@@ -5885,7 +6002,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Dinarpur B.O,Kesri S.O,J7218,bo,Accounts Opened,32
 2026-11-02,Ding SO,Ding SO,12505801,so,Accounts Opened,18
 2026-11-02,Dinod BO,Bapora SO,E1758,bo,Accounts Opened,10
-2026-11-02,Diwana B.O,Panipat Beas Project S.O,M1026,bo,Accounts Opened,14
+2026-11-02,Diwana B.O,Pehowa S.O,F2973,bo,Accounts Opened,2
+2026-11-02,Diwana B.O,Panipat Beas Project S.O,M1026,bo,Accounts Opened,12
 2026-11-02,Diwana BO,Dharsul Kalan SO,H9307,bo,Accounts Opened,28
 2026-11-02,Dobh BO,Police Training Center Sunaria SO,O0157,bo,Accounts Opened,14
 2026-11-02,Dochana BO,Narnaul HO,G3094,bo,Accounts Opened,8
@@ -5912,10 +6030,12 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Dulot Ahir BO,Mohindergarh SO,J2221,bo,Accounts Opened,15
 2026-11-02,Dumarkhan Kalan B.O,Narwana S.O,E1531,bo,Accounts Opened,28
 2026-11-02,Dungerwas BO,Dharuhera SO,D3548,bo,Accounts Opened,35
-2026-11-02,Durana B.O,Majri S.O,E1639,bo,Accounts Opened,30
+2026-11-02,Durana B.O,Majri S.O,E1639,bo,Accounts Opened,17
+2026-11-02,Durana B.O,Alewa S.O,M0915,bo,Accounts Opened,13
 2026-11-02,Durga Nagar S.O,Durga Nagar S.O,13400801,so,Accounts Opened,14
 2026-11-02,Durjanpur B.O,Dhanoda Kalan S.O,M0957,bo,Accounts Opened,9
-2026-11-02,Durjanpur BO,Bawani Khera SO,L4328,bo,Accounts Opened,14
+2026-11-02,Durjanpur BO,Bawani Khera SO,L4328,bo,Accounts Opened,8
+2026-11-02,Durjanpur BO,Mandi Adampur SO,L4408,bo,Accounts Opened,6
 2026-11-02,Duserpur B.O,Guhla S.O,M6993,bo,Accounts Opened,11
 2026-11-02,Ebs Hisar BO,Ha U Hisar SO,L3903,bo,Accounts Opened,20
 2026-11-02,Ellenabad SO,Ellenabad SO,12510201,so,Accounts Opened,115
@@ -5990,7 +6110,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Ganzbazar SO,Ganzbazar SO,13100103,so,Accounts Opened,19
 2026-11-02,Garanpura Kalan BO,Tosham SO,G6216,bo,Accounts Opened,7
 2026-11-02,Garhi B.O,Narwana S.O,F8315,bo,Accounts Opened,15
-2026-11-02,Garhi BO,Hansi SO,B1907,bo,Accounts Opened,41
+2026-11-02,Garhi BO,Hansi SO,B1907,bo,Accounts Opened,5
+2026-11-02,Garhi BO,Sampla SO,L5371,bo,Accounts Opened,36
 2026-11-02,Garhi Ballab BO,Anwal SO,G6638,bo,Accounts Opened,13
 2026-11-02,Garhi Birbal S.O,Garhi Birbal S.O,13205401,so,Accounts Opened,41
 2026-11-02,Garhi Bolni BO,Rewari SO,G3288,bo,Accounts Opened,7
@@ -6062,12 +6183,14 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Goria BO,Bahu SO,G9342,bo,Accounts Opened,1
 2026-11-02,Goriwala SO,Goriwala SO,12510301,so,Accounts Opened,7
 2026-11-02,Gorota BO,Hodal SO,J7235,bo,Accounts Opened,4
-2026-11-02,Gothra BO,Kund SO,J3522,bo,Accounts Opened,41
+2026-11-02,Gothra BO,Kund SO,J3522,bo,Accounts Opened,17
+2026-11-02,Gothra BO,Dahina SO,L7191,bo,Accounts Opened,24
 2026-11-02,Goyla BO,Tauru SO,AK844,bo,Accounts Opened,3
 2026-11-02,Greater Faridabad PO,Greater Faridabad PO,12101401,so,Accounts Opened,77
 2026-11-02,Gubhana BO,Badli SO Jhajjar,L6158,bo,Accounts Opened,6
 2026-11-02,Gudana Kalan BO,Jhojhu SO,H3223,bo,Accounts Opened,34
-2026-11-02,Gudha B.O,Gharunda S.O,L8189,bo,Accounts Opened,48
+2026-11-02,Gudha B.O,Ladwa S.O,H1140,bo,Accounts Opened,38
+2026-11-02,Gudha B.O,Gharunda S.O,L8189,bo,Accounts Opened,10
 2026-11-02,Gudha BO,Jhajjar SO,D7944,bo,Accounts Opened,20
 2026-11-02,Gudhana BO,Haillymandi SO,AK418,bo,Accounts Opened,25
 2026-11-02,Gudhiana B.O,Saraswati Nagar S.O,L4396,bo,Accounts Opened,36
@@ -6137,7 +6260,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Hanziran BO,Chopta Nathu Sari SO,J3474,bo,Accounts Opened,1
 2026-11-02,Hargolal S.O,Hargolal S.O,13300104,so,Accounts Opened,289
 2026-11-02,Harigarh Kingan B.O,Chika S.O,J3514,bo,Accounts Opened,13
-2026-11-02,Haripur B.O,Raipur Rani S.O,L3940,bo,Accounts Opened,15
+2026-11-02,Haripur B.O,Raipur Rani S.O,L3940,bo,Accounts Opened,3
+2026-11-02,Haripur B.O,Shahabad(M) S.O,L4442,bo,Accounts Opened,12
 2026-11-02,Haripura B.O,Kalayat S.O,L6317,bo,Accounts Opened,13
 2026-11-02,Haripura BO,Siri Jiwan Nagar SO,J6191,bo,Accounts Opened,36
 2026-11-02,Harita BO,Modle Town Hisar SO,C8642,bo,Accounts Opened,16
@@ -6147,7 +6271,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Harsana Kalan BO,Sonipat HO,A0936,bo,Accounts Opened,8
 2026-11-02,Harsola B.O,Kaithal S.O,L5406,bo,Accounts Opened,62
 2026-11-02,Hartan B.O,Radaur S.O,I4684,bo,Accounts Opened,30
-2026-11-02,Hasanpur BO,Tauru SO,E0978,bo,Accounts Opened,54
+2026-11-02,Hasanpur BO,Jhajjar SO,C9509,bo,Accounts Opened,20
+2026-11-02,Hasanpur BO,Tauru SO,E0978,bo,Accounts Opened,34
 2026-11-02,Hassanga BO,Rattia SO,J6578,bo,Accounts Opened,13
 2026-11-02,Hassangarh BO,Uklana Mandi SO,F8537,bo,Accounts Opened,3
 2026-11-02,Hassangarh SO,Hassangarh SO,12440401,so,Accounts Opened,52
@@ -6414,7 +6539,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Kansala SO,Kansala SO,12440601,so,Accounts Opened,29
 2026-11-02,Kanti BO,Mandi Ateli SO,L9948,bo,Accounts Opened,15
 2026-11-02,Kanti Kheri BO,Mandi Ateli SO,L9949,bo,Accounts Opened,1
-2026-11-02,Kanwali BO,Dahina SO,L7192,bo,Accounts Opened,48
+2026-11-02,Kanwali BO,Dahina SO,L7192,bo,Accounts Opened,38
+2026-11-02,Kanwali BO,Rohat SO Sonipat,M0954,bo,Accounts Opened,10
 2026-11-02,Kanwari BO,Nalwa SO,G8428,bo,Accounts Opened,7
 2026-11-02,Kanwi BO,Narnaul HO,F4599,bo,Accounts Opened,2
 2026-11-02,Kanyagurukul Khanpur SO,Kanyagurukul Khanpur SO,13130501,so,Accounts Opened,95
@@ -6444,7 +6570,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Karnal Road Kaithal S.O,Karnal Road Kaithal S.O,13602703,so,Accounts Opened,189
 2026-11-02,Karnal Sadar Bazar S.O,Karnal Sadar Bazar S.O,13200112,so,Accounts Opened,219
 2026-11-02,Karnal Sector 6 S.O,Karnal Sector 6 S.O,13200113,so,Accounts Opened,134
-2026-11-02,Karnawas BO,Kosli SO,J9909,bo,Accounts Opened,27
+2026-11-02,Karnawas BO,Rewari SO,A4457,bo,Accounts Opened,16
+2026-11-02,Karnawas BO,Kosli SO,J9909,bo,Accounts Opened,11
 2026-11-02,Karodha BO,Jhajjar SO,AK737,bo,Accounts Opened,11
 2026-11-02,Karola BO,Haillymandi SO,L6307,bo,Accounts Opened,22
 2026-11-02,Karoli BO,Nahar SO,J8962,bo,Accounts Opened,39
@@ -6505,7 +6632,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Khandrai BO,Gohana SO,L4469,bo,Accounts Opened,88
 2026-11-02,Khandsa BO,Narsinghpur SO,H8524,bo,Accounts Opened,10
 2026-11-02,Khandsa Road SO,Khandsa Road SO,12200106,so,Accounts Opened,31
-2026-11-02,Khanpur B.O,Kesri S.O,J7219,bo,Accounts Opened,36
+2026-11-02,Khanpur B.O,Indri S.O,H9717,bo,Accounts Opened,12
+2026-11-02,Khanpur B.O,Kesri S.O,J7219,bo,Accounts Opened,24
 2026-11-02,Khanpur Brahmana B.O,Jatwar S.O,M0020,bo,Accounts Opened,68
 2026-11-02,Khanpur Ghati BO,Punhana SO,N8589,bo,Accounts Opened,11
 2026-11-02,Khanpur Kalan BO,Kanyagurukul Khanpur SO,E0708,bo,Accounts Opened,20
@@ -6530,8 +6658,11 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Kharkada B.O,Guhla S.O,M6994,bo,Accounts Opened,6
 2026-11-02,Kharkan B.O,Guhla S.O,M6995,bo,Accounts Opened,5
 2026-11-02,Kharkara BO,Barwala SO Hisar,B6759,bo,Accounts Opened,4
-2026-11-02,Kharkari BO,Loharu SO,L4386,bo,Accounts Opened,35
-2026-11-02,Kharkhara BO,Dharuhera SO,A8325,bo,Accounts Opened,36
+2026-11-02,Kharkari BO,Hansi SO,C8617,bo,Accounts Opened,11
+2026-11-02,Kharkari BO,Loharu SO,L4386,bo,Accounts Opened,24
+2026-11-02,Kharkhara BO,Bass SO,A7272,bo,Accounts Opened,15
+2026-11-02,Kharkhara BO,Dharuhera SO,A8325,bo,Accounts Opened,15
+2026-11-02,Kharkhara BO,Madina SO,H8970,bo,Accounts Opened,6
 2026-11-02,Kharkhari Sohan BO,Tosham SO,C4193,bo,Accounts Opened,13
 2026-11-02,Kharkhauda SO,Kharkhauda SO,13140201,so,Accounts Opened,140
 2026-11-02,Kharman BO,Bahadurgarh Mandi SO,L9904,bo,Accounts Opened,40
@@ -6543,7 +6674,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Khatkar B.O,Uchana S.O,M7011,bo,Accounts Opened,22
 2026-11-02,Khatod BO,Mohindergarh SO,J2223,bo,Accounts Opened,18
 2026-11-02,Khedar BO,Barwala SO Hisar,F8637,bo,Accounts Opened,48
-2026-11-02,Khera B.O,Jagadhri S.O,B4561,bo,Accounts Opened,66
+2026-11-02,Khera B.O,Jagadhri S.O,B4561,bo,Accounts Opened,11
+2026-11-02,Khera B.O,Indri S.O,H9718,bo,Accounts Opened,55
 2026-11-02,Khera BO,Siwani SO,J2208,bo,Accounts Opened,6
 2026-11-02,Khera Khurampur BO,Farrukh Nagar SO,L9306,bo,Accounts Opened,7
 2026-11-02,Khera Khurd B.O,Thermal Colony Yamuna Nagar S.O,L7569,bo,Accounts Opened,12
@@ -6656,7 +6788,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Kurali BO,Tigaon SO,J6130,bo,Accounts Opened,52
 2026-11-02,Kurana B.O,Israna S.O,M0988,bo,Accounts Opened,7
 2026-11-02,Kurangawali BO,Baragudha SO,G6839,bo,Accounts Opened,39
-2026-11-02,Kurar B.O,Panipat Khadi Ashram S.O,A5882,bo,Accounts Opened,30
+2026-11-02,Kurar B.O,Panipat Khadi Ashram S.O,A5882,bo,Accounts Opened,23
+2026-11-02,Kurar B.O,Kalayat S.O,L6323,bo,Accounts Opened,7
 2026-11-02,Kurar Brahimpur BO,Engg College Muthal SO,J8903,bo,Accounts Opened,25
 2026-11-02,Kurawata BO,Mohindergarh SO,J2225,bo,Accounts Opened,10
 2026-11-02,Kurlan B.O,Salwan S.O,M0898,bo,Accounts Opened,3
@@ -6664,7 +6797,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Kuruk Jagir B.O,Taraori S.O,M1035,bo,Accounts Opened,10
 2026-11-02,Kurukshetra H.O,Kurukshetra H.O,13611800,so,Accounts Opened,540
 2026-11-02,Kurukshetra University S.O,Kurukshetra University S.O,13611901,so,Accounts Opened,132
-2026-11-02,Kusumbhi BO,Kairu SO,C8494,bo,Accounts Opened,16
+2026-11-02,Kusumbhi BO,Sirsa HO,A1159,bo,Accounts Opened,5
+2026-11-02,Kusumbhi BO,Kairu SO,C8494,bo,Accounts Opened,11
 2026-11-02,Kutail B.O,Madhuban S.O (Karnal),M1002,bo,Accounts Opened,9
 2026-11-02,Kutewadh BO,Sirsa HO,F1511,bo,Accounts Opened,11
 2026-11-02,LADRAWAN BO,Assaudha SO,N9650,bo,Accounts Opened,9
@@ -6766,7 +6900,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Maijod BO,Sisai SO Hisar,H3018,bo,Accounts Opened,51
 2026-11-02,Main Bazar Bahadurgarh  SO,Main Bazar Bahadurgarh  SO,12450705,so,Accounts Opened,110
 2026-11-02,Maina BO,Asthal Bohar SO,J7020,bo,Accounts Opened,14
-2026-11-02,Majra BO,Narnaund SO,J6627,bo,Accounts Opened,30
+2026-11-02,Majra BO,Narnaund SO,J6627,bo,Accounts Opened,9
+2026-11-02,Majra BO,Dubaldhan SO,J7210,bo,Accounts Opened,21
 2026-11-02,Majra Gurdas BO,Rewari SO,B2906,bo,Accounts Opened,20
 2026-11-02,Majra Nand Karan B.O,Pai S.O,L5416,bo,Accounts Opened,16
 2026-11-02,Majra Rodan B.O,Nigdhu S.O,M0921,bo,Accounts Opened,7
@@ -6780,7 +6915,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Malab BO,Nuh SO,J6612,bo,Accounts Opened,65
 2026-11-02,Malai BO,Hathin SO,J7322,bo,Accounts Opened,15
 2026-11-02,Malar B.O,Safidon S.O,F0123,bo,Accounts Opened,2
-2026-11-02,Malikpur B.O,Safidon S.O,F8541,bo,Accounts Opened,9
+2026-11-02,Malikpur B.O,Pehowa S.O,B1173,bo,Accounts Opened,3
+2026-11-02,Malikpur B.O,Safidon S.O,F8541,bo,Accounts Opened,6
 2026-11-02,Malikpur BO,Murthal SO,D2683,bo,Accounts Opened,18
 2026-11-02,Malikpur Khadar B.O,Bhudkalan S.O,L4337,bo,Accounts Opened,24
 2026-11-02,Malkosh BO,Baund SO,G3971,bo,Accounts Opened,26
@@ -6796,7 +6932,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Mandaura BO,Nahri SO,M1781,bo,Accounts Opened,14
 2026-11-02,Mandhana B.O,Morni S.O,L3886,bo,Accounts Opened,9
 2026-11-02,Mandhana BO,Bawani Khera SO,L4330,bo,Accounts Opened,19
-2026-11-02,Mandhar B.O,Radaur S.O,I4688,bo,Accounts Opened,21
+2026-11-02,Mandhar B.O,Jagadhri S.O,B4562,bo,Accounts Opened,10
+2026-11-02,Mandhar B.O,Radaur S.O,I4688,bo,Accounts Opened,11
 2026-11-02,Mandhaur B.O,Baldev Nagar S.O,C5102,bo,Accounts Opened,65
 2026-11-02,Mandheri B.O,Thol S.O,L5290,bo,Accounts Opened,3
 2026-11-02,Mandhi Harya BO,Nihalgard PO,G6836,bo,Accounts Opened,14
@@ -6811,7 +6948,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Mandi Sadra B.O,Siwan S.O,I5452,bo,Accounts Opened,2
 2026-11-02,Mandikhera BO,Nagina SO Gurgaon,F4475,bo,Accounts Opened,20
 2026-11-02,Mandkola BO,Hathin SO,J7323,bo,Accounts Opened,32
-2026-11-02,Mandola BO,Mohindergarh SO,J2227,bo,Accounts Opened,37
+2026-11-02,Mandola BO,Khol SO,D1909,bo,Accounts Opened,20
+2026-11-02,Mandola BO,Mohindergarh SO,J2227,bo,Accounts Opened,17
 2026-11-02,Mandothi SO,Mandothi SO,12450601,so,Accounts Opened,60
 2026-11-02,Mandwal B.O,Rajound S.O,L6339,bo,Accounts Opened,6
 2026-11-02,Mangala BO,Sirsa HO,F9959,bo,Accounts Opened,12
@@ -6856,7 +6994,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Mattar Sham BO,Ha U Hisar SO,L3906,bo,Accounts Opened,20
 2026-11-02,Maujdin BO,Sirsa HO,D4830,bo,Accounts Opened,11
 2026-11-02,Maujgarbh BO,Mandi Dabwali SO,L6272,bo,Accounts Opened,13
-2026-11-02,Mauju Khera BO,Bahaudin SO,J7012,bo,Accounts Opened,13
+2026-11-02,Mauju Khera BO,Ellenabad SO,A2294,bo,Accounts Opened,9
+2026-11-02,Mauju Khera BO,Bahaudin SO,J7012,bo,Accounts Opened,4
 2026-11-02,Mauli B.O,Barwala S.O (Panchkula),I5070,bo,Accounts Opened,12
 2026-11-02,Mauri BO,Chiriya SO,E0620,bo,Accounts Opened,24
 2026-11-02,Mayan BO,Khol SO,A6708,bo,Accounts Opened,33
@@ -6870,7 +7009,9 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Mehlana BO,Sonipat HO,D4612,bo,Accounts Opened,20
 2026-11-02,Mehlanwali B.O,Jagadhri S.O,C3070,bo,Accounts Opened,17
 2026-11-02,Mehmal B.O,Nissing S.O,J6651,bo,Accounts Opened,4
-2026-11-02,Mehmoodpur B.O,Saha S.O,L4366,bo,Accounts Opened,37
+2026-11-02,Mehmoodpur B.O,Sadhaura S.O,D2499,bo,Accounts Opened,13
+2026-11-02,Mehmoodpur B.O,Chika S.O,J3516,bo,Accounts Opened,12
+2026-11-02,Mehmoodpur B.O,Saha S.O,L4366,bo,Accounts Opened,12
 2026-11-02,Mehmoodpur BO,Gohana SO,L4474,bo,Accounts Opened,7
 2026-11-02,Mehmra BO,Rattia SO,J6585,bo,Accounts Opened,4
 2026-11-02,Mehrana BO,Dujana SO,C0296,bo,Accounts Opened,8
@@ -6899,7 +7040,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Mirana BO,Rattia SO,J6586,bo,Accounts Opened,19
 2026-11-02,Mirchpur BO,Narnaund SO,J6629,bo,Accounts Opened,27
 2026-11-02,Mirpur BO,Khalilpur SO,O0178,bo,Accounts Opened,23
-2026-11-02,Mirzapur BO,Ellenabad SO,B9190,bo,Accounts Opened,31
+2026-11-02,Mirzapur BO,Ellenabad SO,B9190,bo,Accounts Opened,11
+2026-11-02,Mirzapur BO,Modle Town Hisar SO,C0356,bo,Accounts Opened,20
 2026-11-02,Misri BO,Sanwar SO Bhiwani,G1000,bo,Accounts Opened,25
 2026-11-02,Mitathal BO,Tigrana SO,E5320,bo,Accounts Opened,31
 2026-11-02,Mithanpura BO,Ellenabad SO,C7470,bo,Accounts Opened,6
@@ -7019,7 +7161,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Nangal Sirohi SO,Nangal Sirohi SO,12302801,so,Accounts Opened,79
 2026-11-02,Nangal Teju BO,Bawal SO,F8082,bo,Accounts Opened,22
 2026-11-02,Nangalmala BO,Satnali SO,H0365,bo,Accounts Opened,16
-2026-11-02,Nangla BO,Satnali SO,AK417,bo,Accounts Opened,45
+2026-11-02,Nangla BO,Satnali SO,AK417,bo,Accounts Opened,27
+2026-11-02,Nangla BO,Tohana Mandi SO,D1135,bo,Accounts Opened,18
 2026-11-02,Nangli Godha BO,Rewari SO,E6431,bo,Accounts Opened,27
 2026-11-02,Nangthala BO,Agroha SO,A7321,bo,Accounts Opened,2
 2026-11-02,Nanhera B.O,Panipat Khadi Ashram S.O,A5883,bo,Accounts Opened,1
@@ -7131,7 +7274,10 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Palam Vihar SO Gurgaon,Palam Vihar SO Gurgaon,12201701,so,Accounts Opened,227
 2026-11-02,Palari BO,Jhojhu SO,H3226,bo,Accounts Opened,27
 2026-11-02,Palhawas SO,Palhawas SO,12303501,so,Accounts Opened,128
-2026-11-02,Pali BO,Mohindergarh SO,J2229,bo,Accounts Opened,63
+2026-11-02,Pali BO,Ballabgarh SO,F5357,bo,Accounts Opened,2
+2026-11-02,Pali BO,Sisai SO Hisar,H3020,bo,Accounts Opened,9
+2026-11-02,Pali BO,Mohindergarh SO,J2229,bo,Accounts Opened,28
+2026-11-02,Pali BO,Kund SO,J3525,bo,Accounts Opened,24
 2026-11-02,Palra BO,Jhajjar SO,A4292,bo,Accounts Opened,10
 2026-11-02,Palri B.O,Neoltha S.O,M1031,bo,Accounts Opened,24
 2026-11-02,Palri Panihara BO,Mohindergarh SO,J2230,bo,Accounts Opened,22
@@ -7221,7 +7367,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Pingwan BO,Punhana SO,N8593,bo,Accounts Opened,8
 2026-11-02,Pinjore S.O,Pinjore S.O,13410201,so,Accounts Opened,169
 2026-11-02,Pipaltha B.O,Narwana S.O,A7991,bo,Accounts Opened,25
-2026-11-02,Pipli BO,Kalanwali SO,L5335,bo,Accounts Opened,35
+2026-11-02,Pipli BO,Kharkhauda SO,J9558,bo,Accounts Opened,25
+2026-11-02,Pipli BO,Kalanwali SO,L5335,bo,Accounts Opened,10
 2026-11-02,Pipli Majra B.O,Bhudkalan S.O,L4338,bo,Accounts Opened,14
 2026-11-02,Pipli S.O,Pipli S.O,13613101,so,Accounts Opened,99
 2026-11-02,Pipliwala B.O,Sadhaura S.O,A7323,bo,Accounts Opened,103
@@ -7271,7 +7418,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Raisina BO,Bhondsi SO,G8385,bo,Accounts Opened,18
 2026-11-02,Raison B.O,Nigdhu S.O,M0922,bo,Accounts Opened,21
 2026-11-02,Raiwali B.O,Barwala S.O (Panchkula),I5071,bo,Accounts Opened,17
-2026-11-02,Rajgarh BO,Neemariwali PO,B6664,bo,Accounts Opened,48
+2026-11-02,Rajgarh BO,Neemariwali PO,B6664,bo,Accounts Opened,26
+2026-11-02,Rajgarh BO,Dharan SO,E9623,bo,Accounts Opened,22
 2026-11-02,Rajgarh Gurthali B.O,Narwana S.O,C4885,bo,Accounts Opened,3
 2026-11-02,Rajkheri B.O,Panipat Khadi Ashram S.O,D9418,bo,Accounts Opened,8
 2026-11-02,Rajli BO,Barwala SO Hisar,F0225,bo,Accounts Opened,22
@@ -7328,7 +7476,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Rawli BO,Ferozepur Jhirka SO,L6412,bo,Accounts Opened,15
 2026-11-02,Refinery Township Panipat SO,Refinery Township Panipat SO,13214002,so,Accounts Opened,31
 2026-11-02,Rethath BO,Punhana SO,N8594,bo,Accounts Opened,55
-2026-11-02,Rewari Khera BO,Chang SO,J9572,bo,Accounts Opened,20
+2026-11-02,Rewari Khera BO,Charra SO,H0669,bo,Accounts Opened,16
+2026-11-02,Rewari Khera BO,Chang SO,J9572,bo,Accounts Opened,4
 2026-11-02,Rewari SO,Rewari SO,12340105,so,Accounts Opened,489
 2026-11-02,Rewasan BO,Sohna SO,L7557,bo,Accounts Opened,55
 2026-11-02,Rindana BO,Baroda SO,J8901,bo,Accounts Opened,7
@@ -7494,7 +7643,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Shahabad(M) S.O,Shahabad(M) S.O,13613502,so,Accounts Opened,389
 2026-11-02,Shaharwa BO,Modle Town Hisar SO,C0357,bo,Accounts Opened,14
 2026-11-02,Shahchokha BO,Punhana SO,N8595,bo,Accounts Opened,8
-2026-11-02,Shahpur B.O,Israna S.O,M0993,bo,Accounts Opened,45
+2026-11-02,Shahpur B.O,Naguran S.O,M0911,bo,Accounts Opened,21
+2026-11-02,Shahpur B.O,Israna S.O,M0993,bo,Accounts Opened,24
 2026-11-02,Shahpur BO,Ha U Hisar SO,L3910,bo,Accounts Opened,81
 2026-11-02,Shahpur Begu BO,Sirsa HO,F9960,bo,Accounts Opened,7
 2026-11-02,Shahpur Nurd B.O,Sarawan S.O,G6217,bo,Accounts Opened,12
@@ -7532,7 +7682,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Sikrawa BO,Punhana SO,N8597,bo,Accounts Opened,50
 2026-11-02,Sikri B.O,Nilokheri S.O,J2770,bo,Accounts Opened,10
 2026-11-02,Silakheri B.O,Safidon S.O,E1734,bo,Accounts Opened,17
-2026-11-02,Silana BO,Jhajjar SO,D7946,bo,Accounts Opened,6
+2026-11-02,Silana BO,Jhajjar SO,D7946,bo,Accounts Opened,1
+2026-11-02,Silana BO,Farmana SO,M1776,bo,Accounts Opened,5
 2026-11-02,Silani BO,Jhajjar SO,C1194,bo,Accounts Opened,44
 2026-11-02,Silikalan B.O,Radaur S.O,I4690,bo,Accounts Opened,17
 2026-11-02,Simla B.O,Kalayat S.O,L6328,bo,Accounts Opened,12
@@ -7562,7 +7713,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Siswala BO,Birhi Kalan SO,H9254,bo,Accounts Opened,11
 2026-11-02,Sitamai B.O,Nigdhu S.O,M0925,bo,Accounts Opened,8
 2026-11-02,Sitawali BO,Juan SO,L8606,bo,Accounts Opened,50
-2026-11-02,Siwaha B.O,Panipat Beas Project S.O,M1028,bo,Accounts Opened,50
+2026-11-02,Siwaha B.O,Panipat Beas Project S.O,M1028,bo,Accounts Opened,21
+2026-11-02,Siwaha B.O,Pillukhera S.O,M1472,bo,Accounts Opened,29
 2026-11-02,Siwan Gate Kaithal S.O,Siwan Gate Kaithal S.O,13602704,so,Accounts Opened,272
 2026-11-02,Siwan Mal B.O,Safidon S.O,C5082,bo,Accounts Opened,20
 2026-11-02,Siwan S.O,Siwan S.O,13603301,so,Accounts Opened,152
@@ -7604,7 +7756,8 @@ date,bo,so,sol,kind,kpi,value
 2026-11-02,Sulkha BO,Rewari SO,D8065,bo,Accounts Opened,17
 2026-11-02,Sulodha BO,Jhajjar SO,E6295,bo,Accounts Opened,23
 2026-11-02,Sultanpur B.O,Taraori S.O,M1044,bo,Accounts Opened,15
-2026-11-02,Sultanpur BO,Farrukh Nagar SO,L9309,bo,Accounts Opened,25
+2026-11-02,Sultanpur BO,Hansi SO,G2173,bo,Accounts Opened,3
+2026-11-02,Sultanpur BO,Farrukh Nagar SO,L9309,bo,Accounts Opened,22
 2026-11-02,Sultanpuria BO,Rania SO,L6360,bo,Accounts Opened,14
 2026-11-02,Sunari Kalan BO,Police Training Center Sunaria SO,O0161,bo,Accounts Opened,4
 2026-11-02,Sundana BO,Kahnaur SO,J8919,bo,Accounts Opened,16
