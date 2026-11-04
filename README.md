@@ -42,6 +42,7 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 - **KPI cards par day-over-day delta** (▲/▼ vs previous day) — history file ki wajah se
 - **Export Excel**: 4 sheets — `Filtered Data` (raw rows + Division/Sub Division), `BO-wise` (har master office, `BO ID` code ke saath), `Division-wise` aur `SubDivision-wise` roll-ups (total ke order me)
 - **Export PDF**: browser print dialog se PDF save (print header me active filters + data-as-of date ke saath)
+- **Bright (light) theme**: soft off-white background, white cards with a gentle shadow, dark slate ink and a calm teal accent — comfortable for long reading, with zebra-striped table rows, sticky header/totals row and a focus ring on inputs. Chart lines use a dark-on-white palette (legend/ticks grey) so the trend stays readable. Print/PDF export forces plain black-on-white regardless of the theme. `tests/dashboard.test.js` asserts WCAG-grade contrast (background/card near white, ink >= 7:1, muted text and accent >= 4.5:1, chart colours >= 4.5:1 on white), so a dark palette cannot creep back in
 - **Security**: CSP meta (script-src: self + jsdelivr only — isliye koi inline `on*` handler nahi chalega) + SRI hashes on dono CDN scripts; saara JS `app.js` me hai aur saare event listeners wahin `addEventListener` se wire hote hain (inline script/handlers nahi)
 
 ## Auto-fed data files

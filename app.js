@@ -2,6 +2,8 @@ let ROWS=[], METRICS=[], DATES=[], chartInstance=null, userLoaded=false;
 let sortState={key:'name',dir:1};
 const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString('en-IN');
+// Line-colour palette for the light dashboard theme: readable on white, no neon.
+const CHART_COLORS=['#0e7490','#c2410c','#4f46e5','#157f3d','#a11670','#b45309','#0369a1','#6d28d9'];
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 let debT=null;
 function onFilterInput(){clearTimeout(debT);debT=setTimeout(render,150);}
@@ -638,10 +640,12 @@ function render(){
     boRows.filter(r=>r.date===d).forEach(r=>act.forEach(m=>run[m]=(run[m]||0)+(Number(r[m])||0)));
     act.forEach(m=>series[m].push(run[m]||0));
   });
-  const data={labels:days.map(fmtDate),datasets:act.map(m=>({label:m,data:series[m],tension:.3}))};
+  const data={labels:days.map(fmtDate),datasets:act.map((m,i)=>({label:m,data:series[m],tension:.3,
+    borderColor:CHART_COLORS[i%CHART_COLORS.length],backgroundColor:CHART_COLORS[i%CHART_COLORS.length],
+    borderWidth:2,pointRadius:2,pointHoverRadius:4}))};
   const opts={responsive:true,
-    plugins:{legend:{labels:{color:'#e2e8f0'}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}},
-    scales:{x:{ticks:{color:'#94a3b8',autoSkip:true,maxRotation:45}},y:{beginAtZero:true,ticks:{color:'#94a3b8',callback:v=>fmt(v)}}}};
+    plugins:{legend:{labels:{color:'#1f2a37',usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}},
+    scales:{x:{ticks:{color:'#64748b',autoSkip:true,maxRotation:45},grid:{color:'#eef2f7'}},y:{beginAtZero:true,ticks:{color:'#64748b',callback:v=>fmt(v)},grid:{color:'#eef2f7'}}}};
   if(chartInstance){chartInstance.data=data;chartInstance.options=opts;chartInstance.update();}
   else chartInstance=new Chart($('chart'),{type:'line',data,options:opts});
 }

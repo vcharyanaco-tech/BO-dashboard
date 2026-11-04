@@ -59,6 +59,26 @@ T('index.html has no inline on* handlers (CSP script-src has no unsafe-inline)',
 T('app.js wires controls via addEventListener', (appCode.match(/addEventListener/g) || []).length >= 10);
 T('app.js has no dead totalOf/ingestRows', !/function (totalOf|ingestRows)\b/.test(appCode));
 
+// ---- light theme -------------------------------------------------------------
+// The dashboard must stay bright: a near-white background with dark ink, so a
+// dark palette sneaking back in (or the chart colours going light-on-light) fails.
+const relLum = (hex) => {
+  const [r, g, b] = hex.match(/../g).map((h) => parseInt(h, 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+const rootVars = (html.match(/:root\{([^}]*)\}/) || [, ''])[1];
+const cssVar = (name) => ((rootVars.match(new RegExp('--' + name + ':(#[0-9a-fA-F]{6})')) || [])[1] || '').slice(1).toLowerCase();
+const [Lbg, Lcard, Ltext, Lmuted, Laccent] = ['bg', 'card', 'text', 'muted', 'accent'].map(cssVar).map(relLum);
+T('theme declares color-scheme:light and no dark slate palette', /color-scheme:light/.test(html) && !/#0f172a|#1e293b/i.test(html));
+T('theme is bright: background and cards near white', cssVar('bg').length === 6 && Lbg > 0.8 && Lcard > 0.9);
+T('theme is readable: dark ink on the bright surface', ratio(Lbg, Ltext) >= 7 && ratio(Lcard, Ltext) >= 7 && ratio(Lcard, Lmuted) >= 4.5);
+T('accent keeps AA contrast as white-on-colour button', ratio(Lcard, Laccent) >= 4.5);
+T('chart colours are dark enough for a white plot', (appCode.match(/const CHART_COLORS=\[([^\]]*)\]/) || [,''])[1]
+  .split(',').map(s => s.trim().replace(/'/g, '')).filter(Boolean)
+  .every(hex => /^#[0-9a-f]{6}$/i.test(hex) && ratio(1, relLum(hex.slice(1))) >= 4.5));
+
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/exports/manifest.json'), 'utf8'));
 T('manifest.json is a non-empty array with file+label', Array.isArray(manifest) && manifest.length > 0 && manifest.every(e => e.file && e.label));
 T('manifest-referenced files exist', manifest.every(e => fs.existsSync(path.join(ROOT, e.file))));
