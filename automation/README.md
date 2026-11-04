@@ -104,6 +104,28 @@ Us page par filter dropdowns hote hi nahi, isliye pehle `select_option(CIRCLE_SE
 `debug/server_error_N.png|html` save karta hai; tab bhi fail hua to message ke saath
 run fail hota hai, chup-chaap purana data commit nahi hota.
 
+## Ek office = ek row (identity keys)
+
+History aur dashboard files me har office apne **code** se pehchana jata hai, naam se
+nahi. `row_identity(kind, bo, sol)` wahi rule hai jo `app.js` lagata hai: `sol` me
+`SOL_ID_BO_ID`/BOCODE hua to woh (uppercase, spaces hataakar) identity ban jata hai,
+warna canonical naam, aur office summary rows `so:<name>` namespace me rehte hain (taaki
+`Balu B.O` naam ke do alag offices kabhi ek row me na jud jayein — master sheet me aise
+82 naam hain jo 184 offices me share ho rahe hain). Pehle `_read_merged()`/
+`append_history()` naam se key karte the, jis se 01/11/2026 jaise history-served din me
+45 per-BO figure galat aur ~96 offices missing/inflated the; ab code-keyed hai aur yeh
+behaviour `tests/automation.test.py` me locked hai (`python3 tests/automation.test.py`).
+
+## Download fail hua to run fail
+
+Kisi bhi date ke liye ek bhi KPI workbook download nahi hui (server down, export grid
+khali, "no valid BO data exported") to `main()` turant `sys.exit()` karta hai:
+`Refusing to rewrite history/dashboard/manifest from a stale merged file`. Isse pehle
+aise runs pichle run ki merged file usi raat ek naye date ke naam file kar dete the —
+sanity check (row count) use pakad nahi sakta tha, aur history me 31-10/01-11/02-11 ek
+hi snapshot ki teen nakal ban gayi thi (dashboard ka cumulative 2×40,087 = 80,174). Ab
+koi download, koi commit.
+
 ## Dashboard columns
 
 `data/dashboard_data.xlsx` carries `Date | BO | SO | SOL ID | Accounts Opened`.

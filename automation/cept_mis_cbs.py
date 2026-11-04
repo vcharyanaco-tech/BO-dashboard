@@ -695,8 +695,22 @@ def is_so_row(bo, sol=""):
     return bool(SO_NAME_RE.search(str(bo or "").strip())) or bool(OFFICE_CODE_RE.match(str(sol or "").strip().upper()))
 
 
+def so_key(name):
+    """Identity space for the office summary rows (mirrors app.js soKey: dots go)."""
+    return "so:" + " ".join(str(name or "").replace(".", "").split()).lower()
+
+
+def row_identity(kind, bo, sol=""):
+    """One entry per OFFICE, not per name: SOL ID / BOCODE first, name only as a
+    fallback. Two different BOs can share a name (the master sheet has 82 such names),
+    so keying by name would silently add their figures together and drop one row."""
+    if kind == "so":
+        return so_key(bo)
+    return str(sol or "").strip().upper() or norm_bo_name(bo)
+
+
 def _read_merged(metric_key):
-    """Read one merged KPI workbook -> {BO: {sol, so, value}}."""
+    """Read one merged KPI workbook -> {office id: {bo, sol, so, value, kind}}."""
     merged_file = EXPORT_DIR / f"{metric_key}_merged.xlsx"
     if not merged_file.exists():
         log(f"{metric_key}: merged file missing, skipping")
@@ -761,7 +775,8 @@ def _read_merged(metric_key):
         # separate as kind='so' so the dashboard never mixes them into BO sums.
         office = is_so_row(bo, sol_cell) or (so_cell == "" and not is_master_office(bo, sol_cell))
         kind = "so" if office else "bo"
-        entry = out.setdefault(bo, {"sol": "", "so": "", "value": 0.0, "kind": kind})
+        key = row_identity(kind, bo, sol_cell)
+        entry = out.setdefault(key, {"bo": bo, "sol": "", "so": "", "value": 0.0, "kind": kind})
         entry["value"] += value
         if not entry["sol"] and sol_cell:
             entry["sol"] = sol_cell
@@ -785,12 +800,12 @@ def generate_dashboard_data(report_date_iso=None):
         data = _read_merged(metric_key)
         # dashboard_data.xlsx stays BO-only; SO-level rows (kind='so') are excluded
         # here - the dashboard reads those from history.csv/exports, kept separate.
-        data = {bo: v for bo, v in data.items() if v.get("kind", "bo") != "so"}
+        data = {k: v for k, v in data.items() if v.get("kind", "bo") != "so"}
         if not data:
             continue
-        metric_values[metric_label] = {bo: v["value"] for bo, v in data.items()}
-        for bo, v in data.items():
-            m = meta.setdefault(bo, {"sol": "", "so": ""})
+        metric_values[metric_label] = {k: v["value"] for k, v in data.items()}
+        for k, v in data.items():
+            m = meta.setdefault(k, {"bo": v["bo"], "sol": "", "so": ""})
             m["sol"] = m["sol"] or v["sol"]
             m["so"] = m["so"] or v["so"]
 
@@ -799,19 +814,19 @@ def generate_dashboard_data(report_date_iso=None):
         return None
 
     labels = [m[2] for m in METRICS]
-    bos = sorted(meta)
+    ids = sorted(meta)
     frame = pd.DataFrame({
         "Date": report_date,
-        "BO": bos,
-        "SO": [meta[b]["so"] for b in bos],
-        "SOL ID": [meta[b]["sol"] for b in bos],
+        "BO": [meta[i]["bo"] for i in ids],
+        "SO": [meta[i]["so"] for i in ids],
+        "SOL ID": [meta[i]["sol"] for i in ids],
     })
     for label in labels:
         values = metric_values.get(label)
         if values is None:
             log(f"{label}: no data in this run, filled with 0")
             values = {}
-        frame[label] = [values.get(b, 0) for b in bos]
+        frame[label] = [values.get(i, 0) for i in ids]
     out = DATA_DIR / "dashboard_data.xlsx"
     frame.to_excel(out, index=False)
     with_so = sum(1 for s in frame["SO"] if s)
@@ -833,10 +848,10 @@ def append_history(report_date_iso):
     rows = []
     for _, metric_key, metric_label in METRICS:
         data = _read_merged(metric_key)
-        for bo, v in data.items():
+        for _id, v in data.items():
             rows.append({
                 "date": report_date_iso,
-                "bo": bo,
+                "bo": v["bo"],
                 "so": v.get("so", ""),
                 "sol": v.get("sol", ""),
                 "kind": v.get("kind", "bo"),
@@ -860,10 +875,15 @@ def append_history(report_date_iso):
             combined = new
     else:
         combined = new
-    combined = combined.drop_duplicates(subset=["date", "bo", "kind", "kpi"], keep="last")
-    combined = combined.sort_values(["date", "kpi", "bo", "kind"]).reset_index(drop=True)
     for col in ("date", "bo", "so", "sol", "kind", "kpi"):
-        combined[col] = combined[col].fillna("" if col != "kind" else "bo")
+        combined[col] = combined[col].fillna("" if col != "kind" else "bo").astype(str)
+    # One row per office per day, identified by code (name only when there is none).
+    # Deduplicating by name would merge the 82 master names that two BOs share.
+    combined["_id"] = [row_identity(k, b, s) for k, b, s in
+                       zip(combined["kind"], combined["bo"], combined["sol"])]
+    combined = combined.drop_duplicates(subset=["date", "_id", "kind", "kpi"], keep="last")
+    combined = combined.drop(columns=["_id"])
+    combined = combined.sort_values(["date", "kpi", "bo", "sol"]).reset_index(drop=True)
     vals = pd.to_numeric(combined["value"], errors="coerce").fillna(0)
     if (vals % 1 == 0).all():
         vals = vals.astype("int64")
@@ -988,6 +1008,14 @@ def main():
         out = merge_kpi_files(metric_key)
         if out:
             merged_files.append(out)
+
+    if not merged_files:
+        # Nothing was downloaded this run. The merged files on disk are the previous
+        # run's, and history/manifest are built from them - so without this guard a
+        # failed scrape silently files yesterday's (or last week's) numbers under
+        # today's date and the dashboard then adds them up as extra days.
+        sys.exit("No KPI workbook was downloaded for this window. Refusing to rewrite "
+                 "history/dashboard/manifest from a stale merged file - check debug/ and re-run.")
 
     dashboard_file = generate_dashboard_data(report_iso)
     history_file = append_history(report_iso)

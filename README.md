@@ -51,7 +51,7 @@ Aap kitne bhi numeric columns rakh sakte hain — dashboard unhe automatically d
 |---|---|---|
 | `data/exports/{kpi}_merged.xlsx` | `cept_mis_cbs.py` | one header row + BO data rows |
 | `data/exports/manifest.json` | `write_manifest()` | `[{"file": "data/exports/...", "label": "Accounts Opened", "date": "2026-11-01"}]` — dashboard isi list ko auto-load karta hai (naya KPI add karne ke liye frontend change nahi chahiye). `date` report ki apni date hai kyunki merged file me `Dated:` title row nahi rehta |
-| `data/history.csv` | `append_history()` | long format: `date,bo,so,sol,kind,kpi,value` — `kind` = `bo` ya `so` (office summary row). Har report date ki rows us date ki purani rows ko replace karti hain (idempotent) |
+| `data/history.csv` | `append_history()` | long format: `date,bo,so,sol,kind,kpi,value` — `kind` = `bo` ya `so` (office summary row). Har office apne **code** (`SOL_ID_BO_ID`/BOCODE, warna canonical naam, SO rows `so:<name>`) se alag row rakhta hai — same naam ke do BO kabhi merge nahi hote. Har report date ki rows us date ki purani rows ko replace karti hain (idempotent) |
 | `data/dashboard_data.xlsx` | `generate_dashboard_data()` | one row per BO (Date/BO/SO/SOL ID + KPI columns) |
 
 ## BO master file (`bo_master.js`)
