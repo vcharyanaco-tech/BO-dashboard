@@ -88,11 +88,12 @@ liye start = end karke dispatch karein; us date ki history rows replace ho jayen
 
 ## Report granularity
 
-`REPORT_LEVEL=division` exports one workbook per division per KPI instead of one per
-sub-division (default). Division-level returns the same BO rows - verified on Ambala
-Division: 308 ACO rows at division level = sum of its four sub-divisions (81 + 72 + ...) -
-with ~4x fewer page loads, which matters because the server slows down and can answer
-HTTP 500 under sustained load.
+`REPORT_LEVEL=division` (default `subdivision`) exports one workbook per division per
+KPI. **Do not use it in CI**: on 04-11 the division-level page rendered 98 BO rows for
+Ambala Division while its sub-divisions together reported ~300 (Bhiwani 71, Faridabad 56
+against 431 and ~250 master offices), i.e. it silently drops most offices. The older
+"same rows" note here was wrong. Sub-division level is what `cept-mis.yml` runs, and a
+completed sweep takes ~20-25 minutes.
 
 ## Server errors
 

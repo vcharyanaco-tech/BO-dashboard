@@ -48,16 +48,16 @@ jobs:
         # Empty inputs fall through to the script's default window (yesterday),
         # so a scheduled/pushed run behaves exactly as before. A dispatch can
         # re-fetch one specific day (start = end) to repair history.
+        #
+        # timeout: one page can wedge (04-11 lost 3 hours on Gurgaon Division with
+        # no log line at all) and the only thing that ends such a run is the job
+        # cap, which wastes the runner minutes and hides the failure behind
+        # "cancelled". 40 minutes is ~2x the fastest completed sweep, and a
+        # timeout here fails the step, so the debug artifact step still runs.
         env:
           REPORT_START_DATE: ${{ github.event.inputs.report_start_date }}
           REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}
-          # 9 division loads instead of 33 sub-division ones. The MIS site answers
-          # HTTP 500 (pooled connections) under sustained load, and a sub-division
-          # scrape ran past the job timeout on 04-11; division-level exports carry
-          # the same BO rows (checked on Ambala: 308 ACO rows = sum of its four
-          # sub-divisions).
-          REPORT_LEVEL: division
-        run: python -u automation/cept_mis_cbs.py
+        run: timeout --kill-after=60s 2400s python -u automation/cept_mis_cbs.py
       - name: Sanity-check merged exports before committing
         run: python -u automation/sanity_check.py
       - name: Upload debug artifacts on failure
