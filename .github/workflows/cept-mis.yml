@@ -36,7 +36,7 @@ concurrency:
 jobs:
   fetch-and-update:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,6 +51,12 @@ jobs:
         env:
           REPORT_START_DATE: ${{ github.event.inputs.report_start_date }}
           REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}
+          # 9 division loads instead of 33 sub-division ones. The MIS site answers
+          # HTTP 500 (pooled connections) under sustained load, and a sub-division
+          # scrape ran past the job timeout on 04-11; division-level exports carry
+          # the same BO rows (checked on Ambala: 308 ACO rows = sum of its four
+          # sub-divisions).
+          REPORT_LEVEL: division
         run: python -u automation/cept_mis_cbs.py
       - name: Sanity-check merged exports before committing
         run: python -u automation/sanity_check.py
