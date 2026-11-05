@@ -10,8 +10,11 @@ apply, because then a large drop really is the only signal available.
 So:
   * 0 BO rows in a merged file               -> fail, never commit that.
   * planned sub divisions that never filed   -> fail, and name them. Override with
-    SANITY_ALLOW_MISSING_SUBDIVISIONS=<n> if MIS is known to be wedged and the owner
-    wants the partial day anyway.
+    SANITY_ALLOW_MISSING_SUBDIVISIONS=<n> (the dispatch input
+    "allow_missing_subdivisions") if MIS is known to be wedged and the owner wants the
+    partial day anyway.
+  * a sub division whose report came back with zero rows -> covered, not missing. A quiet
+    day at one sub division is real data, so it never blocks the commit.
   * a big row drop vs HEAD                   -> warn when coverage says the day is whole.
   * byte-identical to HEAD                   -> warn: the site served the same snapshot
     again, and history's "one snapshot = one day" rule will not file it twice.
@@ -115,6 +118,18 @@ def load_coverage():
         return None
 
 
+def allowed_missing():
+    """How many sub divisions the operator agreed to ship without.
+
+    Set from the workflow dispatch input, so a blank or nonsense value simply keeps the
+    gate closed rather than crashing the run.
+    """
+    try:
+        return max(0, int(os.getenv("SANITY_ALLOW_MISSING_SUBDIVISIONS", "").strip() or 0))
+    except ValueError:
+        return 0
+
+
 def coverage_failures(coverage, allow=0):
     """Name every planned sub division that did not report, unless we allow that many.
 
@@ -137,10 +152,15 @@ def main():
         print("sanity: no *_merged.xlsx files found - nothing to check")
         return 0
     coverage = load_coverage()
-    allow = int(os.getenv("SANITY_ALLOW_MISSING_SUBDIVISIONS", "0"))
+    allow = allowed_missing()
     if coverage:
+        quiet = len(coverage.get("empty") or [])
+        extra = f", {quiet} answered with 0 rows" if quiet else ""
         print(f"sanity: coverage report for {coverage.get('date')}: "
-              f"{coverage.get('filed')}/{coverage.get('planned')} sub divisions filed")
+              f"{coverage.get('filed')}/{coverage.get('planned')} sub divisions filed{extra}")
+        if allow:
+            print(f"sanity: SANITY_ALLOW_MISSING_SUBDIVISIONS={allow} - up to {allow} "
+                  f"sub division(s) may be missing and the day still commits")
     else:
         print("sanity: no debug/coverage.json - this merge did not come from the "
               "sub-division supervisor, so the row-count gate applies")

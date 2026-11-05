@@ -65,7 +65,7 @@ naam hain, 82 naam 184 offices me share ho rahe hain, isliye naam se fuzzy match
 - `data/dashboard_data.xlsx` — dashboard ka BO-wise file (report window ki end date ke saath)
 - `debug/*.png` + `debug/*.html` — failure par page snapshot (CI me artifact ke roop me upload hota hai)
 
-CI (`cept-mis.yml`) run ke baad `automation/sanity_check.py` gate lagata hai. Gate **coverage** ka hai, volume ka nahi: supervisor `debug/coverage.json` me likhta hai kaun-kaun se sub divisions ne download kiya, aur ek bhi planned sub division chhoota to commit nahi hota (`SANITY_ALLOW_MISSING_SUBDIVISIONS=<n>` se operator jaane-anakhe ek din ke liye chhod sakta hai). Kam rows wala din normal hai — kai din sirf kuch BOs account kholte hain — isliye 50%-drop rule ab sirf tab fail karta hai jab coverage report hi na ho (yanim merge supervisor ke bahar bana), warna woh WARN hai. Row count se ek cheez pakdi nahi jati: file byte-identical to HEAD ho (wahi report dobara aa gayi) to woh WARN karta hai, kyunki us date ka "snapshot" asal me pichle date ki nakal hota hai. Deploy ke baad `smoke-test.yml` live page ko check karta hai.
+CI (`cept-mis.yml`) run ke baad `automation/sanity_check.py` gate lagata hai. Gate **coverage** ka hai, volume ka nahi: supervisor `debug/coverage.json` me likhta hai kaun-kaun se sub divisions ne download kiya, aur ek bhi planned sub division *answer hi na kare* to commit nahi hota. Zero-row jawab covered hai: report render hui par BO rows 0 thi to child `debug/empty_reports.json` me receipt chhodta hai aur wo sub division missing nahi geli jati, retry bhi nahi hoti. Operator override do tarah se: `SANITY_ALLOW_MISSING_SUBDIVISIONS=<n>` env, ya dispatch ka `allow_missing_subdivisions` input (MIS ke permanently wedged sub divisions ke liye). Kam rows wala din normal hai — kai din sirf kuch BOs account kholte hain — isliye 50%-drop rule ab sirf tab fail karta hai jab coverage report hi na ho (yanim merge supervisor ke bahar bana), warna woh WARN hai. Row count se ek cheez pakdi nahi jati: file byte-identical to HEAD ho (wahi report dobara aa gayi) to woh WARN karta hai, kyunki us date ka "snapshot" asal me pichle date ki nakal hota hai. Deploy ke baad `smoke-test.yml` live page ko check karta hai.
 
 ## Sunday = chhutti, report nahi
 
@@ -132,21 +132,24 @@ BO rows aayi, jise tab ka volume-gate rok baitha (galat gate — kam rows normal
 hain, chhoota hua sub division nahi). Ab hang ka cost ek sub division hai, aur gate
 coverage hai.
 
-Covered ka matlab "download hua": har planned child ke baad supervisor disk par uska
+Covered ka matlab "the page answered": har planned child ke baad supervisor disk par uska
 workbook dhoondta hai (`got_data()` / `division_has_data()`), exit code se zyada usi par
-bharosa hai. Jo child bina data ke aaya (killed, failed, ya page ne khaali grid diya) use
-supervisor **`SUB_RETRIES` (default 2) baar dobara bhejta hai**, is baar `RETRY_BUDGET_S`
-(default 360s) budget dekar — jab tak poori sweep `SUPERVISOR_BUDGET_S` (default 7200s) ke
-andar hai. Phir bhi jo na aaye woh `debug/coverage.json` me naam ke saath likha jaata hai
- aur sanity usi din ka commit rok deti hai.
+bharosa hai. Report render hui par us din koi BO row nahi thi to child
+`debug/empty_reports.json` me zero-row receipt chhodta hai — wo sub division **covered**
+hai, retry nahi mangti (kam rows wala din normal hai). Jo child bina jawab ke laut aaya
+(killed, failed, ya `select_option` timeout) use supervisor **`SUB_RETRIES` (default 2)
+baar dobara bhejta hai**, is baar `RETRY_BUDGET_S` (default 360s) budget dekar — jab tak
+poori sweep `SUPERVISOR_BUDGET_S` (default 7200s) ke andar hai. Phir bhi jo na aaye woh
+`debug/coverage.json` me naam ke saath (`missing`) likha jaata hai aur sanity usi din ka
+commit rok deti hai.
 
 Aakh ke baad log se seedha pata chalta hai kaunsa bacha: `X/Y children filed data,
-N without data`, phir har missing ka naam `no data for <division> / <sub> (killed)` aur
-`no rows from <division>` (poori division tab, jab uska ek bhi sub division file na kare —
-_partial_ division missing nahi bolta).
+Z answered with 0 rows, N never answered`, phir har missing ka naam `no data for
+<division> / <sub> (killed)` aur `no rows from <division>` (poori division tab, jab uska
+ek bhi sub division file na kare — _partial_ division missing nahi bolta).
 
-- `debug/divisions.json` / `debug/window.json` / `debug/coverage.json` gitignored hain
-  (sirf run ke andar ka kaam).
+- `debug/divisions.json` / `debug/window.json` / `debug/coverage.json` /
+  `debug/empty_reports.json` gitignored hain (sirf run ke andar ka kaam).
 - Page labels zaroori hain: MIS "Sonepat Division" kehta hai, master sheet "Sonipat
   Division" — isliye supervisor page se hi naam leta hai; page na de to master sheet par
   fallback hota hai aur log me warning aati hai.
@@ -164,11 +167,18 @@ _partial_ division missing nahi bolta).
   chal rahi round 8,400s step timeout cross kar jaati thi aur run commit ke bina mar jaata.
 - 04-11 ke do runs ka poora din 27/31 sub divisions par ruka tha (teen hang + ek khaali);
   ab wahi kaam ~13 minute me ho jaata hai aur baaki 4 retry rounds me aa jaate hain.
+- 05-11 ka run (window 03-11, kyunki page abhi bhi "Data Updated upto: 03-11-2026" kehta
+  hai) bhi 27/31 par ruka: Mohindergarh, Narnaul aur Sirsa-I har attempt par 360s wedge
+  karte hain (MIS side), Bahadurgarh ka `select_option` 60s me timeout hota hai. Gate ne
+  yahi 4 naam se commit roka — jo behaviour chahiye tha. Aise din ship karne ke liye
+  dispatch me `allow_missing_subdivisions: 4` bharo.
 - Locked in `tests/automation.test.py`: "one child per sub division, not per division",
   "a sub division that came back empty is retried until it reports", "a wedged sub division
   is retried, then named - never left silent", "coverage.json names exactly which sub
   divisions are missing", "with no sub division plan, one child sweeps a whole division",
   "a sweep that runs out of budget stops starting children, it does not overrun the job",
+  "a sub division that reported zero rows is covered, not missing",
+  "a zero-row sub division is not retried as a failed download",
   "no report is fetched for a Sunday, and no day is committed",
   "Monday's default window rolls back to Saturday instead of fetching a Sunday",
   "a fully covered day passes the gate even when few BOs opened accounts",

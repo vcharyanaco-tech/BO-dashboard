@@ -65,6 +65,10 @@ DIVISIONS_FILE = DEBUG_DIR / "divisions.json"
 # Which planned sub divisions actually filed a workbook. sanity_check.py reads this and
 # decides whether the day is trustworthy, instead of guessing from the row count.
 COVERAGE_FILE = DEBUG_DIR / "coverage.json"
+# A sub division whose report rendered with zero rows is covered even though there is no
+# workbook to show for it, so the receipt is kept separately (few BOs opening accounts on
+# a given day is normal; it must not look like a missing sub division).
+EMPTY_FILE = DEBUG_DIR / "empty_reports.json"
 # Hard budget for one division's sweep, used only when the page would not tell us its
 # sub-division list and a whole division has to go through one child.
 DIVISION_BUDGET_S = int(os.getenv("DIVISION_BUDGET_S", "600"))
@@ -628,6 +632,7 @@ def run_metric_export(page, div, sub, radio_sel, metric_key, metric_label, windo
                     # Report rendered for the right window with zero BOs - a valid empty
                     # result (e.g. no net change). Retrying would just burn 3x90s.
                     log(f"{metric_key}: 0 BO rows in {start_s} -> {end_s}; nothing to export")
+                    record_empty_report(div, sub, end_s)
                     return None
                 log(f"{metric_key}: grid rendered no BO rows on attempt {attempt}")
             else:
@@ -1300,6 +1305,57 @@ def got_data(div, sub):
                (part_file(key, div, sub) for _, key, _ in METRICS))
 
 
+def iso_day(value):
+    """DD-MM-YYYY (or a date that is already ISO) -> ISO, so the receipts line up."""
+    for fmt in (DATE_FMT, "%Y-%m-%d"):
+        try:
+            return datetime.strptime(str(value), fmt).date().isoformat()
+        except ValueError:
+            continue
+    return str(value)
+
+
+def pair_name(div, sub):
+    return f"{div} / {sub}" if sub else div
+
+
+def record_empty_report(div, sub, day):
+    """Note that this pair answered with zero rows, so coverage can count it as reached."""
+    name, key = pair_name(div, sub), iso_day(day)
+    try:
+        data = json.loads(EMPTY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    seen = data.setdefault(key, [])
+    if name not in seen:
+        seen.append(name)
+        try:
+            EMPTY_FILE.write_text(json.dumps(data), encoding="utf-8")
+            log(f"empty: {name} answered with 0 rows for {key}")
+        except Exception as e:
+            log(f"empty: could not write {EMPTY_FILE}: {e}")
+
+
+def empty_names(day):
+    """Pairs whose report rendered with zero rows for `day` (receipts kept by children)."""
+    try:
+        data = json.loads(EMPTY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    return data.get(iso_day(day)) or []
+
+
+def answered_empty(div, sub, day):
+    """True when the page rendered this pair's report and it simply had no BO rows."""
+    return pair_name(div, sub) in empty_names(day)
+
+
+def division_answered_empty(div, day):
+    """A division-sized child records each sub division it swept, so the division counts
+    as reached when any of them came back with zero rows."""
+    return any(n.startswith(f"{div} / ") for n in empty_names(day))
+
+
 def division_has_data(div):
     """True when any download on disk belongs to this division (its name carries the
     normalised division label), so a partial division is not reported as absent."""
@@ -1319,7 +1375,8 @@ def supervise_divisions():
     one sub division that is broken, and everything else still gets merged.
     """
     script = str(Path(__file__).resolve())
-    for stale in (DIVISIONS_FILE, WINDOW_FILE, COVERAGE_FILE):  # only this run may report any
+    # only this run may report anything, so last run's receipts go first
+    for stale in (DIVISIONS_FILE, WINDOW_FILE, COVERAGE_FILE, EMPTY_FILE):
         try:
             stale.unlink()
         except Exception:
@@ -1379,9 +1436,15 @@ def supervise_divisions():
             last_rc[name] = "ok"
             log(f"supervisor{tag}: {name} done in {secs:.0f}s")
 
+    def report_day():
+        return read_window() or page_date or ""
+
     def child_filed(name):
         div, sub = by_name[name]
-        return got_data(div, sub) if sub else division_has_data(div)
+        day = report_day()
+        if sub:
+            return got_data(div, sub) or answered_empty(div, sub, day)
+        return division_has_data(div) or division_answered_empty(div, day)
 
     def in_time_for(budget):
         """Only start another child if its whole budget still fits the sweep ceiling."""
@@ -1417,16 +1480,26 @@ def supervise_divisions():
             dispatch(name, RETRY_BUDGET_S, tag=f" retry{round_no}")
 
     missing = [n for n in plan_names if not child_filed(n)]
+    covered = [n for n in plan_names if n not in missing]
+    empties = [n for n in covered if not (got_data(*by_name[n]) if by_name[n][1]
+                                          else division_has_data(by_name[n][0]))]
+    with_rows = [n for n in covered if n not in empties]
     per_div = {}
     for name in plan_names:
         row = per_div.setdefault(by_name[name][0], {"planned": 0, "filed": 0})
         row["planned"] += 1
         row["filed"] += 0 if name in missing else 1
-    log(f"supervisor: {len(plan_names) - len(missing)}/{len(plan_names)} children filed "
-        f"data, {len(missing)} without data, {len(part_files())} part file(s) on disk")
+    log(f"supervisor: {len(with_rows)}/{len(plan_names)} children filed data, "
+        f"{len(empties)} answered with 0 rows, {len(missing)} never answered, "
+        f"{len(part_files())} part file(s) on disk")
     for name in missing:
         log(f"supervisor: no data for {name} ({last_rc.get(name, 'unknown')})")
-    for div in (d for d in divisions if not division_has_data(d)):
+    if empties:
+        log(f"supervisor: answered with 0 rows (covered, nothing to merge): "
+            f"{', '.join(empties)}")
+    quiet = [d for d in divisions if not division_has_data(d)
+             and not division_answered_empty(d, report_day())]
+    for div in quiet:
         log(f"supervisor: no rows from {div} this run")
     report_iso = read_window() or page_date
     if not report_iso:
@@ -1437,7 +1510,7 @@ def supervise_divisions():
             f"nothing to fetch, nothing to commit")
         return True
     write_coverage({"date": report_iso, "planned": len(plan_names),
-                    "filed": len(plan_names) - len(missing),
+                    "filed": len(with_rows), "empty": empties,
                     "missing": [{"division": by_name[n][0], "subDivision": by_name[n][1],
                                  "exit": last_rc.get(n, "unknown")} for n in missing],
                     "divisions": per_div})
@@ -1450,12 +1523,16 @@ def write_coverage(coverage):
 
     A day with few BOs is legitimate (a quiet day, or a day when only a handful of
     offices opened accounts); a day that skipped a sub division is not, because whole
-    offices are simply absent from it. That distinction is what gets committed.
+    offices are simply absent from it. That distinction is what gets committed. A sub
+    division that rendered an empty report is covered (see `empty`), one that never
+    answered is not.
     """
     try:
         COVERAGE_FILE.write_text(json.dumps(coverage), encoding="utf-8")
-        log(f"coverage: {coverage['filed']}/{coverage['planned']} sub divisions reported "
-            f"for {coverage['date']}")
+        quiet = len(coverage.get("empty") or [])
+        extra = f", {quiet} with 0 rows" if quiet else ""
+        log(f"coverage: {coverage['filed']}/{coverage['planned']} sub divisions filed"
+            f"{extra} for {coverage['date']}")
     except Exception as e:
         log(f"coverage: could not write {COVERAGE_FILE}: {e}")
 

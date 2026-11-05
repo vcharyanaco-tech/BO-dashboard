@@ -169,19 +169,20 @@ class FakeChild:
 def patch_sweep(tmp, child, built, date=None):
     """Point every file the supervisor writes at a temp dir for one test block."""
     real = (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR, cbs.WINDOW_FILE,
-            cbs.DIVISIONS_FILE, cbs.COVERAGE_FILE)
+            cbs.DIVISIONS_FILE, cbs.COVERAGE_FILE, cbs.EMPTY_FILE)
     cbs.run_bounded = child.run
     cbs.build_outputs = lambda iso: built.append(iso)
     cbs.EXPORT_DIR = Path(tmp)
     cbs.WINDOW_FILE = Path(tmp) / "window.json"
     cbs.DIVISIONS_FILE = Path(tmp) / "divisions.json"
     cbs.COVERAGE_FILE = Path(tmp) / "coverage.json"
+    cbs.EMPTY_FILE = Path(tmp) / "empty_reports.json"
     return real
 
 
 def restore_sweep(real):
     (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR, cbs.WINDOW_FILE,
-     cbs.DIVISIONS_FILE, cbs.COVERAGE_FILE) = real
+     cbs.DIVISIONS_FILE, cbs.COVERAGE_FILE, cbs.EMPTY_FILE) = real
 
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -263,6 +264,43 @@ with tempfile.TemporaryDirectory() as tmp:
               f"{cov['filed']}/{cov['planned']}, {len(not_started)} not started")
     finally:
         cbs.time, cbs.SUPERVISOR_BUDGET_S = real_time, real_ceiling
+        restore_sweep(real)
+
+
+class QuietSubChild(FakeChild):
+    """Two sub divisions render a real report that simply has zero BO rows - a quiet day
+    at those offices, which is coverage, not a download that failed."""
+
+    QUIET = ("Sirsa-I Sub division", "Mohindergarh Sub division")
+
+    def run(self, cmd, env, budget):
+        div, sub = env.get("REPORT_DIVISIONS"), env.get("REPORT_SUBDIVISIONS")
+        if env.get("CEPT_CHILD") == "1" and sub in self.QUIET:
+            self.seen.append((div, sub, env.get("CEPT_CHILD"), env.get("SKIP_MERGE"), budget))
+            self.attempts[(div, sub)] = self.attempts.get((div, sub), 0) + 1
+            cbs.record_window(self.date)
+            cbs.record_empty_report(div, sub, "03-11-2026")  # the format the page uses
+            return 0, 20.0
+        return super().run(cmd, env, budget)
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    child = QuietSubChild()
+    built = []
+    real = patch_sweep(tmp, child, built)
+    try:
+        cbs.supervise_divisions()
+        cov = json.loads(cbs.COVERAGE_FILE.read_text(encoding="utf-8"))
+        check("a sub division that reported zero rows is covered, not missing",
+              cov["missing"] == [] and sorted(n.split(" / ")[1] for n in cov["empty"])
+              == sorted(QuietSubChild.QUIET) and cov["filed"] == planned - 2,
+              f"{cov['filed']}/{cov['planned']}, empty {cov['empty']}")
+        check("a zero-row sub division is not retried as a failed download",
+              child.attempts[("Hissar Division", "Sirsa-I Sub division")] == 1,
+              f"{child.attempts[('Hissar Division', 'Sirsa-I Sub division')]} attempts")
+        check("the day still commits when sub divisions are just quiet",
+              built == ["2026-11-03"], f"{built}")
+    finally:
         restore_sweep(real)
 
 
@@ -363,6 +401,18 @@ check("a day that is missing a sub division is named and blocked",
       f"{sanity.coverage_failures(ONE_GAP)}")
 check("SANITY_ALLOW_MISSING_SUBDIVISIONS lets an operator ship a known gap",
       sanity.coverage_failures(ONE_GAP, allow=1) == [], "allow=1")
+check("a blank allow-missing input keeps the gate closed",
+      sanity.allowed_missing() == 0, f"{sanity.allowed_missing()}")
+os.environ["SANITY_ALLOW_MISSING_SUBDIVISIONS"] = "2"
+check("the dispatch input is read as the number of gaps to allow",
+      sanity.allowed_missing() == 2, f"{sanity.allowed_missing()}")
+os.environ["SANITY_ALLOW_MISSING_SUBDIVISIONS"] = "not a number"
+check("nonsense in the dispatch input does not crash the gate",
+      sanity.allowed_missing() == 0, f"{sanity.allowed_missing()}")
+os.environ.pop("SANITY_ALLOW_MISSING_SUBDIVISIONS", None)
+check("a zero-row receipt written with the page's date matches the coverage date",
+      cbs.iso_day("03-11-2026") == "2026-11-03" and cbs.iso_day("2026-11-03") == "2026-11-03",
+      cbs.iso_day("03-11-2026"))
 
 rc, secs = cbs.run_bounded([sys.executable, "-c", "import time; time.sleep(60)"], dict(os.environ), 2)
 check("run_bounded kills a child that overspends its budget", rc is None and secs < 15,

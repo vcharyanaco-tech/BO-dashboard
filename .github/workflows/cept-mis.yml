@@ -24,6 +24,10 @@ on:
         description: 'Report window end (DD-MM-YYYY). Blank = the day before the run'
         required: false
         default: ''
+      allow_missing_subdivisions:
+        description: 'Commit even if this many sub divisions never answered (MIS wedge). Blank = 0'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -64,6 +68,11 @@ jobs:
           REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}
         run: timeout --kill-after=60s 8400s python -u automation/cept_mis_cbs.py
       - name: Sanity-check merged exports before committing
+        # The gate is coverage, not volume: every planned sub division must have
+        # answered, and a sub division that answered with zero rows counts as covered.
+        # A dispatch can allow N never-answered sub divisions when MIS is wedged.
+        env:
+          SANITY_ALLOW_MISSING_SUBDIVISIONS: ${{ github.event.inputs.allow_missing_subdivisions }}
         run: python -u automation/sanity_check.py
       - name: Upload debug artifacts on failure
         if: failure()
