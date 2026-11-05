@@ -8,6 +8,7 @@ per-BO numbers: offices that share a name (the master sheet has 82 such names)
 must stay separate rows, and a run that downloaded nothing must not file the
 previous run's figures under a new date.
 """
+import datetime as dt
 import json
 import os
 import sys
@@ -18,6 +19,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "automation"))
 import cept_mis_cbs as cbs  # noqa: E402
+import sanity_check as sanity  # noqa: E402
 
 failures = 0
 
@@ -134,68 +136,95 @@ PAGE_SUBS = {
 
 
 class FakeChild:
-    """The lister records MIS's labels; Mohindergarh hangs, Jhajjar exits badly, and
-    every other sub division files a workbook."""
+    """The lister records MIS's labels; Mohindergarh hangs on every attempt, Jhajjar
+    fails its first attempt and recovers on the retry, everything else files a workbook.
+    `date` is the report date the page resolves - a Sunday means "nothing to fetch"."""
 
-    def __init__(self):
-        self.seen, self.listed = [], 0
+    def __init__(self, date="2026-11-03"):
+        self.seen, self.listed, self.attempts = [], 0, {}
+        self.date = date
 
     def run(self, cmd, env, budget):
         if env.get("CEPT_LIST") == "1":
             self.listed += 1
-            cbs.DIVISIONS_FILE.write_text(json.dumps({"date": "2026-11-03", "divisions": PAGE_DIVS,
+            cbs.DIVISIONS_FILE.write_text(json.dumps({"date": self.date, "divisions": PAGE_DIVS,
                                                       "subs": PAGE_SUBS}), encoding="utf-8")
             return 0, 20.0
         div, sub = env["REPORT_DIVISIONS"], env.get("REPORT_SUBDIVISIONS")
         self.seen.append((div, sub, env.get("CEPT_CHILD"), env.get("SKIP_MERGE"), budget))
+        key = (div, sub)
+        self.attempts[key] = self.attempts.get(key, 0) + 1
         if sub == "Mohindergarh Sub division":
-            cbs.record_window("2026-11-03")  # a child dies mid-sweep, after resolving the date
-            return None, float(budget)       # killed at the budget
-        if sub == "Jhajjar Sub Division":
-            return 1, 5.0
-        cbs.record_window("2026-11-03")
+            cbs.record_window(self.date)   # a child dies mid-sweep, after resolving the date
+            return None, float(budget)      # killed at the budget
+        if sub == "Jhajjar Sub Division" and self.attempts[key] == 1:
+            return 1, 5.0                   # transient: retried below
+        cbs.record_window(self.date)
         if sub:
             cbs.part_file("accounts_opened", div, sub).write_bytes(b"not really an xlsx")
         return 0, 30.0
 
 
-with tempfile.TemporaryDirectory() as tmp:
-    child = FakeChild()
-    built = []
-    real = (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
-            cbs.WINDOW_FILE, cbs.DIVISIONS_FILE)
+def patch_sweep(tmp, child, built, date=None):
+    """Point every file the supervisor writes at a temp dir for one test block."""
+    real = (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR, cbs.WINDOW_FILE,
+            cbs.DIVISIONS_FILE, cbs.COVERAGE_FILE)
     cbs.run_bounded = child.run
     cbs.build_outputs = lambda iso: built.append(iso)
     cbs.EXPORT_DIR = Path(tmp)
     cbs.WINDOW_FILE = Path(tmp) / "window.json"
     cbs.DIVISIONS_FILE = Path(tmp) / "divisions.json"
+    cbs.COVERAGE_FILE = Path(tmp) / "coverage.json"
+    return real
+
+
+def restore_sweep(real):
+    (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR, cbs.WINDOW_FILE,
+     cbs.DIVISIONS_FILE, cbs.COVERAGE_FILE) = real
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    child = FakeChild()
+    built = []
+    real = patch_sweep(tmp, child, built)
     planned = sum(len(v) for v in PAGE_SUBS.values())
     try:
         cbs.supervise_divisions()
+        first_pass = [s for s in child.seen if s[4] == cbs.SUB_BUDGET_S]
         check("supervisor asks the page for its own division + sub division labels",
               child.listed == 1, f"listed {child.listed}")
         check("one child per sub division, not per division",
-              len(child.seen) == planned, f"{len(child.seen)} of {planned}")
+              len(first_pass) == planned, f"{len(first_pass)} of {planned}")
         check("the sub division labels come from MIS, not the master sheet",
               ("Rohtak Division", "Bahadurgarh  sub division") in [(d, s) for d, s, *_ in child.seen],
               f"{[(d, s) for d, s, *_ in child.seen if d == 'Rohtak Division']}")
         check("every sub division runs as a download-only child",
               all(c == "1" and m == "1" for _, _, c, m, _ in child.seen), f"{child.seen[:2]}")
-        check("each sub division child gets its own budget",
-              all(b == cbs.SUB_BUDGET_S for *_, b in child.seen), f"{child.seen[:1]}")
+        check("a sub division that came back empty is retried until it reports",
+              child.attempts[("Rohtak Division", "Jhajjar Sub Division")] == 2
+              and cbs.got_data("Rohtak Division", "Jhajjar Sub Division"),
+              f"{child.attempts[('Rohtak Division', 'Jhajjar Sub Division')]} attempts")
+        check("a wedged sub division is retried, then named - never left silent",
+              child.attempts[("Bhiwani Division", "Mohindergarh Sub division")] == 1 + cbs.SUB_RETRIES
+              and not cbs.got_data("Bhiwani Division", "Mohindergarh Sub division"),
+              f"{child.attempts[('Bhiwani Division', 'Mohindergarh Sub division')]} attempts")
+        check("retry rounds get a longer budget than the first pass",
+              all(b == cbs.RETRY_BUDGET_S for *_, b in child.seen if b != cbs.SUB_BUDGET_S),
+              f"{[(n, b) for n, _, _, _, b in child.seen if b != cbs.SUB_BUDGET_S]}")
+        cov = json.loads(cbs.COVERAGE_FILE.read_text(encoding="utf-8"))
+        check("coverage.json names exactly which sub divisions are missing",
+              cov["planned"] == planned and cov["filed"] == planned - 1
+              and [m["subDivision"] for m in cov["missing"]] == ["Mohindergarh Sub division"]
+              and cov["missing"][0]["exit"] == "killed", f"{cov}")
         check("a killed sub division costs only that sub division",
-              len(child.seen) == planned and cbs.got_data("Bhiwani Division", "Narnaul Sub Division"),
-              f"{len(child.seen)} children, Narnaul filed={cbs.got_data('Bhiwani Division', 'Narnaul Sub Division')}")
-        check("a sub division that filed nothing is detected",
-              not cbs.got_data("Bhiwani Division", "Mohindergarh Sub division")
-              and not cbs.got_data("Rohtak Division", "Jhajjar Sub Division"), "empty children")
-        check("the day is still built when a sub division dies", built == ["2026-11-03"], f"{built}")
+              cbs.got_data("Bhiwani Division", "Narnaul Sub Division")
+              and cbs.got_data("Bhiwani Division", "Bhiwani Sub Division"), "neighbours survived")
         check("a division with most of its sub divisions covered is not called missing",
               cbs.division_has_data("Bhiwani Division")
               and not cbs.division_has_data("Nowhere Division"), "partial division")
+        check("the day is still built when a sub division dies", built == ["2026-11-03"], f"{built}")
     finally:
-        (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
-         cbs.WINDOW_FILE, cbs.DIVISIONS_FILE) = real
+        restore_sweep(real)
 
 
 class DeadListChild(FakeChild):
@@ -209,25 +238,92 @@ class DeadListChild(FakeChild):
 
 with tempfile.TemporaryDirectory() as tmp:
     child = DeadListChild()
-    real = (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
-            cbs.WINDOW_FILE, cbs.DIVISIONS_FILE)
-    cbs.run_bounded = child.run
-    cbs.build_outputs = lambda iso: None
-    cbs.EXPORT_DIR = Path(tmp)
-    cbs.WINDOW_FILE = Path(tmp) / "window.json"
+    built = []
+    real = patch_sweep(tmp, child, built)
     cbs.DIVISIONS_FILE = Path(tmp) / "never-written.json"
     try:
         cbs.supervise_divisions()
+        whole = [s for s in child.seen if s[4] == cbs.DIVISION_BUDGET_S]
         check("a failed division-list visit falls back to the master sheet",
               "Sonipat Division" in [d for d, _, *_ in child.seen],
-              f"{[d for d, _, *_ in child.seen]}")
+              f"{[d for d, _, *_ in child.seen][:2]}")
         check("with no sub division plan, one child sweeps a whole division",
-              len(child.seen) == 9 and all(not s for _, s, *_ in child.seen)
-              and all(b == cbs.DIVISION_BUDGET_S for *_, b in child.seen),
-              f"{[(d, s, b) for d, s, _, _, b in child.seen][:2]}")
+              len(whole) == 9 and all(not s for _, s, *_ in child.seen),
+              f"{[(d, s, b) for d, s, _, _, b in whole][:2]}")
+        cov = json.loads(cbs.COVERAGE_FILE.read_text(encoding="utf-8"))
+        check("a day with no coverage at all is reported, not hidden",
+              cov["planned"] == 9 and cov["filed"] == 0 and built == ["2026-11-03"],
+              f"{cov['filed']}/{cov['planned']}, built {built}")
     finally:
-        (cbs.run_bounded, cbs.build_outputs, cbs.EXPORT_DIR,
-         cbs.WINDOW_FILE, cbs.DIVISIONS_FILE) = real
+        restore_sweep(real)
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    child = FakeChild(date="2026-11-01")  # a Sunday: every CEPT office is closed
+    built = []
+    real = patch_sweep(tmp, child, built)
+    try:
+        cbs.supervise_divisions()
+        check("no report is fetched for a Sunday, and no day is committed",
+              child.listed == 1 and child.seen == [] and built == []
+              and not cbs.COVERAGE_FILE.exists(),
+              f"{len(child.seen)} children, built {built}")
+    finally:
+        restore_sweep(real)
+
+
+class MondayToday(dt.date):
+    """A Monday: the default window would land on Sunday if left alone."""
+
+    @classmethod
+    def today(cls):
+        return cls(2026, 11, 9)
+
+
+env_names = ("REPORT_START_DATE", "REPORT_END_DATE")
+real_env = {k: os.environ.get(k) for k in env_names}
+real_date = cbs.date
+cbs.date = MondayToday
+try:
+    start, end = cbs.resolve_window(None)
+    check("Monday's default window rolls back to Saturday instead of fetching a Sunday",
+          (start.isoformat(), end.isoformat()) == ("2026-11-07", "2026-11-07"),
+          f"{start} -> {end}")
+    for k in env_names:
+        os.environ[k] = "08-11-2026"
+    start, end = cbs.resolve_window(None)
+    check("an operator-asked Sunday stays a Sunday so the sweep can refuse it",
+          cbs.holiday_window(start, end) and start.isoformat() == "2026-11-08",
+          f"{start} -> {end}")
+    os.environ["REPORT_START_DATE"] = "07-11-2026"
+    os.environ["REPORT_END_DATE"] = "08-11-2026"
+    start, end = cbs.resolve_window(None)
+    check("a window that spans a working day is fetched even if it ends on a Sunday",
+          (start.isoformat(), end.isoformat()) == ("2026-11-07", "2026-11-08")
+          and not cbs.holiday_window(start, end), f"{start} -> {end}")
+    check("is_sunday_text reads the ISO dates the pipeline actually carries",
+          cbs.is_sunday_text("2026-11-01") and not cbs.is_sunday_text("2026-11-02")
+          and not cbs.is_sunday_text(None), "sunday text")
+finally:
+    cbs.date = real_date
+    for k, v in real_env.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+FULL_COVERAGE = {"date": "2026-11-03", "planned": 31, "filed": 31, "missing": []}
+ONE_GAP = {"date": "2026-11-03", "planned": 31, "filed": 27, "missing": [
+    {"division": "Bhiwani Division", "subDivision": "Mohindergarh Sub division", "exit": "killed"}]}
+check("a fully covered day passes the gate even when few BOs opened accounts",
+      sanity.coverage_failures(FULL_COVERAGE) == [], f"{sanity.coverage_failures(FULL_COVERAGE)}")
+check("a day that is missing a sub division is named and blocked",
+      len(sanity.coverage_failures(ONE_GAP)) == 1
+      and "Mohindergarh" in sanity.coverage_failures(ONE_GAP)[0]
+      and "(killed)" in sanity.coverage_failures(ONE_GAP)[0],
+      f"{sanity.coverage_failures(ONE_GAP)}")
+check("SANITY_ALLOW_MISSING_SUBDIVISIONS lets an operator ship a known gap",
+      sanity.coverage_failures(ONE_GAP, allow=1) == [], "allow=1")
 
 rc, secs = cbs.run_bounded([sys.executable, "-c", "import time; time.sleep(60)"], dict(os.environ), 2)
 check("run_bounded kills a child that overspends its budget", rc is None and secs < 15,

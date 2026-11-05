@@ -65,7 +65,22 @@ naam hain, 82 naam 184 offices me share ho rahe hain, isliye naam se fuzzy match
 - `data/dashboard_data.xlsx` — dashboard ka BO-wise file (report window ki end date ke saath)
 - `debug/*.png` + `debug/*.html` — failure par page snapshot (CI me artifact ke roop me upload hota hai)
 
-CI (`cept-mis.yml`) run ke baad `automation/sanity_check.py` naye merged files ko git HEAD wali copy se compare karta hai — BO rows 50%+ kam ya khali file milne par commit nahi hota. Row count se ek cheez pakdi nahi jati: file byte-identical to HEAD ho (wahi report dobara aa gayi) to woh WARN karta hai, kyunki us date ka "snapshot" asal me pichle date ki nakal hota hai. Deploy ke baad `smoke-test.yml` live page ko check karta hai.
+CI (`cept-mis.yml`) run ke baad `automation/sanity_check.py` gate lagata hai. Gate **coverage** ka hai, volume ka nahi: supervisor `debug/coverage.json` me likhta hai kaun-kaun se sub divisions ne download kiya, aur ek bhi planned sub division chhoota to commit nahi hota (`SANITY_ALLOW_MISSING_SUBDIVISIONS=<n>` se operator jaane-anakhe ek din ke liye chhod sakta hai). Kam rows wala din normal hai — kai din sirf kuch BOs account kholte hain — isliye 50%-drop rule ab sirf tab fail karta hai jab coverage report hi na ho (yanim merge supervisor ke bahar bana), warna woh WARN hai. Row count se ek cheez pakdi nahi jati: file byte-identical to HEAD ho (wahi report dobara aa gayi) to woh WARN karta hai, kyunki us date ka "snapshot" asal me pichle date ki nakal hota hai. Deploy ke baad `smoke-test.yml` live page ko check karta hai.
+
+## Sunday = chhutti, report nahi
+
+Hara office Sunday ko band rehta hai, isliye **Sunday ki report kabhi fetch nahi hoti**:
+
+- `resolve_window()` ka default "kal" agar Sunday nikle to ek din peeche **Saturday** ho
+  jaata hai — warna Monday ke run poora Saturday chhod dete aur history me ek din ka gap
+  pad jaata. (Saturday ki dobara download hone par "ek snapshot = ek din" wala rule use
+  doosre date par file nahi karta.)
+- Phir bhi window sirf-ek-Sunday ho (`start == end` aur Sunday) to sweep bilkul nahi chalta:
+  `sweep_and_build()` log karke bina download ke bahar aa jaata hai, aur supervisor bache
+  hue children dispatch hi nahi karta. Run green rehta hai, commit kuch nahi hota.
+- `REPORT_START_DATE`/`REPORT_END_DATE` se maangi gayi Sunday **silent rollback nahi** karti
+  — use refusal ka reason log me dikhta hai, taaki operator ko pata rahe ki MIS ne data
+  diya ya chhutti thi. Range jisme koi working day pade (Sat→Sun) wo fetch hoti hai.
 
 ## Date window
 
@@ -113,26 +128,43 @@ kha liya, aur kyunki merge script ke aakh me hota hai, killed run **kuch commit 
 tha**. Division-level splitting (commit 1029207) se din to bach gaya, par nuksan bada raha:
 ek hi hang ne Bhiwani ke 4 aur sub divisions aur Gurgaon ka Narnaul (2 download ho chuke
 the) sab kha liye — 42 me se 30 minute teen hangs par gaye aur din me sirf 409 of ~2,100
-BO rows aayi, jise sanity ne rok diya. Ab hang ka cost ek sub division hai.
+BO rows aayi, jise tab ka volume-gate rok baitha (galat gate — kam rows normal ho sakte
+hain, chhoota hua sub division nahi). Ab hang ka cost ek sub division hai, aur gate
+coverage hai.
 
-Aakh ke baad log se seedha pata chalta hai kaunsa bacha: `X/Y children filed data, N killed,
-M failed, K answered with nothing`, phir `killed -> ...`, `failed -> ...`, `empty -> ...`
-aur `no rows from <division>` (division tab, jab uska ek bhi sub division file na kare —
+Covered ka matlab "download hua": har planned child ke baad supervisor disk par uska
+workbook dhoondta hai (`got_data()` / `division_has_data()`), exit code se zyada usi par
+bharosa hai. Jo child bina data ke aaya (killed, failed, ya page ne khaali grid diya) use
+supervisor **`SUB_RETRIES` (default 2) baar dobara bhejta hai**, is baar `RETRY_BUDGET_S`
+(default 360s) budget dekar — jab tak poori sweep `SUPERVISOR_BUDGET_S` (default 7200s) ke
+andar hai. Phir bhi jo na aaye woh `debug/coverage.json` me naam ke saath likha jaata hai
+ aur sanity usi din ka commit rok deti hai.
+
+Aakh ke baad log se seedha pata chalta hai kaunsa bacha: `X/Y children filed data,
+N without data`, phir har missing ka naam `no data for <division> / <sub> (killed)` aur
+`no rows from <division>` (poori division tab, jab uska ek bhi sub division file na kare —
 _partial_ division missing nahi bolta).
 
-- `debug/divisions.json` / `debug/window.json` gitignored hain (sirf run ke andar ka kaam).
+- `debug/divisions.json` / `debug/window.json` / `debug/coverage.json` gitignored hain
+  (sirf run ke andar ka kaam).
 - Page labels zaroori hain: MIS "Sonepat Division" kehta hai, master sheet "Sonipat
   Division" — isliye supervisor page se hi naam leta hai; page na de to master sheet par
   fallback hota hai aur log me warning aati hai.
 - `CEPT_INLINE=1` purana single-process sweep wapas laata hai (debug ke liye).
 - `REPORT_DIVISIONS=rohtak,karnal` supervisor ki plan ko filter karta hai;
   `REPORT_SUBDIVISIONS=<label>` child ko ek hi sub division par band karta hai.
-- Worst case time: 420s (label visit) + ~36 sub divisions × 180s ≈ 115 minute, isliye
-  workflow step `timeout 8400s` (140 minute) ke andar hai aur job 180 minute par.
+- Worst case time: 420s (label visit) + ~31 sub divisions × 180s, plus retries, capped by
+  `SUPERVISOR_BUDGET_S` (120 min) — isliye workflow step `timeout 8400s` (140 min) ke andar
+  rehta hai aur job 180 minute par.
+- 04-11 ke do runs ka poora din 27/31 sub divisions par ruka tha (teen hang + ek khaali);
+  ab wahi kaam ~13 minute me ho jaata hai aur baaki 4 retry rounds me aa jaate hain.
 - Locked in `tests/automation.test.py`: "one child per sub division, not per division",
-  "the sub division labels come from MIS, not the master sheet", "a killed sub division
-  costs only that sub division", "a sub division that filed nothing is detected",
-  "with no sub division plan, one child sweeps a whole division",
+  "a sub division that came back empty is retried until it reports", "a wedged sub division
+  is retried, then named - never left silent", "coverage.json names exactly which sub
+  divisions are missing", "with no sub division plan, one child sweeps a whole division",
+  "no report is fetched for a Sunday, and no day is committed",
+  "Monday's default window rolls back to Saturday instead of fetching a Sunday",
+  "a fully covered day passes the gate even when few BOs opened accounts",
   "run_bounded kills a child that overspends its budget".
 
 ## Server errors

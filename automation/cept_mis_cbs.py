@@ -62,6 +62,9 @@ DEBUG_DIR.mkdir(exist_ok=True)
 # the supervisor can build history/dashboard/manifest after the children are done.
 WINDOW_FILE = DEBUG_DIR / "window.json"
 DIVISIONS_FILE = DEBUG_DIR / "divisions.json"
+# Which planned sub divisions actually filed a workbook. sanity_check.py reads this and
+# decides whether the day is trustworthy, instead of guessing from the row count.
+COVERAGE_FILE = DEBUG_DIR / "coverage.json"
 # Hard budget for one division's sweep, used only when the page would not tell us its
 # sub-division list and a whole division has to go through one child.
 DIVISION_BUDGET_S = int(os.getenv("DIVISION_BUDGET_S", "600"))
@@ -74,6 +77,14 @@ DIVISION_LIST_BUDGET_S = int(os.getenv("DIVISION_LIST_BUDGET_S", "420"))
 # with it: 600s spent, zero rows. One child per sub-division bounds the damage to the
 # one sub-division that is actually broken.
 SUB_BUDGET_S = int(os.getenv("SUB_BUDGET_S", "180"))
+# Rounds spent chasing sub divisions that came back with nothing. Coverage - not the
+# number of rows - is what makes a day trustworthy: a quiet day where only a few BOs
+# opened accounts is real data, a day missing Mohindergarh is not.
+SUB_RETRIES = int(os.getenv("SUB_RETRIES", "2"))
+RETRY_BUDGET_S = int(os.getenv("RETRY_BUDGET_S", str(SUB_BUDGET_S * 2)))
+# Ceiling for the whole supervised sweep (first pass + retries), so retries can never
+# push the run past the CI step's own timeout.
+SUPERVISOR_BUDGET_S = int(os.getenv("SUPERVISOR_BUDGET_S", "7200"))
 
 REPORT_URL = "https://mis.cept.gov.in/CBS/CBSTrans3.aspx"
 CIRCLE = os.getenv("REPORT_CIRCLE", "Haryana Circle")
@@ -175,13 +186,31 @@ def read_updated_label(page):
     return None, txt.strip()[:100]
 
 
+def is_sunday(day):
+    """Every CEPT office is shut on Sunday, so there is no report for that date."""
+    return day is not None and day.weekday() == 6
+
+
+def is_sunday_text(value):
+    try:
+        return is_sunday(date.fromisoformat(str(value)))
+    except (TypeError, ValueError):
+        return False
+
+
+def holiday_window(start, end):
+    """True when the window asks for nothing but a Sunday."""
+    return start == end and is_sunday(end)
+
+
 def resolve_window(updated_upto):
     """Pick the reporting window.
 
     Defaults to a single previous day (what the dashboard has always used), but
     never later than the date the page says its data is updated to, because a
     future window renders an empty report. REPORT_START_DATE / REPORT_END_DATE
-    (DD-MM-YYYY, or DD/MM/YYYY) override either end.
+    (DD-MM-YYYY, or DD/MM/YYYY) override either end. Sundays are never fetched by
+    default: every office is closed, so Monday's "yesterday" rolls back to Saturday.
     """
     def parse(value, env_name):
         for fmt in (DATE_FMT, LABEL_DATE_FMT):
@@ -197,6 +226,12 @@ def resolve_window(updated_upto):
     end = parse(end_env, "REPORT_END_DATE") if end_env else (date.today() - timedelta(days=1))
     if updated_upto and end > updated_upto:
         end = updated_upto
+    if not end_env and is_sunday(end):
+        log(f"window: {end} is a Sunday and every office is closed - fetching "
+            f"{end - timedelta(days=1)} instead")
+        end = end - timedelta(days=1)
+        if updated_upto and end > updated_upto:
+            end = updated_upto
 
     start = parse(start_env, "REPORT_START_DATE") if start_env else end
     if start > end:
@@ -1015,6 +1050,13 @@ def sweep_and_build():
             report_iso = end.isoformat()
             window = (start.strftime(DATE_FMT), end.strftime(DATE_FMT))
             log(f"Data window: {window[0]} -> {window[1]}")
+            if holiday_window(start, end):
+                # A child still records the date, so the supervisor can tell "Sunday,
+                # nothing to fetch" apart from "the page never answered".
+                record_window(report_iso)
+                log(f"Sunday {window[1]}: every office is closed - no report to fetch, "
+                    f"no downloads, nothing to commit")
+                return
             if label:
                 log(f"Page label: {label}")
             if updated:
@@ -1203,6 +1245,11 @@ def describe_divisions():
             updated, label = read_updated_label(page)
             start, end = resolve_window(updated)
             window = (start.strftime(DATE_FMT), end.strftime(DATE_FMT))
+            if holiday_window(start, end):
+                out = {"date": end.isoformat(), "divisions": [], "subs": {}}
+                log(f"divisions: {end} is a Sunday - no sweep to plan")
+                record_plan(out)
+                return out
             setup_filters(page, window)
             out["date"] = end.isoformat()
             out["divisions"] = options_of(page, DIV_SEL)
@@ -1272,7 +1319,7 @@ def supervise_divisions():
     one sub division that is broken, and everything else still gets merged.
     """
     script = str(Path(__file__).resolve())
-    for stale in (DIVISIONS_FILE, WINDOW_FILE):  # only this run may report either
+    for stale in (DIVISIONS_FILE, WINDOW_FILE, COVERAGE_FILE):  # only this run may report any
         try:
             stale.unlink()
         except Exception:
@@ -1281,6 +1328,10 @@ def supervise_divisions():
     env.update({"CEPT_CHILD": "1", "CEPT_LIST": "1"})
     run_bounded([sys.executable, "-u", script], env, DIVISION_LIST_BUDGET_S)
     page_divisions, page_date, page_subs = read_divisions()
+    if is_sunday_text(page_date):
+        log(f"supervisor: {page_date} is a Sunday and every office is closed - "
+            f"no sweep, no commit")
+        return True
     divisions = page_divisions or master_divisions()
     only = [d.strip().lower() for d in os.getenv("REPORT_DIVISIONS", "").split(",") if d.strip()]
     if only:  # an operator asked for specific divisions - honour it
@@ -1306,40 +1357,90 @@ def supervise_divisions():
         f"(worst case {worst // 60} min)")
     if whole:
         log(f"supervisor: no sub division list for {', '.join(whole)} - running those as one child")
-    killed, failed = [], []
-    for name, (div, sub) in zip(plan_names, plan):
-        env = os.environ.copy()
-        env.update({"CEPT_CHILD": "1", "SKIP_MERGE": "1", "REPORT_DIVISIONS": div})
-        # a division-sized child gets an empty filter, so it still sweeps every sub
-        env["REPORT_SUBDIVISIONS"] = sub or ""
-        budget = SUB_BUDGET_S if sub else DIVISION_BUDGET_S
-        rc, secs = run_bounded([sys.executable, "-u", script], env, budget)
+    by_name = dict(zip(plan_names, plan))
+    last_rc = {}
+
+    def dispatch(name, budget, tag=""):
+        div, sub = by_name[name]
+        child_env = os.environ.copy()
+        child_env.update({"CEPT_CHILD": "1", "SKIP_MERGE": "1", "REPORT_DIVISIONS": div,
+                          # a division-sized child gets an empty filter, so it still
+                          # sweeps every sub division it can see
+                          "REPORT_SUBDIVISIONS": sub or ""})
+        rc, secs = run_bounded([sys.executable, "-u", script], child_env, budget)
         if rc is None:
-            killed.append(name)
-            log(f"supervisor: {name} hung past {budget}s - killed, keeping whatever it filed")
+            last_rc[name] = "killed"
+            log(f"supervisor{tag}: {name} hung past {budget}s - killed, keeping "
+                f"whatever it filed")
         elif rc != 0:
-            failed.append(name)
-            log(f"supervisor: {name} exited {rc} after {secs:.0f}s")
+            last_rc[name] = "failed"
+            log(f"supervisor{tag}: {name} exited {rc} after {secs:.0f}s")
         else:
-            log(f"supervisor: {name} done in {secs:.0f}s")
-    bad = set(killed) | set(failed)
-    empty = [name for name, (div, sub) in zip(plan_names, plan)
-             if sub and name not in bad and not got_data(div, sub)]
-    log(f"supervisor: {len(plan) - len(bad) - len(empty)}/{len(plan)} children filed data, "
-        f"{len(killed)} killed, {len(failed)} failed, {len(empty)} answered with nothing, "
-        f"{len(part_files())} part file(s) on disk")
-    for label, names in (("killed", killed), ("failed", failed), ("empty", empty)):
-        if names:
-            log(f"supervisor: {label} -> {', '.join(names)}")
-    missing = [d for d in divisions if not division_has_data(d)]
-    if missing:
-        log(f"supervisor: no rows from {', '.join(missing)} this run")
+            last_rc[name] = "ok"
+            log(f"supervisor{tag}: {name} done in {secs:.0f}s")
+
+    def child_filed(name):
+        div, sub = by_name[name]
+        return got_data(div, sub) if sub else division_has_data(div)
+
+    started = time.time()
+    for name in plan_names:
+        dispatch(name, SUB_BUDGET_S if by_name[name][1] else DIVISION_BUDGET_S)
+    for round_no in range(1, SUB_RETRIES + 1):
+        gaps = [n for n in plan_names if not child_filed(n)]
+        if not gaps:
+            break
+        if time.time() - started > SUPERVISOR_BUDGET_S:
+            log(f"supervisor: sweep budget ({SUPERVISOR_BUDGET_S}s) spent with "
+                f"{len(gaps)} sub division(s) still missing - merging what we have")
+            break
+        log(f"supervisor: retry {round_no}/{SUB_RETRIES}: {len(gaps)} sub division(s) "
+            f"have no data ({', '.join(gaps)})")
+        for name in gaps:
+            dispatch(name, RETRY_BUDGET_S, tag=f" retry{round_no}")
+
+    missing = [n for n in plan_names if not child_filed(n)]
+    per_div = {}
+    for name in plan_names:
+        row = per_div.setdefault(by_name[name][0], {"planned": 0, "filed": 0})
+        row["planned"] += 1
+        row["filed"] += 0 if name in missing else 1
+    log(f"supervisor: {len(plan_names) - len(missing)}/{len(plan_names)} children filed "
+        f"data, {len(missing)} without data, {len(part_files())} part file(s) on disk")
+    for name in missing:
+        log(f"supervisor: no data for {name} ({last_rc.get(name, 'unknown')})")
+    for div in (d for d in divisions if not division_has_data(d)):
+        log(f"supervisor: no rows from {div} this run")
     report_iso = read_window() or page_date
     if not report_iso:
         sys.exit("supervisor: no child recorded a report date - nothing was downloaded, so "
                  "history/dashboard/manifest stay as they are.")
+    if is_sunday_text(report_iso):
+        log(f"supervisor: {report_iso} is a Sunday and every office is closed - "
+            f"nothing to fetch, nothing to commit")
+        return True
+    write_coverage({"date": report_iso, "planned": len(plan_names),
+                    "filed": len(plan_names) - len(missing),
+                    "missing": [{"division": by_name[n][0], "subDivision": by_name[n][1],
+                                 "exit": last_rc.get(n, "unknown")} for n in missing],
+                    "divisions": per_div})
     build_outputs(report_iso)
     return True
+
+
+def write_coverage(coverage):
+    """Tell sanity_check.py which sub divisions the day is built from.
+
+    A day with few BOs is legitimate (a quiet day, or a day when only a handful of
+    offices opened accounts); a day that skipped a sub division is not, because whole
+    offices are simply absent from it. That distinction is what gets committed.
+    """
+    try:
+        COVERAGE_FILE.write_text(json.dumps(coverage), encoding="utf-8")
+        log(f"coverage: {coverage['filed']}/{coverage['planned']} sub divisions reported "
+            f"for {coverage['date']}")
+    except Exception as e:
+        log(f"coverage: could not write {COVERAGE_FILE}: {e}")
 
 
 def main():

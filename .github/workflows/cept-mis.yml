@@ -47,16 +47,18 @@ jobs:
       - name: Run CEPT MIS automation
         # Empty inputs fall through to the script's default window (yesterday),
         # so a scheduled/pushed run behaves exactly as before. A dispatch can
-        # re-fetch one specific day (start = end) to repair history.
+        # re-fetch one specific day (start = end) to repair history. Sunday is a
+        # holiday for every office, so the default never fetches one (it rolls back
+        # to Saturday) and a Sunday-only window exits without downloading anything.
         #
         # timeout: a last-resort backstop. The script runs one bounded child per SUB
-        # DIVISION (SUB_BUDGET_S), so a wedged MIS page costs the one sub division that
-        # is broken instead of the whole run - 04-11 lost 39 minutes and then a full
-        # 100-minute run to a single silent page (Bhiwani/Mohindergarh), and splitting by
-        # division still lost three whole divisions to three hangs (409 of ~2,100 BO rows).
-        # Worst case: 420s (label visit) + 36 sub divisions x 180s = ~115 minutes, plus a
-        # few division-sized fallback children, so 140 minutes bounds the step and still
-        # leaves the sanity + debug-artifact steps room to run inside the 180-minute job.
+        # DIVISION (SUB_BUDGET_S) and retries the ones that come back with nothing
+        # (SUB_RETRIES), so a wedged MIS page costs the one sub division that is broken.
+        # 04-11 proved both halves of that: 30 of 42 minutes went on three hangs that
+        # took whole divisions down with them (409 of ~2,100 BO rows), and the next day's
+        # sub-division run needed only 13 minutes for 27 of 31. Worst case now: 420s label
+        # visit + SUB_RETRIES rounds capped by SUPERVISOR_BUDGET_S (120 min), so 140
+        # minutes still bounds the step and leaves sanity + debug artifacts room to run.
         env:
           REPORT_START_DATE: ${{ github.event.inputs.report_start_date }}
           REPORT_END_DATE: ${{ github.event.inputs.report_end_date }}
