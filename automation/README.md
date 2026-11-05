@@ -156,12 +156,19 @@ _partial_ division missing nahi bolta).
 - Worst case time: 420s (label visit) + ~31 sub divisions × 180s, plus retries, capped by
   `SUPERVISOR_BUDGET_S` (120 min) — isliye workflow step `timeout 8400s` (140 min) ke andar
   rehta hai aur job 180 minute par.
+- Cap bachhe hue waqt me lagta hai, khaaye hue me nahi: supervisor har child se pehle
+  `in_time_for()` poochta hai — agar us child poora budget sweep ceiling ke andar nahi
+  baithta to wo child **shuru hi nahi hota** aur log me `never started` / `not retried this
+  round` ke saath naam aa jaata hai, `coverage.json` me exit `not started` ke saath. Pehle
+  pehla pass bina guard tha aur retry sirf rounds ke *beech* rukta tha, isliye ek child ya
+  chal rahi round 8,400s step timeout cross kar jaati thi aur run commit ke bina mar jaata.
 - 04-11 ke do runs ka poora din 27/31 sub divisions par ruka tha (teen hang + ek khaali);
   ab wahi kaam ~13 minute me ho jaata hai aur baaki 4 retry rounds me aa jaate hain.
 - Locked in `tests/automation.test.py`: "one child per sub division, not per division",
   "a sub division that came back empty is retried until it reports", "a wedged sub division
   is retried, then named - never left silent", "coverage.json names exactly which sub
   divisions are missing", "with no sub division plan, one child sweeps a whole division",
+  "a sweep that runs out of budget stops starting children, it does not overrun the job",
   "no report is fetched for a Sunday, and no day is committed",
   "Monday's default window rolls back to Saturday instead of fetching a Sunday",
   "a fully covered day passes the gate even when few BOs opened accounts",

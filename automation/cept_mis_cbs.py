@@ -1383,20 +1383,37 @@ def supervise_divisions():
         div, sub = by_name[name]
         return got_data(div, sub) if sub else division_has_data(div)
 
+    def in_time_for(budget):
+        """Only start another child if its whole budget still fits the sweep ceiling."""
+        return time.time() - started + budget <= SUPERVISOR_BUDGET_S
+
     started = time.time()
     for name in plan_names:
-        dispatch(name, SUB_BUDGET_S if by_name[name][1] else DIVISION_BUDGET_S)
+        budget = SUB_BUDGET_S if by_name[name][1] else DIVISION_BUDGET_S
+        if not in_time_for(budget):
+            never = plan_names[plan_names.index(name):]
+            for pending in never:
+                last_rc[pending] = "not started"
+            log(f"supervisor: no time left in the {SUPERVISOR_BUDGET_S}s sweep budget - "
+                f"{len(never)} child(ren) never started ({', '.join(never)})")
+            break
+        dispatch(name, budget)
+
     for round_no in range(1, SUB_RETRIES + 1):
         gaps = [n for n in plan_names if not child_filed(n)]
         if not gaps:
             break
-        if time.time() - started > SUPERVISOR_BUDGET_S:
+        if not in_time_for(RETRY_BUDGET_S):
             log(f"supervisor: sweep budget ({SUPERVISOR_BUDGET_S}s) spent with "
                 f"{len(gaps)} sub division(s) still missing - merging what we have")
             break
         log(f"supervisor: retry {round_no}/{SUB_RETRIES}: {len(gaps)} sub division(s) "
             f"have no data ({', '.join(gaps)})")
-        for name in gaps:
+        for left, name in enumerate(gaps):
+            if not in_time_for(RETRY_BUDGET_S):
+                log(f"supervisor: no time left in the {SUPERVISOR_BUDGET_S}s sweep budget - "
+                    f"{len(gaps) - left} sub division(s) not retried this round")
+                break
             dispatch(name, RETRY_BUDGET_S, tag=f" retry{round_no}")
 
     missing = [n for n in plan_names if not child_filed(n)]

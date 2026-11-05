@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import tempfile
+import types
 from pathlib import Path
 
 import pandas as pd
@@ -224,6 +225,44 @@ with tempfile.TemporaryDirectory() as tmp:
               and not cbs.division_has_data("Nowhere Division"), "partial division")
         check("the day is still built when a sub division dies", built == ["2026-11-03"], f"{built}")
     finally:
+        restore_sweep(real)
+
+
+class ClockChild(FakeChild):
+    """The sweep ceiling is only testable with a clock that moves when a child does:
+    every child here burns its whole budget, so a low SUPERVISOR_BUDGET_S stops the
+    supervisor mid-plan instead of after all 31 children."""
+
+    def __init__(self, clock):
+        super().__init__()
+        self.clock = clock
+
+    def run(self, cmd, env, budget):
+        if env.get("CEPT_LIST") != "1":  # the lister is not part of the sweep budget
+            self.clock[0] += float(budget)
+        return super().run(cmd, env, budget)
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    clock = [0.0]
+    child = ClockChild(clock)
+    built = []
+    real = patch_sweep(tmp, child, built)
+    real_time, real_ceiling = cbs.time, cbs.SUPERVISOR_BUDGET_S
+    cbs.time = types.SimpleNamespace(time=lambda: clock[0], sleep=lambda s: None)
+    cbs.SUPERVISOR_BUDGET_S = cbs.SUB_BUDGET_S * 3
+    try:
+        cbs.supervise_divisions()
+        cov = json.loads(cbs.COVERAGE_FILE.read_text(encoding="utf-8"))
+        not_started = [m for m in cov["missing"] if m["exit"] == "not started"]
+        check("a sweep that runs out of budget stops starting children, it does not overrun the job",
+              len(child.seen) == 3 and built == ["2026-11-03"],
+              f"{len(child.seen)} children, built {built}")
+        check("the children the budget never reached are named as not started",
+              cov["filed"] == 3 and len(not_started) == planned - 3,
+              f"{cov['filed']}/{cov['planned']}, {len(not_started)} not started")
+    finally:
+        cbs.time, cbs.SUPERVISOR_BUDGET_S = real_time, real_ceiling
         restore_sweep(real)
 
 
